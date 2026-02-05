@@ -31,7 +31,7 @@ local function run_cmd(args)
   local success, stdout, stderr = wezterm.run_child_process(args)
 
   if not success then
-    wezterm.log_error("ConvenientStatusBar: cmd failed: " .. 
+    wezterm.log_error("ConvenientStatusBar: cmd failed: " ..
       table.concat(args, " "))
     if stderr then wezterm.log_error("Stderr: " .. stderr) end
   end
@@ -147,7 +147,7 @@ function M.setup(opts)
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
-      text = "#ffffff"
+      text       = "#ffffff"
     }
   }
 
