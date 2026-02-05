@@ -1,16 +1,33 @@
 # ⧉WezTermプラグイン「ConvenientStatusBar」
 
-## ◆WezTermとは
+![ConvenientStatusBarImage](https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png)
+
+![alt](images/https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png)
+
+<img src="https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png" width="26">
+
+[Windows Terminal][]のあまりの融通の利かなさに~~嫌気が差したので~~
+良いターミナルを探していたら出会いました！！
+
+その名も「[WezTerm][]」です！！
+
+でもですね。第一印象はナニコレなにもないじゃない？！だったんですよね。
+からの「$\color{red}{\huge\textbf{すごーいス・テ・キ❤}}$」に変わるまで「$\color{black}{\large\textbf{あっ}}$」と言うまでした（笑）
+
+<!-- markdownlint-disable-next-line MD033 -->
+<details><summary>※※※　WezTermとは　※※※</summary>
 
 :::note info
-WezTermは、Rustで書かれた高速でGPUアクセラレーションに対応した、現代的なクロスプラットフォーム対応のターミナルエミュレータです。主な特徴はLua言語による高度なカスタマイズ性、画面分割機能、背景透過・ボカシなどの機能性です。GitHubで開発されており、Windows、macOS、Linuxで動作する、tmuxのような機能を内蔵した強力なターミナルです。
-:::
+[WezTerm][]は、Rustで書かれた高速でGPUアクセラレーションに対応した、現代的なクロスプラットフォーム対応のターミナルエミュレータです。主な特徴はLua言語による高度なカスタマイズ性、画面分割機能、背景透過・ボカシなどの機能性です。GitHubで開発されており、Windows、macOS、Linuxで動作する、tmuxのような機能を内蔵した強力なターミナルです。
 ※GoogleAIの回答より抜粋
+:::
+</details>
 
-この超優秀ターミナルソフト[WezTerm][]のステータスバー（右側限定）に便利な情報を表示するプラグインなのです
+このプラグインは超優秀ターミナルソフト[WezTerm][]のステータスバー（右側限定）に
+コンビニエンスな情報を表示するプラグインなのです！
 
 
-表示できる情報は
+## ◆表示できる情報は
 
 - 日付
 - 時間
@@ -82,11 +99,10 @@ ConvenientStatusBar.setup({
   }
 })
 
-
+[Windows Terminal]: https://github.com/microsoft/terminal
 [WezTerm]: https://wezterm.org/index.html
 [ConvenientStatusBar]: https://github.com/Aromatibus/ConvenientStatusBar.WezTerm
 [Open Weather]: https://openweathermap.org/
 [会員登録ページ]: https://home.openweathermap.org/users/sign_up
 [会員登録方法検索]: https://www.google.com/search?q=open+weather+会員登録
 [APIキーを取得]: https://home.openweathermap.org/api_keys
-
