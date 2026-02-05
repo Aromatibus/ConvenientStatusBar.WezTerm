@@ -2,15 +2,10 @@
 
 ![ConvenientStatusBarImage](https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png)
 
-![alt](images/https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png)
+「[Windows Terminal][]」の融通の利かなさに~~嫌気が差して~~良いターミナルを探していたら
+出会いました！！その名も$\color{Black}{\huge\textbf{WezTerm}}$です！！
 
-<img src="https://github.com/Aromatibus/ConvenientStatusBar.WezTerm/blob/main/img/ConvenientStatusBar.png" width="26">
-
-[Windows Terminal][]のあまりの融通の利かなさに~~嫌気が差したので~~
-良いターミナルを探していたら出会いました！！
-
-その名も「[WezTerm][]」です！！
-
+</br>
 でもですね。第一印象はナニコレなにもないじゃない？！だったんですよね。
 からの「$\color{red}{\huge\textbf{すごーいス・テ・キ❤}}$」に変わるまで「$\color{black}{\large\textbf{あっ}}$」と言うまでした（笑）
 
