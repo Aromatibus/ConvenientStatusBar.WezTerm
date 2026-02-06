@@ -33,7 +33,9 @@ local state = {
   net_state     = {
     last_rx_bytes = 0,
     last_chk_time = os.clock(),
-    disp_str      = string.format("%9s", weather_icons.loading)
+    disp_str      = string.format("%9s", weather_icons.loading),
+    avg_str       = string.format("%9s", weather_icons.loading),
+    samples       = {} -- 過去の速度記録
   }
 }
 
@@ -50,54 +52,59 @@ local function run_child_cmd(args)
 end
 
 
--- ネットワーク速度の計算（クロスプラットフォーム対応）
-local function calc_net_speed(interval, is_startup_waiting)
+-- 数値のフォーマット化 (B/S -> KB/S, MB/S)
+local function format_bps(bps)
+  if bps > 1024 * 1024 then
+    return string.format("%5.1fMB/S", bps / (1024 * 1024))
+  elseif bps > 1024 then
+    return string.format("%5.1fKB/S", bps / 1024)
+  else
+    return string.format("%6.1fB/S", bps)
+  end
+end
+
+
+-- ネットワーク速度の計算（平均化処理を含む）
+local function calc_net_speed(cfg_net, is_startup_waiting)
   if is_startup_waiting then
-    return string.format("%9s", weather_icons.loading)
+    return state.net_state.disp_str, state.net_state.avg_str
   end
 
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
 
-  if time_delta < interval then
-    return state.net_state.disp_str
+  if time_delta < cfg_net.int then
+    return state.net_state.disp_str, state.net_state.avg_str
   end
 
   local is_win  = wezterm.target_triple:find("windows")
   local curr_rx = 0
 
   if is_win then
-    -- Windows: cmd経由でnetstatを実行（数値のみを抽出）
     local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
-    if ok and out then
-      -- 1行目のBytes(またはバイト)行の1番目の数値を取得
-      curr_rx = tonumber(out:match("%a+%s+(%d+)")) or 0
-    end
+    curr_rx = ok and tonumber(out:match("%a+%s+(%d+)")) or 0
   else
-    -- Unix: cat と awk を使用して受信合計を算出
     local cmd = "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
     local ok, out = run_child_cmd({"sh", "-c", cmd})
     curr_rx = ok and tonumber(out:match("%d+")) or 0
   end
 
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
-  local fmt_speed = ""
+  table.insert(state.net_state.samples, 1, bps)
 
-  if bps > 1024 * 1024 then
-    fmt_speed = string.format("%5.1fMB/S", bps / (1024 * 1024))
-  elseif bps > 1024 then
-    fmt_speed = string.format("%5.1fKB/S", bps / 1024)
-  else
-    fmt_speed = string.format("%6.1fB/S", bps)
+  if #state.net_state.samples > cfg_net.avg_limit then
+    table.remove(state.net_state.samples)
   end
 
-  state.net_state = {
-    last_rx_bytes = curr_rx,
-    last_chk_time = curr_time,
-    disp_str      = fmt_speed
-  }
+  local sum_bps = 0
+  for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
 
-  return fmt_speed
+  state.net_state.last_rx_bytes = curr_rx
+  state.net_state.last_chk_time = curr_time
+  state.net_state.disp_str      = format_bps(bps)
+  state.net_state.avg_str       = format_bps(sum_bps / #state.net_state.samples)
+
+  return state.net_state.disp_str, state.net_state.avg_str
 end
 
 
@@ -187,9 +194,9 @@ function M.setup(opts)
   end
 
   local def_fmt =
-    " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
+    " $Cal_ic $Year.$Month.$Day $Week $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
-    "$Net_ic $Net_speed $Batt_ic$Batt_num "
+    "$Net_ic $Net_avg $Batt_ic$Batt_num "
 
   local cfg = {
     api_key     = opts.api_key,
@@ -198,9 +205,12 @@ function M.setup(opts)
     city        = opts.city or "",
     units       = opts.units or "metric",
     wea_int     = opts.update_interval or 600,
-    net_int     = opts.net_update_interval or 1,
     start_delay = opts.startup_delay or 5,
     fmt         = opts.format or def_fmt,
+    net         = {
+      int       = opts.net_update_interval or 1,
+      avg_limit = opts.net_avg_samples or 10 -- 初期値を10に設定
+    },
     colors      = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
@@ -212,10 +222,10 @@ function M.setup(opts)
     }
   }
 
-  local low_fmt     = cfg.fmt:lower()
+  local low_fmt = cfg.fmt:lower()
   local use_weather = low_fmt:find("$city") or low_fmt:find("$code") or
                       low_fmt:find("$weather_ic") or low_fmt:find("$temp")
-  local use_net     = low_fmt:find("$net_speed")
+  local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   wezterm.on('update-right-status', function(window, _)
     local elapsed    = os.time() - state.proc_start
@@ -229,7 +239,8 @@ function M.setup(opts)
     end
 
     local batt_ic, batt_num = get_batt_disp()
-    local net_speed = use_net and calc_net_speed(cfg.net_int, is_waiting) or ""
+    local net_curr, net_avg = "", ""
+    if use_net then net_curr, net_avg = calc_net_speed(cfg.net, is_waiting) end
 
     local replace_map = {
       cal_ic      = "",
@@ -246,7 +257,8 @@ function M.setup(opts)
       code        = state.city_code,
       temp        = state.temp_str,
       net_ic      = "󰓅",
-      net_speed   = net_speed,
+      net_speed   = net_curr,
+      net_avg     = net_avg,
       batt_ic     = batt_ic,
       batt_num    = batt_num,
     }
