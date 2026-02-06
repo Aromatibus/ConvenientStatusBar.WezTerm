@@ -21,7 +21,7 @@ local weather_icons = {
 
 
 --- ==========================================
---- 状態管理（ステート）
+--- 状態管理用テーブル
 --- ==========================================
 local state = {
   weather_ic    = weather_icons.loading,
@@ -29,7 +29,7 @@ local state = {
   city_name     = weather_icons.loading,
   city_code     = "",
   last_wea_upd  = 0,
-  is_wea_ready  = false, -- 取得成功フラグ
+  is_wea_ready  = false,
   proc_start    = os.time(),
   net_state     = {
     last_rx_bytes = 0,
@@ -42,7 +42,7 @@ local state = {
 
 
 --- ==========================================
---- 内部ヘルパー関数
+--- サブ関数
 --- ==========================================
 
 -- 外部コマンドを安全に実行
@@ -109,7 +109,7 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
 end
 
 
--- 気象情報の取得と更新（リトライ制御付き）
+-- 気象情報の取得と更新
 local function fetch_wea_data(cfg_opts)
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -137,12 +137,12 @@ local function fetch_wea_data(cfg_opts)
   )
 
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-  
+
   if not ok or not stdout or stdout:find('"message"') then
     state.city_name    = tgt_city
     state.city_code    = tgt_code or ""
     state.last_wea_upd = os.time()
-    state.is_wea_ready = false -- 失敗時はリトライ対象へ
+    state.is_wea_ready = false
     return
   end
 
@@ -161,15 +161,15 @@ local function fetch_wea_data(cfg_opts)
   end
 
   local unit_sym = cfg_opts.units == "metric" and
-                   weather_icons.celsius or weather_icons.fahrenheit
+                    weather_icons.celsius or weather_icons.fahrenheit
 
-  state.temp_str     = temp_val and
-                       string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
-                       state.temp_str
+  state.temp_str     =  temp_val and
+                        string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
+                        state.temp_str
   state.city_name    = api_name or tgt_city
   state.city_code    = api_code or tgt_code or ""
   state.last_wea_upd = os.time()
-  state.is_wea_ready = true -- 取得成功
+  state.is_wea_ready = true
 end
 
 
@@ -183,15 +183,15 @@ local function get_batt_disp()
 
   local batt   = batt_list[1]
   local charge = (batt.state_of_charge or 0) * 100
-  local icon   = charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
-                 charge >= 30 and "󱊤" or "󰢟"
+  local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
+                  charge >= 30 and "󱊤" or "󰢟"
 
   return icon, string.format("%.0f%%", charge)
 end
 
 
 --- ==========================================
---- メインセットアップ関数
+--- メイン
 --- ==========================================
 function M.setup(opts)
   if not opts or not opts.api_key then
@@ -200,33 +200,33 @@ function M.setup(opts)
   end
 
   local def_fmt =
-    " $Cal_ic $Year.$Month.$Day $Week $Clock_ic $Time24 " ..
+    " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
-    "$Net_ic $Net_avg $Batt_ic$Batt_num "
+    "$Net_ic net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local cfg = {
-    api_key     = opts.api_key,
-    lang        = opts.lang or "en",
-    country     = opts.country or "",
-    city        = opts.city or "",
-    units       = opts.units or "metric",
-    wea_int     = opts.update_interval or 600,
-    retry_int   = opts.retry_interval or 30, -- リトライ間隔（変数化）
-    start_delay = opts.startup_delay or 5,
-    fmt         = opts.format or def_fmt,
-    net         = {
-      int       = opts.net_update_interval or 1,
-      avg_limit = opts.net_avg_samples or 5
+    api_key      = opts.api_key,                  -- OpenWeatherMap APIキー
+    lang         = opts.lang or "en",             -- 言語コード
+    country      = opts.country or "",            -- 国コード（省略可）
+    city         = opts.city or "",               -- 自動取得の場合は空文字
+    units        = opts.units or "metric",        -- "metric" or "imperial"
+    start_delay  = opts.startup_delay or 5,       -- 起動時の通信待機時間
+    wea_int      = opts.update_interval or 600,   -- 天気情報の更新間隔
+    retry_int    = opts.retry_interval or 30,     -- 天気情報取得失敗時のリトライ間隔
+    net          = {
+      int        = opts.net_update_interval or 1, -- ネットワーク速度更新間隔
+      avg_limit  = opts.net_avg_samples or 5      -- 平均速度のサンプル数
     },
-    colors      = opts.colors or {
+    colors       = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
       text       = "#ffffff"
     },
-    separator   = opts.separator or {
-      left  = "",
-      right = ""
-    }
+    separator    = opts.separator or {
+      left       = "",
+      right      = ""
+    },
+    fmt          = opts.format or def_fmt,
   }
 
   local low_fmt = cfg.fmt:lower()
@@ -243,10 +243,10 @@ function M.setup(opts)
       local diff = now - state.last_wea_upd
       local should_fetch = false
 
-      -- 初回取得、または通常インターバル経過時
+      -- 初回または通常インターバル経過時の判定
       if state.last_wea_upd == 0 or diff > cfg.wea_int then
         should_fetch = true
-      -- 取得に失敗している場合のリトライ判定
+      -- 通信に失敗している場合のリトライ判定
       elseif not state.is_wea_ready and diff > cfg.retry_int then
         should_fetch = true
       end
