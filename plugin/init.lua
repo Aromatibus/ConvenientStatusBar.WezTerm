@@ -26,7 +26,7 @@ local state = {
   last_net     = {
     rx   = 0,
     time = os.clock(),
-    str  = "  0.0 B /S"
+    str  = "  0.0B /S"
   }
 }
 
@@ -78,8 +78,8 @@ local function get_net_speed(interval)
     unit = "KB/S"
   end
 
-  -- フォーマット: %5.1f (数値5桁右寄せ) + 単位4桁固定 (合計10文字)
-  local speed_str = string.format("%5.1f %s", rate, unit)
+  -- フォーマット: %5.1f (数値5桁) + 単位4桁 (スペースなし結合 = 合計9文字)
+  local speed_str = string.format("%5.1f%s", rate, unit)
 
   state.last_net = {
     rx   = rx,
@@ -182,7 +182,7 @@ function M.setup(opts)
   local default_format =
     " $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
     "$LocIc $City($Country) $WeatherIc $TempIc($Temp) " ..
-    "$NetIc$NetSpeed $BattIc$BattNum "
+    "$NetIc $NetSpeed $BattIc$BattNum "
 
   local config = {
     api_key     = opts.api_key,
