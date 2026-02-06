@@ -209,7 +209,7 @@ function M.setup(opts)
     city        = opts.city or "",
     units       = opts.units or "metric",
     wea_int     = opts.update_interval or 600,
-    net_int     = opts.net_update_interval or 1,
+    net_int     = opts.net_update_interval or 2,
     start_delay = opts.startup_delay or 5,
     fmt         = opts.format or def_fmt,
     colors      = opts.colors or {
