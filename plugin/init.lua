@@ -2,7 +2,7 @@ local wezterm = require 'wezterm'
 local M = {}
 
 
--- アイコンの定義
+-- 天気情報用のアイコンの定義
 local weather_icons = {
   sunny      = "󰖨 ",
   cloudy     = "󰅟 ",
@@ -18,7 +18,7 @@ local weather_icons = {
 }
 
 
--- 天気データの状態管理
+-- 天気データを初期化
 local weather_state = {
   icon = weather_icons.standby,
   temp = string.format("00.0%s", weather_icons.celsius),
@@ -28,7 +28,7 @@ local weather_state = {
 }
 
 
--- 外部コマンドの実行
+-- 外部コマンドを実行
 local function run_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
   return success, stdout
@@ -42,7 +42,7 @@ local function update_weather(opts)
   local target_city = opts.city
   local target_country = opts.country
 
-  -- 場所未指定ならIPアドレスから取得
+  -- 都市が未指定ならIPアドレスから現在位置を取得
   if not target_city or target_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
@@ -51,12 +51,13 @@ local function update_weather(opts)
     end
   end
 
+  -- 都市が取得できなければ終了
   if not target_city or target_city == "" then
     weather_state.location = weather_icons.not_found
     return
   end
 
-  -- APIリクエストURL作成
+  -- APIリクエストのURLを作成
   local loc_str = target_city
   if target_country and target_country ~= "" then
     loc_str = string.format("%s,%s", target_city, target_country)
@@ -65,7 +66,7 @@ local function update_weather(opts)
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIデータ取得と解析
+  -- APIデータを取得して設定
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     weather_state.location = target_city
@@ -74,12 +75,13 @@ local function update_weather(opts)
     return
   end
 
+  -- パターマッチでJSONを解析
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp_val = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
   local country = stdout:match('"country":"([^"]+)"')
 
-  -- 天候アイコン判定
+  -- 天候アイコンを設定
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -89,25 +91,34 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 温度を00.0形式でキャッシュ
+  -- 温度を00.0形式で設定
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp_val then
     weather_state.temp = string.format("%04.1f%s", tonumber(temp_val), sym)
   end
+
+  -- 場所情報を設定
   weather_state.location = name or target_city
   weather_state.country = country or target_country or ""
+
+  -- 最終更新時間を設定
   weather_state.last_update = os.time()
 end
 
 
--- バッテリー情報の取得（数値不要時は空文字列を返す）
+-- バッテリー情報を設定
 local function get_battery_info()
   local batt = wezterm.battery_info()
+
+  -- バッテリーが見つからない場合
   if #batt == 0 then return "󰚥", "" end
 
+  -- バッテリー情報を取得
   local b = batt[1]
   local p = b.state_of_charge * 100
+
+  -- アイコンとパーセンテージを設定
   local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
                 p >= 30 and "󱊤" or "󰢟"
 
@@ -115,14 +126,14 @@ local function get_battery_info()
 end
 
 
--- プラグインのセットアップ
+-- プラグインをセットアップ
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
     return
   end
 
-  -- デフォルトフォーマット（1行80文字以内を維持）
+  -- デフォルトフォーマット
   local default_format =
     " " ..
     "$cal_ic $year.$month.$day " ..
@@ -132,7 +143,7 @@ function M.setup(opts)
     "$batt_ic$batt_num" ..
     " "
 
-  -- 設定の初期化
+  -- 設定初期化
   local config = {
     api_key = opts.api_key,
     lang = opts.lang or "en",
@@ -148,14 +159,14 @@ function M.setup(opts)
     }
   }
 
-  -- ステータスバー更新
+  -- ステータスバーを更新
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
     if elapsed > config.update_interval then
       update_weather(config)
     end
 
-    -- 置換変数の準備
+    -- 置換用の変数を準備
     local batt_ic, batt_num = get_battery_info()
     local vals = {
       cal_ic     = "",
@@ -190,7 +201,7 @@ function M.setup(opts)
       status = status:gsub("%$" .. k, vals[k] or "")
     end
 
-    -- 描画実行
+    -- ステータスバーを描画
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
