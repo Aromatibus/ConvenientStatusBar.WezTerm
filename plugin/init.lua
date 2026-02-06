@@ -209,7 +209,7 @@ function M.setup(opts)
     fmt         = opts.format or def_fmt,
     net         = {
       int       = opts.net_update_interval or 1,
-      avg_limit = opts.net_avg_samples or 10 -- 初期値を10に設定
+      avg_limit = opts.net_avg_samples or 5 -- 初期値を5に設定
     },
     colors      = opts.colors or {
       background = "#1a1b26",
