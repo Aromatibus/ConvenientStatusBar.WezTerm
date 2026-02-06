@@ -12,7 +12,7 @@ local weather_icons = {
   snowy      = " ",
   standby    = " ",
   not_found  = " ",
-  temp       = " ",
+  temp       = " ", -- 温度の横に添えるアイコン
   celsius    = "󰔄",
   fahrenheit = "󰔅",
 }
@@ -89,7 +89,7 @@ local function update_weather(opts)
   local temp = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
 
-  -- 天候IDでアイコン分岐
+  -- 天候IDで「天気アイコン」を選択
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -120,8 +120,8 @@ local function get_battery_info()
 
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-                p >= 30 and "󱊤" or "󰢟"
+  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
+               p >= 30 and "󱊤" or "󰢟"
 
   return string.format(" %s %.0f%%", icon, p)
 end
@@ -134,23 +134,17 @@ function M.setup(opts)
     return
   end
 
-  -- 設定値の正規化と配色デフォルト値の適用
+  -- 設定値の正規化
   local config = {
-    -- [必須] Open Weather MapのAPIキー
     api_key = opts.api_key,
-    -- [省略可] 取得データの言語を指定 (default: en)
     lang = opts.lang or "en",
     country = opts.country or "",
-    -- [省略可] 都市名 (未指定時はIPから取得)
     city = opts.city or "",
-    -- [省略可] 単位 (metric: 摂氏 / imperial: 華氏)
     units = opts.units or "metric",
-    -- [省略可] 再接続までの秒数 (default: 600)
     update_interval = opts.update_interval or 600,
-    -- [省略可] 表示フォーマット
+    -- デフォルトフォーマット
     format = opts.format or
-      " $cal $date ($week) $clock $time $loc_icon $location $temp_icon $temp $batt ",
-    -- [省略可] 配色設定
+      " $cal $date ($week) $clock $time $loc_icon $location $weather $temp_icon $temp $batt ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
@@ -158,7 +152,7 @@ function M.setup(opts)
     }
   }
 
-  -- ステータス更新イベントの登録
+  -- ステータス更新イベント
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
 
@@ -166,13 +160,13 @@ function M.setup(opts)
       update_weather(config)
     end
 
-    -- 表示用変数のテーブル生成
+    -- 置換用変数のマッピング
     local vals = {
-      cal       = "",
-      clock     = "",
-      temp_icon = weather_icons.temp,
-      loc_icon  = "",
-      weather   = weather_state.icon,
+      cal       = "",                   -- カレンダーアイコン
+      clock     = "",                   -- 時計アイコン
+      loc_icon  = "",                   -- ロケーションアイコン
+      temp_icon = weather_icons.temp,    -- 温度アイコン ()
+      weather   = weather_state.icon,    -- 天気アイコン (晴れ、雨など)
       date      = wezterm.strftime('%Y.%m.%d'),
       year      = wezterm.strftime('%Y'),
       month     = wezterm.strftime('%m'),
@@ -181,17 +175,17 @@ function M.setup(opts)
       time      = wezterm.strftime('%H:%M'),
       hour      = wezterm.strftime('%H'),
       min       = wezterm.strftime('%M'),
-      location  = weather_state.location,
-      temp      = weather_state.temp,
-      batt      = get_battery_info(),
+      location  = weather_state.location, -- 都市名
+      temp      = weather_state.temp,     -- 気温数値 (25.0°C)
+      batt      = get_battery_info(),     -- バッテリー (アイコン含む)
     }
 
-    -- フォーマット文字列内の $キーワード を置換
+    -- 置換処理
     local status = config.format:gsub("$(%w+)", function(k)
       return vals[k] or ("$" .. k)
     end)
 
-    -- デザインを適用してステータスバーへ描画
+    -- バーの描画
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
