@@ -10,11 +10,11 @@ local weather_icons = {
   windy      = "",
   lightning  = "󱐋",
   snowy      = "",
-  standby    = " ",
-  not_found  = " ",
   temp       = "",
   celsius    = "󰔄",
   fahrenheit = "󰔅",
+  standby    = " ",
+  not_found  = " ",
 }
 
 
@@ -127,7 +127,7 @@ local function get_battery_info()
 end
 
 
--- プラグインのメインセットアップ
+-- プラグインのセットアップ
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
@@ -186,7 +186,6 @@ function M.setup(opts)
 
     local status = config.format
     for _, k in ipairs(keys) do
-      -- 確実にエスケープして置換
       status = status:gsub("%$" .. k, vals[k])
     end
 
