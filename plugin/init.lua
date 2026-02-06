@@ -69,7 +69,8 @@ local function update_weather(opts)
   -- APIデータの取得
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
-    weather_state.location = target_city -- APIエラー時は取得した都市名を表示
+    weather_state.location = target_city
+    weather_state.country = target_country or ""
     weather_state.last_update = os.time()
     return
   end
@@ -108,8 +109,8 @@ local function get_battery_info()
   if #batt == 0 then return " 󰟀" end
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-               p >= 30 and "󱊤" or "󰢟"
+  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
+                p >= 30 and "󱊤" or "󰢟"
   return string.format("%s %.0f%%", icon, p)
 end
 
@@ -129,8 +130,9 @@ function M.setup(opts)
     city = opts.city or "",
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
+    -- ご指定のデフォルトフォーマットを反映
     format = opts.format or
-      " $cal_ic $year.$month.$day $clock_ic $time_24 $weather_ic $temp $batt ",
+      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country)$weather_ic $temp $batt ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
@@ -168,7 +170,7 @@ function M.setup(opts)
       batt       = get_battery_info(),
     }
 
-    -- キーを長い順にソートして一括置換
+    -- 変数名の長い順にソートして一括置換
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
