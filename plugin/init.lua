@@ -182,7 +182,7 @@ function M.setup(opts)
   local default_format =
     " $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
     "$LocIc $City($Country) $WeatherIc $TempIc($Temp) " ..
-    "$NetIc $NetSpeed $BattIc$BattNum "
+    "$NetIc$NetSpeed $BattIc$BattNum "
 
   local config = {
     api_key     = opts.api_key,
