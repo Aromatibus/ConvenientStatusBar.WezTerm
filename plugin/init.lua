@@ -130,7 +130,7 @@ function M.setup(opts)
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
     format = opts.format or
-      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country)$weather_ic $temp_ic $temp $batt ",
+      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic $location($country) $weather_ic $temp_ic$temp $batt ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
