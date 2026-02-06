@@ -1,6 +1,5 @@
 local wezterm = require 'wezterm'
-local M = {}
-
+local M       = {}
 
 -- 天気情報用のアイコンの定義
 local weather_icons = {
@@ -17,114 +16,126 @@ local weather_icons = {
   fahrenheit = "󰔅",
 }
 
-
--- 天気データを初期化
-local weather_state = {
-  icon = weather_icons.standby,
-  temp = string.format("00.0%s", weather_icons.celsius),
-  location = "",
-  country = "",
-  last_update = 0
+-- 状態管理（天気とネットワーク）
+local state = {
+  icon         = weather_icons.standby,
+  temp         = string.format("00.0%s", weather_icons.celsius),
+  location     = "",
+  country      = "",
+  last_weather = 0,
+  last_net     = { rx = 0, time = os.clock(), str = "0B/s" }
 }
-
 
 -- 外部コマンドを実行
 local function run_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
+
   return success, stdout
 end
 
+-- ネットワーク速度を計算
+local function get_net_speed()
+  local now  = os.clock()
+  local diff = now - state.last_net.time
+  if diff < 1 then return state.last_net.str end
+
+  local is_win = wezterm.target_triple:find("windows")
+  local rx     = 0
+  
+  -- OSに応じたバイト数取得
+  if is_win then
+    local _, out = run_cmd({"powershell.exe", "-NoProfile", "-Command", 
+      "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"})
+    rx = tonumber(out:match("%d+")) or 0
+  else
+    local _, out = run_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
+    rx = tonumber(out) or 0
+  end
+
+  -- 単位変換
+  local rate = (rx - state.last_net.rx) / diff
+  local unit = "B/s"
+  if rate > 1024*1024 then rate, unit = rate/(1024*1024), "MB/s"
+  elseif rate > 1024  then rate, unit = rate/1024, "KB/s" end
+
+  state.last_net = { rx = rx, time = now, str = string.format("%.1f%s", rate, unit) }
+  return state.last_net.str
+end
 
 -- 天気と場所の情報を更新
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
-  local cmd = is_win and "curl.exe" or "curl"
-  local target_city = opts.city
-  local target_country = opts.country
+  local cmd    = is_win and "curl.exe" or "curl"
+  local t_city = opts.city
+  local t_ctry = opts.country
 
-  -- 都市が未指定ならIPアドレスから現在位置を取得
-  if not target_city or target_city == "" then
+  if not t_city or t_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
-      target_city = res:match('"city":%s*"([^"]+)"')
-      target_country = res:match('"country_code":%s*"([^"]+)"')
+      t_city = res:match('"city":%s*"([^"]+)"')
+      t_ctry = res:match('"country_code":%s*"([^"]+)"')
     end
   end
 
-  -- 都市が取得できなければ終了
-  if not target_city or target_city == "" then
-    weather_state.location = weather_icons.not_found
+  if not t_city or t_city == "" then
+    state.location = weather_icons.not_found
     return
   end
 
-  -- APIリクエストのURLを作成
-  local loc_str = target_city
-  if target_country and target_country ~= "" then
-    loc_str = string.format("%s,%s", target_city, target_country)
+  local loc_str = t_city
+  if t_ctry and t_ctry ~= "" then
+    loc_str = string.format("%s,%s", t_city, t_ctry)
   end
+
   local base = "https://api.openweathermap.org/data/2.5/weather"
-  local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
+  local url  = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIデータを取得して設定
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
-    weather_state.location = target_city
-    weather_state.country = target_country or ""
-    weather_state.last_update = os.time()
+    state.location    = t_city
+    state.country     = t_ctry or ""
+    state.last_weather = os.time()
     return
   end
 
-  -- パターマッチでJSONを解析
-  local id = tonumber(stdout:match('"id":(%d+)'))
-  local temp_val = stdout:match('"temp":([%d%.%-]+)')
-  local name = stdout:match('"name":"([^"]+)"')
-  local country = stdout:match('"country":"([^"]+)"')
+  local id    = tonumber(stdout:match('"id":(%d+)'))
+  local t_val = stdout:match('"temp":([%d%.%-]+)')
+  local name  = stdout:match('"name":"([^"]+)"')
+  local ctry  = stdout:match('"country":"([^"]+)"')
 
-  -- 天候アイコンを設定
   if id then
-    if id < 300 then weather_state.icon = weather_icons.lightning
-    elseif id < 600 then weather_state.icon = weather_icons.rainy
-    elseif id < 700 then weather_state.icon = weather_icons.snowy
-    elseif id < 800 then weather_state.icon = weather_icons.windy
-    elseif id == 800 then weather_state.icon = weather_icons.sunny
-    else weather_state.icon = weather_icons.cloudy end
+    if id < 300      then state.icon = weather_icons.lightning
+    elseif id < 600  then state.icon = weather_icons.rainy
+    elseif id < 700  then state.icon = weather_icons.snowy
+    elseif id < 800  then state.icon = weather_icons.windy
+    elseif id == 800 then state.icon = weather_icons.sunny
+    else                  state.icon = weather_icons.cloudy end
   end
 
-  -- 温度を00.0形式で設定
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
-  if temp_val then
-    weather_state.temp = string.format("%04.1f%s", tonumber(temp_val), sym)
+
+  if t_val then
+    state.temp = string.format("%04.1f%s", tonumber(t_val), sym)
   end
 
-  -- 場所情報を設定
-  weather_state.location = name or target_city
-  weather_state.country = country or target_country or ""
-
-  -- 最終更新時間を設定
-  weather_state.last_update = os.time()
+  state.location    = name or t_city
+  state.country     = ctry or t_ctry or ""
+  state.last_weather = os.time()
 end
-
 
 -- バッテリー情報を設定
 local function get_battery_info()
   local batt = wezterm.battery_info()
-
-  -- バッテリーが見つからない場合
   if #batt == 0 then return "󰚥", "" end
 
-  -- バッテリー情報を取得
   local b = batt[1]
   local p = b.state_of_charge * 100
+  local ic = p >= 90 and "󱊦" or p >= 60 and "󱊥" or p >= 30 and "󱊤" or "󰢟"
 
-  -- アイコンとパーセンテージを設定
-  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-                p >= 30 and "󱊤" or "󰢟"
-
-  return icon, string.format("%.0f%%", p)
+  return ic, string.format("%.0f%%", p)
 end
-
 
 -- プラグインをセットアップ
 function M.setup(opts)
@@ -133,88 +144,74 @@ function M.setup(opts)
     return
   end
 
-  -- デフォルトフォーマット
   local default_format =
-    " " ..
-    "$cal_ic $year.$month.$day " ..
-    "$clock_ic $time_24 " ..
-    "$loc_ic $location($country) " ..
-    "$weather_ic $temp_ic($temp) " ..
-    "$batt_ic$batt_num" ..
-    " "
+    " $NetIc $NetSpeed $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
+    "$LocIc $City($Country) $WeatherIc $TempIc($Temp) $BattIc$BattNum "
 
-  -- 設定初期化
   local config = {
-    api_key = opts.api_key,
-    lang = opts.lang or "en",
-    country = opts.country or "",
-    city = opts.city or "",
-    units = opts.units or "metric",
-    update_interval = opts.update_interval or 600,
-    format = opts.format or default_format,
-    colors = opts.colors or {
-      background = "#1a1b26",
-      foreground = "#7aa2f7",
-      text       = "#ffffff"
+    api_key  = opts.api_key,
+    lang     = opts.lang or "en",
+    country  = opts.country or "",
+    city     = opts.city or "",
+    units    = opts.units or "metric",
+    interval = opts.update_interval or 600,
+    format   = opts.format or default_format,
+    colors   = opts.colors or {
+      background = "#1a1b26", foreground = "#7aa2f7", text = "#ffffff"
     }
   }
 
-  -- ステータスバーを更新
   wezterm.on('update-right-status', function(window, _)
-    local elapsed = os.time() - weather_state.last_update
-    if elapsed > config.update_interval then
+    if (os.time() - state.last_weather) > config.interval then
       update_weather(config)
     end
 
-    -- 置換用の変数を準備
-    local batt_ic, batt_num = get_battery_info()
-    local vals = {
-      cal_ic     = "",
-      clock_ic   = "",
-      loc_ic     = "",
-      temp_ic    = weather_icons.temp,
-      weather_ic = weather_state.icon,
+    local b_ic, b_num = get_battery_info()
+    local net_speed   = get_net_speed()
+
+    local repstr = {
+      netic      = "󰓅",
+      netspeed   = net_speed,
+      calic      = "",
+      clockic    = "",
+      locic      = "",
+      tempic     = weather_icons.temp,
+      weatheric  = state.icon,
       year       = wezterm.strftime('%Y'),
-      year_short = wezterm.strftime('%y'),
+      yearshort  = wezterm.strftime('%y'),
       month      = wezterm.strftime('%m'),
       day        = wezterm.strftime('%d'),
       week       = wezterm.strftime('%a'),
-      time_24    = wezterm.strftime('%H:%M'),
-      time_12    = wezterm.strftime('%I:%M %p'),
-      hour_24    = wezterm.strftime('%H'),
-      hour_12    = wezterm.strftime('%I'),
+      weekfull   = wezterm.strftime('%A'),
+      time24     = wezterm.strftime('%H:%M'),
+      time12     = wezterm.strftime('%I:%M %p'),
+      hour24     = wezterm.strftime('%H'),
+      hour12     = wezterm.strftime('%I'),
       min        = wezterm.strftime('%M'),
-      location   = weather_state.location,
-      country    = weather_state.country,
-      temp       = weather_state.temp,
-      batt_ic    = batt_ic,
-      batt_num   = batt_num,
+      city       = state.location,
+      country    = state.country,
+      temp       = state.temp,
+      battic     = b_ic,
+      battnum    = b_num,
     }
 
-    -- キーワード置換（長い順）
-    local keys = {}
-    for k in pairs(vals) do table.insert(keys, k) end
-    table.sort(keys, function(a, b) return #a > #b end)
+    local status = config.format:gsub("%$([%a%d_]+)", function(k)
+      local nk = k:lower():gsub("_", "")
+      return repstr[nk] or "$" .. k
+    end)
 
-    local status = config.format
-    for _, k in ipairs(keys) do
-      status = status:gsub("%$" .. k, vals[k] or "")
-    end
-
-    -- ステータスバーを描画
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
-      { Text = "" },
+      { Text       = "" },
       { Background = { Color = config.colors.foreground } },
       { Foreground = { Color = config.colors.text } },
-      { Text = status },
+      { Text       = status },
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
-      { Text = "" },
+      { Text       = "" },
     }))
   end)
 end
-
 
 return M
