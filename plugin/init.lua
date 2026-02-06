@@ -194,7 +194,7 @@ function M.setup(opts)
   end
 
   local def_fmt =
-    " $Cal_ic $Year.$Month.$Day $Week $Clock_ic $Time24 " ..
+    " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
     "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
@@ -208,8 +208,8 @@ function M.setup(opts)
     start_delay = opts.startup_delay or 5, -- 起動後の通信待機時間（秒）
     fmt         = opts.format or def_fmt,
     net         = {
-      int       = opts.net_update_interval or 1, -- 更新間隔（秒）
-      avg_limit = opts.net_avg_samples or 10, -- 最大サンプル数
+      int       = opts.net_update_interval or 2, -- 更新間隔（秒）
+      avg_limit = opts.net_avg_samples or 10, -- サンプル数
     },
     colors      = opts.colors or {
       text       = "#ffffff",
