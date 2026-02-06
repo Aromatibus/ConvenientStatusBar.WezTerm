@@ -138,16 +138,18 @@ function M.setup(opts)
 
   -- 設定値の正規化と配色デフォルト値の適用
   local config = {
-    api_key = opts.api_key,
-    lang = opts.lang or "en",
-    country = opts.country or "",
-    city = opts.city or "",
-    units = opts.units or "metric",
-    update_interval = opts.update_interval or 600,
+    api_key         = opts.api_key,                 -- [必須] ：Open Weather Mapから取得したAPIキーを設定します
+    lang            = opts.lang or "en",            -- [省略可] 取得するデータの言語を指定します
+    country         = opts.country or "",
+    city            = opts.city or "",              -- [省略可] 指定しない場合は現在のIPアドレスから取得されます
+    units           = opts.units or "metric",       -- [省略可] 以下の2つから指定します
+                                                    -- metric (Celsius),
+                                                    -- imperial (Fahrenheit)
+    update_interval = opts.update_interval or 600,  -- [省略可] Open Weather Mapへの再接続時間を秒で指定します
     colors = opts.colors or {
-      background = "#1a1b26",
-      foreground = "#7aa2f7",
-      text       = "#ffffff"
+      background    = "#1a1b26",                  -- [省略可] 背景の色を指定します
+      foreground    = "#7aa2f7",                  -- [省略可] タブの色を指定します
+      text          = "#ffffff"                   -- [省略可] 文字の色を指定します
     }
   }
 

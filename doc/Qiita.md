@@ -211,20 +211,19 @@ return config
 local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
 
 ConvenientStatusBar.setup({
-  api_key = "あなたのAPIキー",  -- [必須] ：Open Weather Mapから取得したAPIキーを設定します
-
+  api_key = "あなたのAPIキー",    -- [必須] ：Open Weather Mapから取得したAPIキーを設定します
   -- 以下はすべて省略可能です
-  city            = "",        -- [省略可] 指定しない場合は現在のIPアドレスから取得されます
-  country         = "",        -- [省略可] Cityを厳密に指定したい場合に指定します
-  lang            = "en",      -- [省略可] 取得するデータの言語を指定します
-  units           = "metric",  -- [省略可] 以下の2つから指定します
-                                  metric (Celsius),
-                                  imperial (Fahrenheit)
-  update_interval = 600,       -- [省略可] Open Weather Mapへの再接続時間を秒で指定します
+  lang            = "en",         -- [省略可] 取得するデータの言語を指定します
+  country         = "",           -- [省略可] Cityを厳密に指定したい場合に指定します
+  city            = "",           -- [省略可] 指定しない場合は現在のIPアドレスから取得されます
+  units           = "metric",     -- [省略可] 以下の2つから指定します
+                                  -- metric (Celsius),
+                                  -- imperial (Fahrenheit)
+  update_interval = 600,          -- [省略可] Open Weather Mapへの再接続時間を秒で指定します
   colors = {
-    background    = "#1A1B26", -- [省略可] 背景の色を指定します
-    foreground    = "#7AA2F7", -- [省略可] タブの色を指定します
-    text          = "#FFFFFF"  -- [省略可] 文字の色を指定します
+    background    = "#1A1B26",  -- [省略可] 背景の色を指定します
+    foreground    = "#7AA2F7",  -- [省略可] タブの色を指定します
+    text          = "#FFFFFF"   -- [省略可] 文字の色を指定します
   }
 })
 ```
