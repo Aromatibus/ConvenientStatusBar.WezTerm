@@ -10,18 +10,18 @@ local weather_icons = {
   windy      = " ",
   lightning  = "󱐋 ",
   snowy      = " ",
-  temp       = "",
-  celsius    = "󰔄",
-  fahrenheit = "󰔅",
   standby    = " ",
   not_found  = " ",
+  temp       = " ",
+  celsius    = "󰔄",
+  fahrenheit = "󰔅",
 }
 
 
 -- 天気データの状態管理
 local weather_state = {
   icon = weather_icons.standby,
-  temp = string.format("--.-%s", weather_icons.celsius),
+  temp = string.format("00.0%s", weather_icons.celsius),
   location = "",
   country = "",
   last_update = 0
@@ -76,11 +76,11 @@ local function update_weather(opts)
 
   -- 天候・気温・国名を抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
-  local temp = stdout:match('"temp":([%d%.%-]+)')
+  local temp_val = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
   local country = stdout:match('"country":"([^"]+)"')
 
-  -- 天候IDに応じたアイコンの設定
+  -- 天候アイコンの設定
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -93,8 +93,8 @@ local function update_weather(opts)
   -- 気温と場所をキャッシュ
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
-  if temp then
-    weather_state.temp = string.format("%.1f%s", tonumber(temp), sym)
+  if temp_val then
+    weather_state.temp = string.format("%04.1f%s", tonumber(temp_val), sym)
   end
   weather_state.location = name or target_city
   weather_state.country = country or target_country or ""
@@ -102,15 +102,17 @@ local function update_weather(opts)
 end
 
 
--- バッテリー情報の取得
+-- バッテリー情報の詳細取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return " 󰟀" end
+  if #batt == 0 then return "󰟀", "---" end
+
   local b = batt[1]
   local p = b.state_of_charge * 100
   local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
                p >= 30 and "󱊤" or "󰢟"
-  return string.format("%s %.0f%%", icon, p)
+
+  return icon, string.format("%.0f%%", p)
 end
 
 
@@ -130,7 +132,7 @@ function M.setup(opts)
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
     format = opts.format or
-      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic $location($country) $weather_ic $temp_ic$temp $batt ",
+      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country) $weather_ic $temp_ic$temp $batt_ic$batt_num ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
@@ -146,11 +148,12 @@ function M.setup(opts)
     end
 
     -- 置換用変数のマッピング
+    local batt_ic, batt_num = get_battery_info()
     local vals = {
       cal_ic     = "",
       clock_ic   = "",
       loc_ic     = "",
-      temp_ic    = weather_icons.temp, -- 温度アイコン ()
+      temp_ic    = weather_icons.temp,
       weather_ic = weather_state.icon,
       year       = wezterm.strftime('%Y'),
       year_short = wezterm.strftime('%y'),
@@ -165,17 +168,17 @@ function M.setup(opts)
       location   = weather_state.location,
       country    = weather_state.country,
       temp       = weather_state.temp,
-      batt       = get_battery_info(),
+      batt_ic    = batt_ic,
+      batt_num   = batt_num,
     }
 
-    -- 置換順序の決定（長いキーワードを優先して置換ミスを防ぐ）
+    -- 置換順序の決定（長いキーワード優先）
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
 
     local status = config.format
     for _, k in ipairs(keys) do
-      -- $ 記号を含めて厳密に置換
       status = status:gsub("%$" .. k, vals[k] or "")
     end
 
