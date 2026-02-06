@@ -12,7 +12,7 @@ local weather_icons = {
   snowy      = " ",
   standby    = " ",
   not_found  = " ",
-  temp       = " ", -- 温度の横に添えるアイコン
+  temp       = " ",
   celsius    = "󰔄",
   fahrenheit = "󰔅",
 }
@@ -123,7 +123,7 @@ local function get_battery_info()
   local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
                p >= 30 and "󱊤" or "󰢟"
 
-  return string.format(" %s %.0f%%", icon, p)
+  return string.format("%s %.0f%%", icon, p)
 end
 
 
@@ -134,7 +134,7 @@ function M.setup(opts)
     return
   end
 
-  -- 設定値の正規化
+  -- 設定値の初期化
   local config = {
     api_key = opts.api_key,
     lang = opts.lang or "en",
@@ -142,7 +142,6 @@ function M.setup(opts)
     city = opts.city or "",
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
-    -- デフォルトフォーマット
     format = opts.format or
       " $cal $date ($week) $clock $time $loc_icon $location $weather $temp_icon $temp $batt ",
     colors = opts.colors or {
@@ -162,11 +161,11 @@ function M.setup(opts)
 
     -- 置換用変数のマッピング
     local vals = {
-      cal       = "",                   -- カレンダーアイコン
-      clock     = "",                   -- 時計アイコン
-      loc_icon  = "",                   -- ロケーションアイコン
-      temp_icon = weather_icons.temp,    -- 温度アイコン ()
-      weather   = weather_state.icon,    -- 天気アイコン (晴れ、雨など)
+      cal       = "",
+      clock     = "",
+      loc_icon  = "",
+      temp_icon = weather_icons.temp,
+      weather   = weather_state.icon,
       date      = wezterm.strftime('%Y.%m.%d'),
       year      = wezterm.strftime('%Y'),
       month     = wezterm.strftime('%m'),
@@ -175,15 +174,21 @@ function M.setup(opts)
       time      = wezterm.strftime('%H:%M'),
       hour      = wezterm.strftime('%H'),
       min       = wezterm.strftime('%M'),
-      location  = weather_state.location, -- 都市名
-      temp      = weather_state.temp,     -- 気温数値 (25.0°C)
-      batt      = get_battery_info(),     -- バッテリー (アイコン含む)
+      location  = weather_state.location,
+      temp      = weather_state.temp,
+      batt      = get_battery_info(),
     }
 
-    -- 置換処理
-    local status = config.format:gsub("$(%w+)", function(k)
-      return vals[k] or ("$" .. k)
-    end)
+    -- 置換処理: 長いキーワードから順に処理するようにソート
+    local keys = {}
+    for k in pairs(vals) do table.insert(keys, k) end
+    table.sort(keys, function(a, b) return #a > #b end)
+
+    local status = config.format
+    for _, k in ipairs(keys) do
+      -- 確実にエスケープして置換
+      status = status:gsub("%$" .. k, vals[k])
+    end
 
     -- バーの描画
     window:set_right_status(wezterm.format({
