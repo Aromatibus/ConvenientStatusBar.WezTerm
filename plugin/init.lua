@@ -56,7 +56,7 @@ local function update_weather(opts)
     return
   end
 
-  -- リクエストURLを作成
+  -- URL作成
   local loc_str = target_city
   if target_country and target_country ~= "" then
     loc_str = string.format("%s,%s", target_city, target_country)
@@ -65,7 +65,7 @@ local function update_weather(opts)
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIからデータを取得
+  -- APIデータ取得
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     weather_state.location = target_city
@@ -74,13 +74,13 @@ local function update_weather(opts)
     return
   end
 
-  -- 天候・気温・国名を抽出
+  -- 解析と抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp_val = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
   local country = stdout:match('"country":"([^"]+)"')
 
-  -- 天候アイコンの設定
+  -- 天候アイコン判定
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -90,7 +90,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 気温を 00.0 形式に整形してキャッシュ
+  -- キャッシュ保存
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp_val then
@@ -102,10 +102,10 @@ local function update_weather(opts)
 end
 
 
--- バッテリー情報の取得
+-- バッテリー情報の取得（非搭載でもアイコンを返す）
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return "", "" end
+  if #batt == 0 then return "󰚥", "" end -- 非搭載時はコンセントアイコン
 
   local b = batt[1]
   local p = b.state_of_charge * 100
@@ -123,7 +123,7 @@ function M.setup(opts)
     return
   end
 
-  -- デフォルトフォーマットを連結演算子で改行
+  -- デフォルトフォーマット（連結演算子で改行）
   local default_format = " " ..
     "$cal_ic $year.$month.$day " ..
     "$clock_ic $time_24 " ..
@@ -132,7 +132,7 @@ function M.setup(opts)
     "$batt_ic $batt_num " ..
     " "
 
-  -- 設定の初期化
+  -- 設定初期化
   local config = {
     api_key = opts.api_key,
     lang = opts.lang or "en",
@@ -148,14 +148,14 @@ function M.setup(opts)
     }
   }
 
-  -- 右ステータスの描画
+  -- 描画イベント
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
     if elapsed > config.update_interval then
       update_weather(config)
     end
 
-    -- 置換用変数のマッピング
+    -- 置換変数のマッピング
     local batt_ic, batt_num = get_battery_info()
     local vals = {
       cal_ic     = "",
@@ -180,7 +180,7 @@ function M.setup(opts)
       batt_num   = batt_num,
     }
 
-    -- 置換順序の決定（長いキーワード優先）
+    -- 置換（長いキーワード優先）
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
@@ -190,7 +190,7 @@ function M.setup(opts)
       status = status:gsub("%$" .. k, vals[k] or "")
     end
 
-    -- デザインを適用して描画
+    -- 描画実行
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
