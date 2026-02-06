@@ -214,8 +214,8 @@ function M.setup(opts)
     wea_int      = opts.update_interval or 600,   -- 天気情報の更新間隔
     retry_int    = opts.retry_interval or 30,     -- 天気情報取得失敗時のリトライ間隔
     net          = {
-      int        = opts.net_update_interval or 1, -- ネットワーク速度更新間隔
-      avg_limit  = opts.net_avg_samples or 5      -- 平均速度のサンプル数
+      int        = opts.net_update_interval or 3, -- ネットワーク速度更新間隔
+      avg_limit  = opts.net_avg_samples or 20     -- 平均速度のサンプル数
     },
     colors       = opts.colors or {
       background = "#1a1b26",
