@@ -23,7 +23,7 @@ local state = {
   location     = "",
   country      = "",
   last_weather = 0,
-  last_net     = { rx = 0, time = os.clock(), str = "0B/s" }
+  last_net     = { rx = 0, time = os.clock(), str = "000.0 B /S" }
 }
 
 -- 外部コマンドを実行
@@ -34,31 +34,57 @@ local function run_cmd(args)
 end
 
 -- ネットワーク速度を計算
-local function get_net_speed()
+local function get_net_speed(interval)
   local now  = os.clock()
   local diff = now - state.last_net.time
-  if diff < 1 then return state.last_net.str end
+
+  -- 指定された更新間隔（秒）に満たない場合は前回の値を返す
+  if diff < interval then
+    return state.last_net.str
+  end
 
   local is_win = wezterm.target_triple:find("windows")
   local rx     = 0
-  
+
   -- OSに応じたバイト数取得
   if is_win then
-    local _, out = run_cmd({"powershell.exe", "-NoProfile", "-Command", 
-      "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"})
+    local _, out = run_cmd({
+      "powershell.exe",
+      "-NoProfile",
+      "-Command",
+      "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"
+    })
     rx = tonumber(out:match("%d+")) or 0
   else
-    local _, out = run_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
+    local _, out = run_cmd({
+      "sh",
+      "-c",
+      "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
+    })
     rx = tonumber(out) or 0
   end
 
-  -- 単位変換
+  -- 速度計算と単位の正規化
   local rate = (rx - state.last_net.rx) / diff
-  local unit = "B/s"
-  if rate > 1024*1024 then rate, unit = rate/(1024*1024), "MB/s"
-  elseif rate > 1024  then rate, unit = rate/1024, "KB/s" end
+  local unit = " B /S"
 
-  state.last_net = { rx = rx, time = now, str = string.format("%.1f%s", rate, unit) }
+  if rate > 1024 * 1024 then
+    rate = rate / (1024 * 1024)
+    unit = "MB/S"
+  elseif rate > 1024 then
+    rate = rate / 1024
+    unit = "KB/S"
+  end
+
+  -- フォーマットして状態を更新
+  local speed_str = string.format("%05.1f %s", rate, unit)
+
+  state.last_net = {
+    rx   = rx,
+    time = now,
+    str  = speed_str
+  }
+
   return state.last_net.str
 end
 
@@ -71,6 +97,7 @@ local function update_weather(opts)
 
   if not t_city or t_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
+
     if ok and res then
       t_city = res:match('"city":%s*"([^"]+)"')
       t_ctry = res:match('"country_code":%s*"([^"]+)"')
@@ -83,6 +110,7 @@ local function update_weather(opts)
   end
 
   local loc_str = t_city
+
   if t_ctry and t_ctry ~= "" then
     loc_str = string.format("%s,%s", t_city, t_ctry)
   end
@@ -92,9 +120,10 @@ local function update_weather(opts)
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
   local ok, stdout = run_cmd({cmd, "-s", url})
+
   if not ok or not stdout or stdout:find('"message":"city not found"') then
-    state.location    = t_city
-    state.country     = t_ctry or ""
+    state.location     = t_city
+    state.country      = t_ctry or ""
     state.last_weather = os.time()
     return
   end
@@ -120,24 +149,27 @@ local function update_weather(opts)
     state.temp = string.format("%04.1f%s", tonumber(t_val), sym)
   end
 
-  state.location    = name or t_city
-  state.country     = ctry or t_ctry or ""
+  state.location     = name or t_city
+  state.country      = ctry or t_ctry or ""
   state.last_weather = os.time()
 end
 
--- バッテリー情報を設定
+-- バッテリー情報を取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return "󰚥", "" end
 
-  local b = batt[1]
-  local p = b.state_of_charge * 100
+  if #batt == 0 then
+    return "󰚥", ""
+  end
+
+  local b  = batt[1]
+  local p  = b.state_of_charge * 100
   local ic = p >= 90 and "󱊦" or p >= 60 and "󱊥" or p >= 30 and "󱊤" or "󰢟"
 
   return ic, string.format("%.0f%%", p)
 end
 
--- プラグインをセットアップ
+-- セットアップ
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
@@ -145,33 +177,37 @@ function M.setup(opts)
   end
 
   local default_format =
-    " $NetIc $NetSpeed $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
-    "$LocIc $City($Country) $WeatherIc $TempIc($Temp) $BattIc$BattNum "
+    " $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
+    "$LocIc $City($Country) $WeatherIc $TempIc($Temp) " ..
+    "$NetIc $NetSpeed $BattIc$BattNum "
 
+  -- 設定初期化
   local config = {
-    api_key  = opts.api_key,
-    lang     = opts.lang or "en",
-    country  = opts.country or "",
-    city     = opts.city or "",
-    units    = opts.units or "metric",
-    interval = opts.update_interval or 600,
-    format   = opts.format or default_format,
-    colors   = opts.colors or {
-      background = "#1a1b26", foreground = "#7aa2f7", text = "#ffffff"
+    api_key         = opts.api_key,
+    lang            = opts.lang or "en",
+    country         = opts.country or "",
+    city            = opts.city or "",
+    units           = opts.units or "metric",
+    weather_int     = opts.update_interval or 600,
+    net_int         = opts.net_update_interval or 1, -- 追加：ネット更新間隔（秒）
+    format          = opts.format or default_format,
+    colors          = opts.colors or {
+      background = "#1a1b26",
+      foreground = "#7aa2f7",
+      text       = "#ffffff"
     }
   }
 
+  -- アップデートイベント
   wezterm.on('update-right-status', function(window, _)
-    if (os.time() - state.last_weather) > config.interval then
+    if (os.time() - state.last_weather) > config.weather_int then
       update_weather(config)
     end
 
     local b_ic, b_num = get_battery_info()
-    local net_speed   = get_net_speed()
+    local net_speed   = get_net_speed(config.net_int)
 
     local repstr = {
-      netic      = "󰓅",
-      netspeed   = net_speed,
       calic      = "",
       clockic    = "",
       locic      = "",
@@ -191,6 +227,8 @@ function M.setup(opts)
       city       = state.location,
       country    = state.country,
       temp       = state.temp,
+      netic      = "󰓅",
+      netspeed   = net_speed,
       battic     = b_ic,
       battnum    = b_num,
     }
