@@ -42,7 +42,7 @@ local function update_weather(opts)
   local target_city = opts.city
   local target_country = opts.country
 
-  -- 場所が未指定ならIPアドレスから取得
+  -- 場所未指定ならIPアドレスから取得
   if not target_city or target_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
@@ -90,7 +90,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 気温と場所をキャッシュ
+  -- 気温を 00.0 形式に整形してキャッシュ
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp_val then
@@ -102,10 +102,10 @@ local function update_weather(opts)
 end
 
 
--- バッテリー情報の詳細取得
+-- バッテリー情報の取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return "󰟀", "---" end
+  if #batt == 0 then return "", "" end
 
   local b = batt[1]
   local p = b.state_of_charge * 100
@@ -123,6 +123,15 @@ function M.setup(opts)
     return
   end
 
+  -- デフォルトフォーマットを連結演算子で改行
+  local default_format = " " ..
+    "$cal_ic $year.$month.$day " ..
+    "$clock_ic $time_24 " ..
+    "$loc_ic$location($country)" ..
+    "$weather_ic $temp_ic $temp " ..
+    "$batt_ic $batt_num " ..
+    " "
+
   -- 設定の初期化
   local config = {
     api_key = opts.api_key,
@@ -131,8 +140,7 @@ function M.setup(opts)
     city = opts.city or "",
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
-    format = opts.format or
-      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country) $weather_ic $temp_ic$temp $batt_ic$batt_num ",
+    format = opts.format or default_format,
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
