@@ -68,9 +68,15 @@ local function get_net_speed(interval, is_waiting)
   end
 
   local rate = (rx - state.last_net.rx) / diff
-  local unit = "B /S"
-  if rate > 1024 * 1024 then rate, unit = rate / (1024 * 1024), "MB/S"
-  elseif rate > 1024   then rate, unit = rate / 1024, "KB/S" end
+  local unit = " B/S" -- 単位を4文字に固定（先頭スペース）
+
+  if rate > 1024 * 1024 then
+    rate = rate / (1024 * 1024)
+    unit = "MB/S"
+  elseif rate > 1024 then
+    rate = rate / 1024
+    unit = "KB/S"
+  end
 
   -- フォーマット: %5.1f (数値5桁) + 単位4桁 = 合計9文字固定
   local speed_str = string.format("%5.1f%s", rate, unit)
@@ -175,7 +181,7 @@ function M.setup(opts)
     units         = opts.units or "metric",
     weather_int   = opts.update_interval or 600,
     net_int       = opts.net_update_interval or 1,
-    startup_delay = opts.startup_delay or 5, -- 起動待機秒数 (5秒に修正)
+    startup_delay = opts.startup_delay or 5, -- 起動待機秒数
     format        = opts.format or default_format,
     colors        = opts.colors or {
       background = "#1a1b26",
