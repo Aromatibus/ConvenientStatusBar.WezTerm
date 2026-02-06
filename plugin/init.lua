@@ -1,19 +1,19 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
--- 天気情報用のアイコン定義（より自然な名前に変更）
+-- 天気情報用のアイコン定義
 local weather_icons = {
-  clear      = "󰖨 ", -- 快晴
-  clouds     = "󰅟 ", -- 曇り
-  rain       = " ", -- 雨
-  wind       = " ", -- 強風・霧
-  thunder    = "󱐋 ", -- 雷
-  snow       = " ", -- 雪
-  loading    = " ", -- 通信待機中
-  unknown    = " ", -- 取得失敗
-  thermometer = "", -- 温度計
-  celsius    = "󰔄", -- 摂氏
-  fahrenheit = "󰔅", -- 華氏
+  clear       = "󰖨 ",
+  clouds      = "󰅟 ",
+  rain        = " ",
+  wind        = " ",
+  thunder     = "󱐋 ",
+  snow        = " ",
+  loading     = " ",
+  unknown     = " ",
+  thermometer = "",
+  celsius     = "󰔄",
+  fahrenheit  = "󰔅",
 }
 
 -- 状態管理
@@ -23,11 +23,11 @@ local state = {
   location     = weather_icons.loading,
   country      = "",
   last_weather = 0,
-  is_loading   = true,
+  start_time   = os.time(), -- 起動時刻を記録
   last_net     = {
     rx   = 0,
     time = os.clock(),
-    str  = string.format("%9s", weather_icons.loading)
+    str  = string.format("%9s", weather_icons.loading) -- 9文字幅
   }
 }
 
@@ -38,8 +38,9 @@ local function run_cmd(args)
 end
 
 -- ネットワーク速度計算
-local function get_net_speed(interval)
-  if state.is_loading then
+local function get_net_speed(interval, is_waiting)
+  -- 起動待機中なら待機アイコンを返す
+  if is_waiting then
     return string.format("%9s", weather_icons.loading)
   end
 
@@ -71,6 +72,7 @@ local function get_net_speed(interval)
   if rate > 1024 * 1024 then rate, unit = rate / (1024 * 1024), "MB/S"
   elseif rate > 1024   then rate, unit = rate / 1024, "KB/S" end
 
+  -- フォーマット: %5.1f (数値5桁) + 単位4桁 = 合計9文字固定
   local speed_str = string.format("%5.1f%s", rate, unit)
   state.last_net  = { rx = rx, time = now, str = speed_str }
 
@@ -124,7 +126,6 @@ local function update_weather(opts)
   local name  = stdout:match('"name":"([^"]+)"')
   local ctry  = stdout:match('"country":"([^"]+)"')
 
-  -- アイコン判定（新しいキー名を使用）
   if id then
     if id < 300      then state.icon = weather_icons.thunder
     elseif id < 600  then state.icon = weather_icons.rain
@@ -167,15 +168,16 @@ function M.setup(opts)
     "$NetIc $NetSpeed $BattIc$BattNum "
 
   local config = {
-    api_key     = opts.api_key,
-    lang        = opts.lang or "en",
-    country     = opts.country or "",
-    city        = opts.city or "",
-    units       = opts.units or "metric",
-    weather_int = opts.update_interval or 600,
-    net_int     = opts.net_update_interval or 1,
-    format      = opts.format or default_format,
-    colors      = opts.colors or {
+    api_key       = opts.api_key,
+    lang          = opts.lang or "en",
+    country       = opts.country or "",
+    city          = opts.city or "",
+    units         = opts.units or "metric",
+    weather_int   = opts.update_interval or 600,
+    net_int       = opts.net_update_interval or 1,
+    startup_delay = opts.startup_delay or 10, -- 起動待機秒数
+    format        = opts.format or default_format,
+    colors        = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
       text       = "#ffffff"
@@ -183,17 +185,21 @@ function M.setup(opts)
   }
 
   wezterm.on('update-right-status', function(window, _)
-    if state.is_loading then
+    local elapsed    = os.time() - state.start_time
+    local is_waiting = elapsed < config.startup_delay
+
+    -- 待機終了後の初回更新用
+    if not is_waiting and state.last_weather == 0 then
       state.last_weather = os.time()
-      state.is_loading   = false
     end
 
-    if (os.time() - state.last_weather) > config.weather_int then
+    -- 待機中でなければ天気更新チェック
+    if not is_waiting and (os.time() - state.last_weather) > config.weather_int then
       update_weather(config)
     end
 
     local b_ic, b_num = get_battery_info()
-    local net_speed   = get_net_speed(config.net_int)
+    local net_speed   = get_net_speed(config.net_int, is_waiting)
 
     local repstr = {
       calic      = "",
