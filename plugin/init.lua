@@ -20,7 +20,7 @@ local weather_icons = {
 -- 天気情報の状態を保持する内部キャッシュ
 local weather_state = {
   icon = weather_icons.standby,
-  temp = "(--.-°C)",
+  temp = string.format("--.-%s", weather_icons.celsius),
   location = "",
   last_update = 0
 }
@@ -166,7 +166,7 @@ function M.setup(opts)
     local week = wezterm.strftime('%a')
 
     -- 表示テキストの組み立て
-    local status = string.format("  %s(%s)  %s  %s %s (%s ) %s ",
+    local status = string.format("  %s(%s)  %s  %s %s (%s) %s ",
       date, week, time, weather_state.location,
       weather_state.icon, weather_state.temp, get_battery_info())
 
