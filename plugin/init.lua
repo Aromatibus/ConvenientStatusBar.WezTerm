@@ -12,8 +12,8 @@ local weather_icons = {
   snowy      = " ",
   standby    = " ",
   not_found  = " ",
-  celsius    = "󰔄 ",
-  fahrenheit = "󰔅 ",
+  celsius    = "󰔄",
+  fahrenheit = "󰔅",
 }
 
 
@@ -168,7 +168,7 @@ function M.setup(opts)
     local week = wezterm.strftime('%a')
 
     -- 表示テキストの組み立て
-    local status = string.format("   %s ( %s )  %s  %s %s (%s) %s ",
+    local status = string.format("  %s (%s)  %s  %s %s (%s) %s ",
       date, week, time, weather_state.location,
       weather_state.icon, weather_state.temp, get_battery_info())
 
