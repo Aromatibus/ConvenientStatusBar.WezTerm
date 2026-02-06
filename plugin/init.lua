@@ -35,7 +35,7 @@ local state = {
     last_chk_time = os.clock(),
     disp_str      = string.format("%9s", weather_icons.loading),
     avg_str       = string.format("%9s", weather_icons.loading),
-    samples       = {} -- 過去の速度記録
+    samples       = {}, -- 過去の速度記録
   }
 }
 
@@ -156,11 +156,11 @@ local function fetch_wea_data(cfg_opts)
   end
 
   local unit_sym = cfg_opts.units == "metric" and
-                   weather_icons.celsius or weather_icons.fahrenheit
+                    weather_icons.celsius or weather_icons.fahrenheit
 
   state.temp_str     = temp_val and
-                       string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
-                       state.temp_str
+                        string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
+                        state.temp_str
   state.city_name    = api_name or tgt_city
   state.city_code    = api_code or tgt_code or ""
   state.last_wea_upd = os.time()
@@ -178,7 +178,7 @@ local function get_batt_disp()
   local batt   = batt_list[1]
   local charge = (batt.state_of_charge or 0) * 100
   local icon   = charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
-                 charge >= 30 and "󱊤" or "󰢟"
+                  charge >= 30 and "󱊤" or "󰢟"
 
   return icon, string.format("%.0f%%", charge)
 end
@@ -204,22 +204,22 @@ function M.setup(opts)
     country     = opts.country or "",
     city        = opts.city or "",
     units       = opts.units or "metric",
-    wea_int     = opts.update_interval or 600,
-    start_delay = opts.startup_delay or 5,
+    wea_int     = opts.update_interval or 600, -- 天気情報の更新間隔（秒）
+    start_delay = opts.startup_delay or 5, -- 起動後の通信待機時間（秒）
     fmt         = opts.format or def_fmt,
     net         = {
-      int       = opts.net_update_interval or 1,
-      avg_limit = opts.net_avg_samples or 5 -- 初期値を5に設定
+      int       = opts.net_update_interval or 1, -- 更新間隔（秒）
+      avg_limit = opts.net_avg_samples or 10, -- 最大サンプル数
     },
     colors      = opts.colors or {
-      background = "#1a1b26",
+      text       = "#ffffff",
       foreground = "#7aa2f7",
-      text       = "#ffffff"
+      background = "#1a1b26",
     },
     separator   = opts.separator or {
       left  = "",
-      right = ""
-    }
+      right = "",
+    },
   }
 
   local low_fmt = cfg.fmt:lower()
