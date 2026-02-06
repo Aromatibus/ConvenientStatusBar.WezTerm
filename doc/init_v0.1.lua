@@ -2,7 +2,7 @@ local wezterm = require 'wezterm'
 local M = {}
 
 
--- 天気・温度・単位などのアイコン定義
+-- 天気表示および温度単位用のアイコン定義
 local weather_icons = {
   sunny      = "󰖨 ",
   cloudy     = "󰅟 ",
@@ -12,13 +12,12 @@ local weather_icons = {
   snowy      = " ",
   standby    = " ",
   not_found  = " ",
-  temp       = " ",
   celsius    = "󰔄",
   fahrenheit = "󰔅",
 }
 
 
--- 天気情報を保持する内部キャッシュ
+-- 天気情報の状態を保持する内部キャッシュ
 local weather_state = {
   icon = weather_icons.standby,
   temp = string.format("--.-%s", weather_icons.celsius),
@@ -27,7 +26,7 @@ local weather_state = {
 }
 
 
--- 外部コマンド実行用の共通関数
+-- 外部コマンドを安全に実行し、エラーログを管理する共通関数
 local function run_cmd(args)
   local success, stdout, stderr = wezterm.run_child_process(args)
 
@@ -41,11 +40,12 @@ local function run_cmd(args)
 end
 
 
--- OpenWeatherMapからデータを取得・更新
+-- OpenWeatherMapからデータを取得し、内部状態を更新する
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
   local cmd = is_win and "curl.exe" or "curl"
 
+  -- curlコマンドの利用可能性チェック
   if not run_cmd({cmd, "--version"}) then
     weather_state.location = "no-curl"
     return
@@ -54,7 +54,7 @@ local function update_weather(opts)
   local target_city = opts.city
   local target_country = opts.country
 
-  -- 都市名未指定時はIPから取得
+  -- 都市名が未指定ならIPアドレスから現在地を取得
   if target_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
     target_city = ok and res:match('"city":%s*"([^"]+)"') or nil
@@ -63,19 +63,22 @@ local function update_weather(opts)
       weather_state.location = weather_icons.not_found
       return
     end
+
     target_country = ""
   end
 
+  -- 位置情報文字列の構成
   local loc_str = target_city
   if target_country ~= "" then
     loc_str = string.format("%s,%s", target_city, target_country)
   end
 
-  -- APIリクエストの実行
+  -- APIリクエストURLの生成
   local base = "https://api.openweathermap.org/data/2.5/weather"
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
+  -- 天気データの取得実行
   local ok, stdout = run_cmd({cmd, "-s", url})
 
   if not ok or stdout:find('"message":"city not found"') then
@@ -84,12 +87,12 @@ local function update_weather(opts)
     return
   end
 
-  -- JSONから値を抽出
+  -- JSONレスポンスから必要な値を抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
 
-  -- 天候IDでアイコン分岐
+  -- 天候IDに応じたアイコンの選択
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -99,7 +102,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 単位と気温の整形
+  -- 単位アイコンの決定と気温文字列の整形
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
 
@@ -112,7 +115,7 @@ local function update_weather(opts)
 end
 
 
--- バッテリー情報の取得
+-- システムのバッテリー残量と状態アイコンを取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
 
@@ -120,14 +123,13 @@ local function get_battery_info()
 
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-                p >= 30 and "󱊤" or "󰢟"
+  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or p >= 30 and "󱊤" or "󰢟"
 
   return string.format(" %s %.0f%%", icon, p)
 end
 
 
--- プラグインのメインセットアップ
+-- ユーザー設定を反映し、右ステータスバーの描画イベントを登録
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
@@ -136,62 +138,41 @@ function M.setup(opts)
 
   -- 設定値の正規化と配色デフォルト値の適用
   local config = {
-    -- [必須] Open Weather MapのAPIキー
-    api_key = opts.api_key,
-    -- [省略可] 取得データの言語を指定 (default: en)
-    lang = opts.lang or "en",
-    country = opts.country or "",
-    -- [省略可] 都市名 (未指定時はIPから取得)
-    city = opts.city or "",
-    -- [省略可] 単位 (metric: 摂氏 / imperial: 華氏)
-    units = opts.units or "metric",
-    -- [省略可] 再接続までの秒数 (default: 600)
-    update_interval = opts.update_interval or 600,
-    -- [省略可] 表示フォーマット
-    format = opts.format or
-      " $cal $date ($week) $clock $time $loc_icon $location $temp_icon $temp $batt ",
-    -- [省略可] 配色設定
+    api_key         = opts.api_key,                 -- [必須] ：Open Weather Mapから取得したAPIキーを設定します
+    lang            = opts.lang or "en",            -- [省略可] 取得するデータの言語を指定します
+    country         = opts.country or "",
+    city            = opts.city or "",              -- [省略可] 指定しない場合は現在のIPアドレスから取得されます
+    units           = opts.units or "metric",       -- [省略可] 以下の2つから指定します
+                                                    -- metric (Celsius),
+                                                    -- imperial (Fahrenheit)
+    update_interval = opts.update_interval or 600,  -- [省略可] Open Weather Mapへの再接続時間を秒で指定します
     colors = opts.colors or {
-      background = "#1a1b26",
-      foreground = "#7aa2f7",
-      text       = "#ffffff"
+      background    = "#1a1b26",                  -- [省略可] 背景の色を指定します
+      foreground    = "#7aa2f7",                  -- [省略可] タブの色を指定します
+      text          = "#ffffff"                   -- [省略可] 文字の色を指定します
     }
   }
 
-  -- ステータス更新イベントの登録
+  -- 描画更新のハンドリング
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
 
+    -- 更新間隔を超えていれば非同期で情報を更新
     if elapsed > config.update_interval then
       update_weather(config)
     end
 
-    -- 表示用変数のテーブル生成
-    local vals = {
-      cal       = "",
-      clock     = "",
-      temp_icon = weather_icons.temp,
-      loc_icon  = "",
-      weather   = weather_state.icon,
-      date      = wezterm.strftime('%Y.%m.%d'),
-      year      = wezterm.strftime('%Y'),
-      month     = wezterm.strftime('%m'),
-      day       = wezterm.strftime('%d'),
-      week      = wezterm.strftime('%a'),
-      time      = wezterm.strftime('%H:%M'),
-      hour      = wezterm.strftime('%H'),
-      min       = wezterm.strftime('%M'),
-      location  = weather_state.location,
-      temp      = weather_state.temp,
-      batt      = get_battery_info(),
-    }
+    -- フォーマットされた日付・時間の取得
+    local date = wezterm.strftime('%Y.%m.%d')
+    local time = wezterm.strftime('%H:%M')
+    local week = wezterm.strftime('%a')
 
-    -- フォーマット文字列内の $キーワード を置換
-    local status = config.format:gsub("$(%w+)", function(k)
-      return vals[k] or ("$" .. k)
-    end)
+    -- 表示テキストの組み立て
+    local status = string.format("  %s (%s)  %s  %s %s(%s)%s ",
+      date, week, time, weather_state.location,
+      weather_state.icon, weather_state.temp, get_battery_info())
 
-    -- デザインを適用してステータスバーへ描画
+    -- 配色とデザインを適用してステータスバーへセット
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
