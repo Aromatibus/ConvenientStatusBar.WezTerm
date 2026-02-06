@@ -2,7 +2,7 @@ local wezterm = require 'wezterm'
 local M = {}
 
 
--- 使用するアイコンの定義
+-- アイコンの定義
 local weather_icons = {
   sunny      = "󰖨 ",
   cloudy     = "󰅟 ",
@@ -12,13 +12,13 @@ local weather_icons = {
   snowy      = " ",
   standby    = " ",
   not_found  = " ",
-  temp       = " ",
+  temp       = " ", -- これが温度アイコン
   celsius    = "󰔄",
   fahrenheit = "󰔅",
 }
 
 
--- 天気データのキャッシュ
+-- 天気データの状態管理
 local weather_state = {
   icon = weather_icons.standby,
   temp = string.format("--.-%s", weather_icons.celsius),
@@ -28,21 +28,21 @@ local weather_state = {
 }
 
 
--- 外部コマンドを実行
+-- 外部コマンドの実行
 local function run_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
   return success, stdout
 end
 
 
--- 天気情報と現在地の取得・更新
+-- 天気と場所の情報を更新
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
   local cmd = is_win and "curl.exe" or "curl"
   local target_city = opts.city
   local target_country = opts.country
 
-  -- 都市未指定ならIPから位置情報を取得
+  -- 場所が未指定ならIPアドレスから取得
   if not target_city or target_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
@@ -51,13 +51,12 @@ local function update_weather(opts)
     end
   end
 
-  -- 位置情報の取得に失敗した場合は中断
   if not target_city or target_city == "" then
     weather_state.location = weather_icons.not_found
     return
   end
 
-  -- リクエストURLの作成
+  -- リクエストURLを作成
   local loc_str = target_city
   if target_country and target_country ~= "" then
     loc_str = string.format("%s,%s", target_city, target_country)
@@ -66,7 +65,7 @@ local function update_weather(opts)
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIデータの取得
+  -- APIからデータを取得
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     weather_state.location = target_city
@@ -75,13 +74,13 @@ local function update_weather(opts)
     return
   end
 
-  -- JSONから名前と天候情報を抽出
+  -- 天候・気温・国名を抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
   local country = stdout:match('"country":"([^"]+)"')
 
-  -- 天候に応じたアイコン選択
+  -- 天候IDに応じたアイコンの設定
   if id then
     if id < 300 then weather_state.icon = weather_icons.lightning
     elseif id < 600 then weather_state.icon = weather_icons.rainy
@@ -91,7 +90,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 結果をキャッシュに保存
+  -- 気温と場所をキャッシュ
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp then
@@ -109,8 +108,8 @@ local function get_battery_info()
   if #batt == 0 then return " 󰟀" end
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-                p >= 30 and "󱊤" or "󰢟"
+  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
+               p >= 30 and "󱊤" or "󰢟"
   return string.format("%s %.0f%%", icon, p)
 end
 
@@ -130,9 +129,8 @@ function M.setup(opts)
     city = opts.city or "",
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
-    -- ご指定のデフォルトフォーマットを反映
     format = opts.format or
-      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country)$weather_ic $temp $batt ",
+      " $cal_ic $year.$month.$day $clock_ic $time_24 $loc_ic$location($country)$weather_ic $temp_ic $temp $batt ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
@@ -140,19 +138,19 @@ function M.setup(opts)
     }
   }
 
-  -- 右ステータスの描画イベント
+  -- 右ステータスの描画
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
     if elapsed > config.update_interval then
       update_weather(config)
     end
 
-    -- 置換用変数の定義
+    -- 置換用変数のマッピング
     local vals = {
       cal_ic     = "",
       clock_ic   = "",
       loc_ic     = "",
-      temp_ic    = weather_icons.temp,
+      temp_ic    = weather_icons.temp, -- 温度アイコン ()
       weather_ic = weather_state.icon,
       year       = wezterm.strftime('%Y'),
       year_short = wezterm.strftime('%y'),
@@ -170,17 +168,18 @@ function M.setup(opts)
       batt       = get_battery_info(),
     }
 
-    -- 変数名の長い順にソートして一括置換
+    -- 置換順序の決定（長いキーワードを優先して置換ミスを防ぐ）
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
 
     local status = config.format
     for _, k in ipairs(keys) do
+      -- $ 記号を含めて厳密に置換
       status = status:gsub("%$" .. k, vals[k] or "")
     end
 
-    -- バーの作成
+    -- デザインを適用して描画
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
