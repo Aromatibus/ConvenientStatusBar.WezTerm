@@ -1,44 +1,48 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
--- 天気情報用のアイコンの定義
+-- 天気情報用のアイコン定義（より自然な名前に変更）
 local weather_icons = {
-  sunny      = "󰖨 ",
-  cloudy     = "󰅟 ",
-  rainy      = " ",
-  windy      = " ",
-  lightning  = "󱐋 ",
-  snowy      = " ",
-  standby    = " ",
-  not_found  = " ",
-  temp       = "",
-  celsius    = "󰔄",
-  fahrenheit = "󰔅",
+  clear      = "󰖨 ", -- 快晴
+  clouds     = "󰅟 ", -- 曇り
+  rain       = " ", -- 雨
+  wind       = " ", -- 強風・霧
+  thunder    = "󱐋 ", -- 雷
+  snow       = " ", -- 雪
+  loading    = " ", -- 通信待機中
+  unknown    = " ", -- 取得失敗
+  thermometer = "", -- 温度計
+  celsius    = "󰔄", -- 摂氏
+  fahrenheit = "󰔅", -- 華氏
 }
 
--- 状態管理（天気とネットワーク）
+-- 状態管理
 local state = {
-  icon         = weather_icons.standby,
-  temp         = string.format("00.0%s", weather_icons.celsius),
-  location     = "",
+  icon         = weather_icons.loading,
+  temp         = weather_icons.loading,
+  location     = weather_icons.loading,
   country      = "",
   last_weather = 0,
+  is_loading   = true,
   last_net     = {
     rx   = 0,
     time = os.clock(),
-    str  = "  0.0B /S"
+    str  = string.format("%9s", weather_icons.loading)
   }
 }
 
--- 外部コマンドを実行
+-- 外部コマンド実行
 local function run_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
-
   return success, stdout
 end
 
--- ネットワーク速度を計算
+-- ネットワーク速度計算
 local function get_net_speed(interval)
+  if state.is_loading then
+    return string.format("%9s", weather_icons.loading)
+  end
+
   local now  = os.clock()
   local diff = now - state.last_net.time
 
@@ -51,56 +55,39 @@ local function get_net_speed(interval)
 
   if is_win then
     local _, out = run_cmd({
-      "powershell.exe",
-      "-NoProfile",
-      "-Command",
+      "powershell.exe", "-NoProfile", "-Command",
       "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"
     })
     rx = tonumber(out:match("%d+")) or 0
   else
     local _, out = run_cmd({
-      "sh",
-      "-c",
-      "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
+      "sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
     })
     rx = tonumber(out) or 0
   end
 
-  -- 速度計算と単位の正規化
   local rate = (rx - state.last_net.rx) / diff
   local unit = "B /S"
+  if rate > 1024 * 1024 then rate, unit = rate / (1024 * 1024), "MB/S"
+  elseif rate > 1024   then rate, unit = rate / 1024, "KB/S" end
 
-  if rate > 1024 * 1024 then
-    rate = rate / (1024 * 1024)
-    unit = "MB/S"
-  elseif rate > 1024 then
-    rate = rate / 1024
-    unit = "KB/S"
-  end
-
-  -- フォーマット: %5.1f (数値5桁) + 単位4桁 (スペースなし結合 = 合計9文字)
   local speed_str = string.format("%5.1f%s", rate, unit)
+  state.last_net  = { rx = rx, time = now, str = speed_str }
 
-  state.last_net = {
-    rx   = rx,
-    time = now,
-    str  = speed_str
-  }
-
-  return state.last_net.str
+  return speed_str
 end
 
--- 天気と場所の情報を更新
+-- 天気情報更新
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
   local cmd    = is_win and "curl.exe" or "curl"
-
   local t_city = opts.city
   local t_ctry = opts.country
+  local base_curl = {cmd, "-s", "--max-time", "3"}
 
   if not t_city or t_city == "" then
-    local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
-
+    local args = {base_curl[1], base_curl[2], base_curl[3], base_curl[4], "https://ipapi.co/json/"}
+    local ok, res = run_cmd(args)
     if ok and res then
       t_city = res:match('"city":%s*"([^"]+)"')
       t_ctry = res:match('"country_code":%s*"([^"]+)"')
@@ -108,21 +95,22 @@ local function update_weather(opts)
   end
 
   if not t_city or t_city == "" then
-    state.location = weather_icons.not_found
+    state.location = weather_icons.unknown
     return
   end
 
   local loc_str = t_city
-
   if t_ctry and t_ctry ~= "" then
     loc_str = string.format("%s,%s", t_city, t_ctry)
   end
 
-  local base = "https://api.openweathermap.org/data/2.5/weather"
-  local url  = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
-    base, opts.api_key, opts.lang, loc_str, opts.units)
+  local api_url = string.format(
+    "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
+    opts.api_key, opts.lang, loc_str, opts.units
+  )
 
-  local ok, stdout = run_cmd({cmd, "-s", url})
+  local args = {base_curl[1], base_curl[2], base_curl[3], base_curl[4], api_url}
+  local ok, stdout = run_cmd(args)
 
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     state.location     = t_city
@@ -136,18 +124,17 @@ local function update_weather(opts)
   local name  = stdout:match('"name":"([^"]+)"')
   local ctry  = stdout:match('"country":"([^"]+)"')
 
+  -- アイコン判定（新しいキー名を使用）
   if id then
-    if id < 300      then state.icon = weather_icons.lightning
-    elseif id < 600  then state.icon = weather_icons.rainy
-    elseif id < 700  then state.icon = weather_icons.snowy
-    elseif id < 800  then state.icon = weather_icons.windy
-    elseif id == 800 then state.icon = weather_icons.sunny
-    else                  state.icon = weather_icons.cloudy end
+    if id < 300      then state.icon = weather_icons.thunder
+    elseif id < 600  then state.icon = weather_icons.rain
+    elseif id < 700  then state.icon = weather_icons.snow
+    elseif id < 800  then state.icon = weather_icons.wind
+    elseif id == 800 then state.icon = weather_icons.clear
+    else                  state.icon = weather_icons.clouds end
   end
 
-  local sym = opts.units == "metric" and
-    weather_icons.celsius or weather_icons.fahrenheit
-
+  local sym = opts.units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
   if t_val then
     state.temp = string.format("%04.1f%s", tonumber(t_val), sym)
   end
@@ -157,22 +144,17 @@ local function update_weather(opts)
   state.last_weather = os.time()
 end
 
--- バッテリー情報を取得
+-- バッテリー取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-
-  if #batt == 0 then
-    return "󰚥", ""
-  end
-
+  if #batt == 0 then return "󰚥", "" end
   local b  = batt[1]
   local p  = b.state_of_charge * 100
   local ic = p >= 90 and "󱊦" or p >= 60 and "󱊥" or p >= 30 and "󱊤" or "󰢟"
-
   return ic, string.format("%.0f%%", p)
 end
 
--- プラグインのセットアップ
+-- セットアップ
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
@@ -201,6 +183,11 @@ function M.setup(opts)
   }
 
   wezterm.on('update-right-status', function(window, _)
+    if state.is_loading then
+      state.last_weather = os.time()
+      state.is_loading   = false
+    end
+
     if (os.time() - state.last_weather) > config.weather_int then
       update_weather(config)
     end
@@ -212,7 +199,7 @@ function M.setup(opts)
       calic      = "",
       clockic    = "",
       locic      = "",
-      tempic     = weather_icons.temp,
+      tempic     = weather_icons.thermometer,
       weatheric  = state.icon,
       year       = wezterm.strftime('%Y'),
       yearshort  = wezterm.strftime('%y'),
