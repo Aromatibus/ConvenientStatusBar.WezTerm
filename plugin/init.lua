@@ -43,16 +43,18 @@ local function update_weather(opts)
   local target_country = opts.country
 
   -- 都市未指定ならIPから位置情報を取得
-  if target_city == "" then
+  if not target_city or target_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
-    if ok then
+    if ok and res then
       target_city = res:match('"city":%s*"([^"]+)"')
       target_country = res:match('"country_code":%s*"([^"]+)"')
     end
-    if not target_city then
-      weather_state.location = weather_icons.not_found
-      return
-    end
+  end
+
+  -- 位置情報の取得に失敗した場合は中断
+  if not target_city or target_city == "" then
+    weather_state.location = weather_icons.not_found
+    return
   end
 
   -- リクエストURLの作成
@@ -64,14 +66,15 @@ local function update_weather(opts)
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIデータの取得と解析
+  -- APIデータの取得
   local ok, stdout = run_cmd({cmd, "-s", url})
-  if not ok or stdout:find('"message":"city not found"') then
-    weather_state.location = weather_icons.not_found
+  if not ok or not stdout or stdout:find('"message":"city not found"') then
+    weather_state.location = target_city -- APIエラー時は取得した都市名を表示
     weather_state.last_update = os.time()
     return
   end
 
+  -- JSONから名前と天候情報を抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
@@ -87,7 +90,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- 気温と場所をキャッシュに保存
+  -- 結果をキャッシュに保存
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp then
@@ -142,7 +145,7 @@ function M.setup(opts)
       update_weather(config)
     end
 
-    -- 置換用変数の定義（アイコン名に_icを付与）
+    -- 置換用変数の定義
     local vals = {
       cal_ic     = "",
       clock_ic   = "",
@@ -165,14 +168,14 @@ function M.setup(opts)
       batt       = get_battery_info(),
     }
 
-    -- キーを長い順にソートして置換ミスを防止
+    -- キーを長い順にソートして一括置換
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
 
     local status = config.format
     for _, k in ipairs(keys) do
-      status = status:gsub("%$" .. k, vals[k])
+      status = status:gsub("%$" .. k, vals[k] or "")
     end
 
     -- バーの作成
