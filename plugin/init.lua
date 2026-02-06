@@ -10,11 +10,11 @@ local weather_icons = {
   windy      = " ",
   lightning  = "󱐋 ",
   snowy      = " ",
-  standby    = " ",
-  not_found  = " ",
-  temp       = " ", -- これが温度アイコン
+  temp       = "",
   celsius    = "󰔄",
   fahrenheit = "󰔅",
+  standby    = " ",
+  not_found  = " ",
 }
 
 
