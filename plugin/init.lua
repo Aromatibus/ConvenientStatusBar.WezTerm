@@ -21,7 +21,7 @@ local weather_icons = {
 
 
 --- ==========================================
---- 起動時の状態管理
+--- 状態管理（ステート）
 --- ==========================================
 local state = {
   weather_ic    = weather_icons.loading,
@@ -69,8 +69,8 @@ local function calc_net_speed(interval, is_startup_waiting)
   if is_win then
     local cmd = "(Get-NetAdapterStatistics | " ..
                 "Measure-Object -Property ReceivedBytes -Sum).Sum"
-    local _, out = run_child_cmd({"powershell.exe", "-NoProfile",
-                                  "-Command", cmd})
+    local _, out = run_child_cmd({"powershell.exe", "-NoProfile", 
+                                   "-Command", cmd})
     curr_rx = tonumber(out:match("%d+")) or 0
   else
     local sh_cmd = "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
@@ -111,7 +111,7 @@ local function fetch_wea_data(cfg_opts)
   if not tgt_city or tgt_city == "" then
     local url = "https://ipapi.co/json/"
     local ok, res = run_child_cmd({base_args[1], base_args[2],
-                                    base_args[3], base_args[4], url})
+                                   base_args[3], base_args[4], url})
     if ok and res then
       tgt_city = res:match('"city":%s*"([^"]+)"')
       tgt_code = res:match('"country_code":%s*"([^"]+)"')
@@ -159,7 +159,7 @@ local function fetch_wea_data(cfg_opts)
   end
 
   local unit_sym = cfg_opts.units == "metric" and
-                    weather_icons.celsius or weather_icons.fahrenheit
+                   weather_icons.celsius or weather_icons.fahrenheit
 
   if temp_val then
     state.temp_str = string.format("%4.1f%s", tonumber(temp_val), unit_sym)
@@ -182,7 +182,7 @@ local function get_batt_disp()
   local batt   = batt_list[1]
   local charge = (batt.state_of_charge or 0) * 100
   local icon   = charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
-                  charge >= 30 and "󱊤" or "󰢟"
+                 charge >= 30 and "󱊤" or "󰢟"
 
   return icon, string.format("%.0f%%", charge)
 end
@@ -198,8 +198,8 @@ function M.setup(opts)
   end
 
   local def_fmt =
-    " $Cal_ic $Year.$Month.$Day ($Week) $Clock_ic $Time24 " ..
-    "$Loc_ic $City($Code) $Weather_ic $Temp_ic$Temp " ..
+    " $Cal_ic $Year.$Month.$Day $Week $Clock_ic $Time24 " ..
+    "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
     "$Net_ic $Net_speed $Batt_ic$Batt_num "
 
   local cfg = {
@@ -209,13 +209,17 @@ function M.setup(opts)
     city        = opts.city or "",
     units       = opts.units or "metric",
     wea_int     = opts.update_interval or 600,
-    net_int     = opts.net_update_interval or 2,
+    net_int     = opts.net_update_interval or 1,
     start_delay = opts.startup_delay or 5,
     fmt         = opts.format or def_fmt,
     colors      = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
       text       = "#ffffff"
+    },
+    separator   = opts.separator or {
+      left  = "",
+      right = ""
     }
   }
 
@@ -278,13 +282,13 @@ function M.setup(opts)
     window:set_right_status(wezterm.format({
       { Background = { Color = cfg.colors.background } },
       { Foreground = { Color = cfg.colors.foreground } },
-      { Text       = "" },
+      { Text       = cfg.separator.left },
       { Background = { Color = cfg.colors.foreground } },
       { Foreground = { Color = cfg.colors.text } },
       { Text       = final_status },
       { Background = { Color = cfg.colors.background } },
       { Foreground = { Color = cfg.colors.foreground } },
-      { Text       = "" },
+      { Text       = cfg.separator.right },
     }))
   end)
 end
