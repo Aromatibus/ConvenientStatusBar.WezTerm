@@ -175,7 +175,7 @@ function M.setup(opts)
     units         = opts.units or "metric",
     weather_int   = opts.update_interval or 600,
     net_int       = opts.net_update_interval or 1,
-    startup_delay = opts.startup_delay or 10, -- 起動待機秒数
+    startup_delay = opts.startup_delay or 5, -- 起動待機秒数 (5秒に修正)
     format        = opts.format or default_format,
     colors        = opts.colors or {
       background = "#1a1b26",
@@ -188,13 +188,20 @@ function M.setup(opts)
     local elapsed    = os.time() - state.start_time
     local is_waiting = elapsed < config.startup_delay
 
-    -- 待機終了後の初回更新用
-    if not is_waiting and state.last_weather == 0 then
-      state.last_weather = os.time()
+    -- 待機終了直後の初回実行判定
+    local should_update = false
+    if not is_waiting then
+      if state.last_weather == 0 then
+        -- 待機明けの最初のチャンス
+        should_update = true
+      elseif (os.time() - state.last_weather) > config.weather_int then
+        -- 通常の更新インターバル
+        should_update = true
+      end
     end
 
-    -- 待機中でなければ天気更新チェック
-    if not is_waiting and (os.time() - state.last_weather) > config.weather_int then
+    -- 天気更新の実行
+    if should_update then
       update_weather(config)
     end
 
