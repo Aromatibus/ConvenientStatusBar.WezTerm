@@ -16,14 +16,14 @@ local weather_icons = {
   fahrenheit = "󰔅",
 }
 
--- 状態管理（天気とネットワーク）
+-- 状態管理
 local state = {
   icon         = weather_icons.standby,
   temp         = string.format("00.0%s", weather_icons.celsius),
   location     = "",
   country      = "",
   last_weather = 0,
-  last_net     = { rx = 0, time = os.clock(), str = "000.0 B /S" }
+  last_net     = { rx = 0, time = os.clock(), str = "  0.0  B/S" }
 }
 
 -- 外部コマンドを実行
@@ -38,7 +38,6 @@ local function get_net_speed(interval)
   local now  = os.clock()
   local diff = now - state.last_net.time
 
-  -- 指定された更新間隔（秒）に満たない場合は前回の値を返す
   if diff < interval then
     return state.last_net.str
   end
@@ -46,28 +45,23 @@ local function get_net_speed(interval)
   local is_win = wezterm.target_triple:find("windows")
   local rx     = 0
 
-  -- OSに応じたバイト数取得
   if is_win then
     local _, out = run_cmd({
-      "powershell.exe",
-      "-NoProfile",
-      "-Command",
+      "powershell.exe", "-NoProfile", "-Command",
       "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"
     })
     rx = tonumber(out:match("%d+")) or 0
   else
     local _, out = run_cmd({
-      "sh",
-      "-c",
-      "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
+      "sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
     })
     rx = tonumber(out) or 0
   end
 
-  -- 速度計算と単位の正規化
   local rate = (rx - state.last_net.rx) / diff
-  local unit = " B /S"
+  local unit = " B/S"
 
+  -- 単位の判定と変換
   if rate > 1024 * 1024 then
     rate = rate / (1024 * 1024)
     unit = "MB/S"
@@ -76,8 +70,8 @@ local function get_net_speed(interval)
     unit = "KB/S"
   end
 
-  -- フォーマットして状態を更新
-  local speed_str = string.format("%05.1f %s", rate, unit)
+  -- フォーマット設定: %5.1f で右寄せ(0埋めなし)、単位と合わせて幅を固定
+  local speed_str = string.format("%5.1f %s", rate, unit)
 
   state.last_net = {
     rx   = rx,
@@ -88,7 +82,7 @@ local function get_net_speed(interval)
   return state.last_net.str
 end
 
--- 天気と場所の情報を更新
+-- 天気情報を更新
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
   local cmd    = is_win and "curl.exe" or "curl"
@@ -97,7 +91,6 @@ local function update_weather(opts)
 
   if not t_city or t_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
-
     if ok and res then
       t_city = res:match('"city":%s*"([^"]+)"')
       t_ctry = res:match('"country_code":%s*"([^"]+)"')
@@ -110,7 +103,6 @@ local function update_weather(opts)
   end
 
   local loc_str = t_city
-
   if t_ctry and t_ctry ~= "" then
     loc_str = string.format("%s,%s", t_city, t_ctry)
   end
@@ -120,7 +112,6 @@ local function update_weather(opts)
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
   local ok, stdout = run_cmd({cmd, "-s", url})
-
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     state.location     = t_city
     state.country      = t_ctry or ""
@@ -157,10 +148,7 @@ end
 -- バッテリー情報を取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-
-  if #batt == 0 then
-    return "󰚥", ""
-  end
+  if #batt == 0 then return "󰚥", "" end
 
   local b  = batt[1]
   local p  = b.state_of_charge * 100
@@ -181,24 +169,22 @@ function M.setup(opts)
     "$LocIc $City($Country) $WeatherIc $TempIc($Temp) " ..
     "$NetIc $NetSpeed $BattIc$BattNum "
 
-  -- 設定初期化
   local config = {
-    api_key         = opts.api_key,
-    lang            = opts.lang or "en",
-    country         = opts.country or "",
-    city            = opts.city or "",
-    units           = opts.units or "metric",
-    weather_int     = opts.update_interval or 600,
-    net_int         = opts.net_update_interval or 1, -- 追加：ネット更新間隔（秒）
-    format          = opts.format or default_format,
-    colors          = opts.colors or {
+    api_key     = opts.api_key,
+    lang        = opts.lang or "en",
+    country     = opts.country or "",
+    city        = opts.city or "",
+    units       = opts.units or "metric",
+    weather_int = opts.update_interval or 600,
+    net_int     = opts.net_update_interval or 1,
+    format      = opts.format or default_format,
+    colors      = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
       text       = "#ffffff"
     }
   }
 
-  -- アップデートイベント
   wezterm.on('update-right-status', function(window, _)
     if (os.time() - state.last_weather) > config.weather_int then
       update_weather(config)
