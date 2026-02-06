@@ -120,8 +120,8 @@ local function get_battery_info()
 
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-               p >= 30 and "󱊤" or "󰢟"
+  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
+                p >= 30 and "󱊤" or "󰢟"
 
   return string.format("%s %.0f%%", icon, p)
 end
@@ -143,7 +143,7 @@ function M.setup(opts)
     units = opts.units or "metric",
     update_interval = opts.update_interval or 600,
     format = opts.format or
-      " $cal $date ($week) $clock $time $loc_icon $location $weather $temp_icon$temp $batt ",
+      " $cal $date ($week) $clock $time $loc_icon $location $weather  $temp_icon$temp $batt ",
     colors = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
