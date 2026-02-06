@@ -16,14 +16,18 @@ local weather_icons = {
   fahrenheit = "󰔅",
 }
 
--- 状態管理
+-- 状態管理（天気とネットワーク）
 local state = {
   icon         = weather_icons.standby,
   temp         = string.format("00.0%s", weather_icons.celsius),
   location     = "",
   country      = "",
   last_weather = 0,
-  last_net     = { rx = 0, time = os.clock(), str = "  0.0  B/S" }
+  last_net     = {
+    rx   = 0,
+    time = os.clock(),
+    str  = "  0.0 B/S "
+  }
 }
 
 -- 外部コマンドを実行
@@ -38,6 +42,7 @@ local function get_net_speed(interval)
   local now  = os.clock()
   local diff = now - state.last_net.time
 
+  -- 更新間隔に満たない場合は前回の文字列を返す
   if diff < interval then
     return state.last_net.str
   end
@@ -45,23 +50,28 @@ local function get_net_speed(interval)
   local is_win = wezterm.target_triple:find("windows")
   local rx     = 0
 
+  -- OSに応じたバイト数取得
   if is_win then
     local _, out = run_cmd({
-      "powershell.exe", "-NoProfile", "-Command",
+      "powershell.exe",
+      "-NoProfile",
+      "-Command",
       "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"
     })
     rx = tonumber(out:match("%d+")) or 0
   else
     local _, out = run_cmd({
-      "sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
+      "sh",
+      "-c",
+      "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
     })
     rx = tonumber(out) or 0
   end
 
+  -- 速度計算と単位の正規化
   local rate = (rx - state.last_net.rx) / diff
-  local unit = " B/S"
+  local unit = "B/S"
 
-  -- 単位の判定と変換
   if rate > 1024 * 1024 then
     rate = rate / (1024 * 1024)
     unit = "MB/S"
@@ -70,8 +80,8 @@ local function get_net_speed(interval)
     unit = "KB/S"
   end
 
-  -- フォーマット設定: %5.1f で右寄せ(0埋めなし)、単位と合わせて幅を固定
-  local speed_str = string.format("%5.1f %s", rate, unit)
+  -- フォーマット: 数値5文字右寄せ + 単位を左寄せ4文字固定 (計9文字)
+  local speed_str = string.format("%5.1f %-4s", rate, unit)
 
   state.last_net = {
     rx   = rx,
@@ -82,15 +92,18 @@ local function get_net_speed(interval)
   return state.last_net.str
 end
 
--- 天気情報を更新
+-- 天気と場所の情報を更新
 local function update_weather(opts)
   local is_win = wezterm.target_triple:find("windows")
   local cmd    = is_win and "curl.exe" or "curl"
+
   local t_city = opts.city
   local t_ctry = opts.country
 
+  -- 位置情報の自動取得
   if not t_city or t_city == "" then
     local ok, res = run_cmd({cmd, "-s", "https://ipapi.co/json/"})
+
     if ok and res then
       t_city = res:match('"city":%s*"([^"]+)"')
       t_ctry = res:match('"country_code":%s*"([^"]+)"')
@@ -102,7 +115,9 @@ local function update_weather(opts)
     return
   end
 
+  -- API URL構築
   local loc_str = t_city
+
   if t_ctry and t_ctry ~= "" then
     loc_str = string.format("%s,%s", t_city, t_ctry)
   end
@@ -111,7 +126,9 @@ local function update_weather(opts)
   local url  = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
+  -- APIデータ取得
   local ok, stdout = run_cmd({cmd, "-s", url})
+
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     state.location     = t_city
     state.country      = t_ctry or ""
@@ -119,11 +136,13 @@ local function update_weather(opts)
     return
   end
 
+  -- パース処理
   local id    = tonumber(stdout:match('"id":(%d+)'))
   local t_val = stdout:match('"temp":([%d%.%-]+)')
   local name  = stdout:match('"name":"([^"]+)"')
   local ctry  = stdout:match('"country":"([^"]+)"')
 
+  -- アイコン判定
   if id then
     if id < 300      then state.icon = weather_icons.lightning
     elseif id < 600  then state.icon = weather_icons.rainy
@@ -133,6 +152,7 @@ local function update_weather(opts)
     else                  state.icon = weather_icons.cloudy end
   end
 
+  -- 温度設定
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
 
@@ -148,7 +168,10 @@ end
 -- バッテリー情報を取得
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return "󰚥", "" end
+
+  if #batt == 0 then
+    return "󰚥", ""
+  end
 
   local b  = batt[1]
   local p  = b.state_of_charge * 100
@@ -157,18 +180,20 @@ local function get_battery_info()
   return ic, string.format("%.0f%%", p)
 end
 
--- セットアップ
+-- プラグインのセットアップ
 function M.setup(opts)
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
     return
   end
 
+  -- デフォルトフォーマット（ネット速度をバッテリーの前に配置）
   local default_format =
     " $CalIc $Year.$Month.$Day $Week $ClockIc $Time24 " ..
     "$LocIc $City($Country) $WeatherIc $TempIc($Temp) " ..
     "$NetIc $NetSpeed $BattIc$BattNum "
 
+  -- 設定の初期化
   local config = {
     api_key     = opts.api_key,
     lang        = opts.lang or "en",
@@ -185,14 +210,18 @@ function M.setup(opts)
     }
   }
 
+  -- 右ステータスの更新イベント
   wezterm.on('update-right-status', function(window, _)
+    -- 天気情報の更新チェック
     if (os.time() - state.last_weather) > config.weather_int then
       update_weather(config)
     end
 
+    -- データの準備
     local b_ic, b_num = get_battery_info()
     local net_speed   = get_net_speed(config.net_int)
 
+    -- 置換キーワード定義 (すべて小文字キーで保持)
     local repstr = {
       calic      = "",
       clockic    = "",
@@ -219,11 +248,13 @@ function M.setup(opts)
       battnum    = b_num,
     }
 
+    -- フォーマット文字列を正規化 (大文字小文字/アンダースコアを無視)
     local status = config.format:gsub("%$([%a%d_]+)", function(k)
       local nk = k:lower():gsub("_", "")
-      return repstr[nk] or "$" .. k
+      return repstr[nk] or ("$" .. k)
     end)
 
+    -- ステータスバーの描画
     window:set_right_status(wezterm.format({
       { Background = { Color = config.colors.background } },
       { Foreground = { Color = config.colors.foreground } },
