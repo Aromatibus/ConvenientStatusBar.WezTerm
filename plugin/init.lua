@@ -19,7 +19,7 @@ local weather_icons = {
 -- 状態管理
 local state = {
   icon         = weather_icons.loading,
-  temp         = weather_icons.loading,
+  temp         = string.format("%5s", weather_icons.loading), -- 5文字幅で初期化
   location     = weather_icons.loading,
   country      = "",
   last_weather = 0,
@@ -68,19 +68,21 @@ local function get_net_speed(interval, is_waiting)
   end
 
   local rate = (rx - state.last_net.rx) / diff
-  local unit = " B/S" -- 単位を4文字に固定（先頭スペース）
-
+  
+  -- 単位と数値の幅を動的に制御して合計9文字に固定
+  local speed_str = ""
   if rate > 1024 * 1024 then
-    rate = rate / (1024 * 1024)
-    unit = "MB/S"
+    -- 数値5文字 + 単位4文字 = 9文字
+    speed_str = string.format("%5.1fMB/S", rate / (1024 * 1024))
   elseif rate > 1024 then
-    rate = rate / 1024
-    unit = "KB/S"
+    -- 数値5文字 + 単位4文字 = 9文字
+    speed_str = string.format("%5.1fKB/S", rate / 1024)
+  else
+    -- 数値6文字 + 単位3文字 = 9文字 (スペースなし)
+    speed_str = string.format("%6.1fB/S", rate)
   end
 
-  -- フォーマット: %5.1f (数値5桁) + 単位4桁 = 合計9文字固定
-  local speed_str = string.format("%5.1f%s", rate, unit)
-  state.last_net  = { rx = rx, time = now, str = speed_str }
+  state.last_net = { rx = rx, time = now, str = speed_str }
 
   return speed_str
 end
@@ -142,8 +144,10 @@ local function update_weather(opts)
   end
 
   local sym = opts.units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
+  
   if t_val then
-    state.temp = string.format("%04.1f%s", tonumber(t_val), sym)
+    -- 数値部分を4文字幅で右寄せ(%4.1f) + 単位1文字 = 合計5文字固定
+    state.temp = string.format("%4.1f%s", tonumber(t_val), sym)
   end
 
   state.location     = name or t_city
@@ -194,7 +198,7 @@ function M.setup(opts)
     local elapsed    = os.time() - state.start_time
     local is_waiting = elapsed < config.startup_delay
 
-    -- 待機終了直後の初回実行判定
+    -- 待機終了直後の初回更新判定
     local should_update = false
     if not is_waiting then
       if state.last_weather == 0 then
