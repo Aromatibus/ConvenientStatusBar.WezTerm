@@ -50,7 +50,7 @@ local function run_child_cmd(args)
 end
 
 
--- ネットワーク速度の計算と整形
+-- ネットワーク速度の計算（クロスプラットフォーム対応）
 local function calc_net_speed(interval, is_startup_waiting)
   if is_startup_waiting then
     return string.format("%9s", weather_icons.loading)
@@ -67,18 +67,20 @@ local function calc_net_speed(interval, is_startup_waiting)
   local curr_rx = 0
 
   if is_win then
-    local cmd = "(Get-NetAdapterStatistics | " ..
-                "Measure-Object -Property ReceivedBytes -Sum).Sum"
-    local _, out = run_child_cmd({"powershell.exe", "-NoProfile", 
-                                   "-Command", cmd})
-    curr_rx = tonumber(out:match("%d+")) or 0
+    -- Windows: cmd経由でnetstatを実行（数値のみを抽出）
+    local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
+    if ok and out then
+      -- 1行目のBytes(またはバイト)行の1番目の数値を取得
+      curr_rx = tonumber(out:match("%a+%s+(%d+)")) or 0
+    end
   else
-    local sh_cmd = "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
-    local _, out = run_child_cmd({"sh", "-c", sh_cmd})
-    curr_rx = tonumber(out) or 0
+    -- Unix: cat と awk を使用して受信合計を算出
+    local cmd = "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
+    local ok, out = run_child_cmd({"sh", "-c", cmd})
+    curr_rx = ok and tonumber(out:match("%d+")) or 0
   end
 
-  local bps       = (curr_rx - state.net_state.last_rx_bytes) / time_delta
+  local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   local fmt_speed = ""
 
   if bps > 1024 * 1024 then
@@ -101,17 +103,13 @@ end
 
 -- 気象情報の取得と更新
 local function fetch_wea_data(cfg_opts)
-  local is_win    = wezterm.target_triple:find("windows")
-  local curl_cmd  = is_win and "curl.exe" or "curl"
-  local tgt_city  = cfg_opts.city
-  local tgt_code  = cfg_opts.country
-  local base_args = {curl_cmd, "-s", "--max-time", "3"}
+  local is_win   = wezterm.target_triple:find("windows")
+  local curl_cmd = is_win and "curl.exe" or "curl"
+  local tgt_city = cfg_opts.city
+  local tgt_code = cfg_opts.country
 
-  -- 都市未指定時はIPベースで取得
   if not tgt_city or tgt_city == "" then
-    local url = "https://ipapi.co/json/"
-    local ok, res = run_child_cmd({base_args[1], base_args[2],
-                                   base_args[3], base_args[4], url})
+    local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
       tgt_city = res:match('"city":%s*"([^"]+)"')
       tgt_code = res:match('"country_code":%s*"([^"]+)"')
@@ -123,23 +121,15 @@ local function fetch_wea_data(cfg_opts)
     return
   end
 
-  local loc_query = tgt_city
-  if tgt_code and tgt_code ~= "" then
-    loc_query = string.format("%s,%s", tgt_city, tgt_code)
-  end
-
-  local api_base = "https://api.openweathermap.org/data/2.5/weather"
-  local api_url  = string.format(
-    "%s?appid=%s&lang=%s&q=%s&units=%s",
-    api_base, cfg_opts.api_key, cfg_opts.lang, loc_query, cfg_opts.units
+  local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
+  local url   = string.format(
+    "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
+    cfg_opts.api_key, cfg_opts.lang, query, cfg_opts.units
   )
 
-  local ok, stdout = run_child_cmd({base_args[1], base_args[2],
-                                    base_args[3], base_args[4], api_url})
-
+  local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
-    state.city_name    = tgt_city
-    state.city_code    = tgt_code or ""
+    state.city_name, state.city_code = tgt_city, tgt_code or ""
     state.last_wea_upd = os.time()
     return
   end
@@ -161,10 +151,9 @@ local function fetch_wea_data(cfg_opts)
   local unit_sym = cfg_opts.units == "metric" and
                    weather_icons.celsius or weather_icons.fahrenheit
 
-  if temp_val then
-    state.temp_str = string.format("%4.1f%s", tonumber(temp_val), unit_sym)
-  end
-
+  state.temp_str     = temp_val and
+                       string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
+                       state.temp_str
   state.city_name    = api_name or tgt_city
   state.city_code    = api_code or tgt_code or ""
   state.last_wea_upd = os.time()
@@ -229,30 +218,18 @@ function M.setup(opts)
   local use_net     = low_fmt:find("$net_speed")
 
   wezterm.on('update-right-status', function(window, _)
-    local time_elapsed = os.time() - state.proc_start
-    local is_waiting   = time_elapsed < cfg.start_delay
+    local elapsed    = os.time() - state.proc_start
+    local is_waiting = elapsed < cfg.start_delay
 
-    if use_weather then
-      local should_fetch = false
-      if not is_waiting then
-        if state.last_wea_upd == 0 then
-          should_fetch = true
-        elseif (os.time() - state.last_wea_upd) > cfg.wea_int then
-          should_fetch = true
-        end
-      end
-
-      if should_fetch then
+    if use_weather and not is_waiting then
+      local now = os.time()
+      if state.last_wea_upd == 0 or (now - state.last_wea_upd) > cfg.wea_int then
         fetch_wea_data(cfg)
       end
     end
 
-    local batt_icon, batt_num_text = get_batt_disp()
-    local net_speed_text = ""
-
-    if use_net then
-      net_speed_text = calc_net_speed(cfg.net_int, is_waiting)
-    end
+    local batt_ic, batt_num = get_batt_disp()
+    local net_speed = use_net and calc_net_speed(cfg.net_int, is_waiting) or ""
 
     local replace_map = {
       cal_ic      = "",
@@ -269,14 +246,13 @@ function M.setup(opts)
       code        = state.city_code,
       temp        = state.temp_str,
       net_ic      = "󰓅",
-      net_speed   = net_speed_text,
-      batt_ic     = batt_icon,
-      batt_num    = batt_num_text,
+      net_speed   = net_speed,
+      batt_ic     = batt_ic,
+      batt_num    = batt_num,
     }
 
     local final_status = cfg.fmt:gsub("%$([%a%d_]+)", function(key)
-      local norm_key = key:lower()
-      return replace_map[norm_key] or ("$" .. key)
+      return replace_map[key:lower()] or ("$" .. key)
     end)
 
     window:set_right_status(wezterm.format({
