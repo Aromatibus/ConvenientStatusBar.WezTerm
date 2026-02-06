@@ -56,7 +56,7 @@ local function update_weather(opts)
     return
   end
 
-  -- URL作成
+  -- APIリクエストURL作成
   local loc_str = target_city
   if target_country and target_country ~= "" then
     loc_str = string.format("%s,%s", target_city, target_country)
@@ -65,7 +65,7 @@ local function update_weather(opts)
   local url = string.format("%s?appid=%s&lang=%s&q=%s&units=%s",
     base, opts.api_key, opts.lang, loc_str, opts.units)
 
-  -- APIデータ取得
+  -- APIデータ取得と解析
   local ok, stdout = run_cmd({cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message":"city not found"') then
     weather_state.location = target_city
@@ -74,7 +74,6 @@ local function update_weather(opts)
     return
   end
 
-  -- 解析と抽出
   local id = tonumber(stdout:match('"id":(%d+)'))
   local temp_val = stdout:match('"temp":([%d%.%-]+)')
   local name = stdout:match('"name":"([^"]+)"')
@@ -90,7 +89,7 @@ local function update_weather(opts)
     else weather_state.icon = weather_icons.cloudy end
   end
 
-  -- キャッシュ保存
+  -- 温度を00.0形式でキャッシュ
   local sym = opts.units == "metric" and
     weather_icons.celsius or weather_icons.fahrenheit
   if temp_val then
@@ -102,15 +101,15 @@ local function update_weather(opts)
 end
 
 
--- バッテリー情報の取得（非搭載でもアイコンを返す）
+-- バッテリー情報の取得（数値不要時は空文字列を返す）
 local function get_battery_info()
   local batt = wezterm.battery_info()
-  if #batt == 0 then return "󰚥", "" end -- 非搭載時はコンセントアイコン
+  if #batt == 0 then return "󰚥", "" end
 
   local b = batt[1]
   local p = b.state_of_charge * 100
-  local icon = p >= 90 and "󱊦" or p >= 60 and "󱊥" or
-               p >= 30 and "󱊤" or "󰢟"
+  local icon =  p >= 90 and "󱊦" or p >= 60 and "󱊥" or
+                p >= 30 and "󱊤" or "󰢟"
 
   return icon, string.format("%.0f%%", p)
 end
@@ -123,16 +122,17 @@ function M.setup(opts)
     return
   end
 
-  -- デフォルトフォーマット（連結演算子で改行）
-  local default_format = " " ..
+  -- デフォルトフォーマット（1行80文字以内を維持）
+  local default_format =
+    " " ..
     "$cal_ic $year.$month.$day " ..
     "$clock_ic $time_24 " ..
     "$loc_ic$location($country)" ..
-    "$weather_ic $temp_ic $temp " ..
-    "$batt_ic $batt_num " ..
+    "$weather_ic $temp_ic$temp " ..
+    "$batt_ic$batt_num" ..
     " "
 
-  -- 設定初期化
+  -- 設定の初期化
   local config = {
     api_key = opts.api_key,
     lang = opts.lang or "en",
@@ -148,14 +148,14 @@ function M.setup(opts)
     }
   }
 
-  -- 描画イベント
+  -- ステータスバー更新
   wezterm.on('update-right-status', function(window, _)
     local elapsed = os.time() - weather_state.last_update
     if elapsed > config.update_interval then
       update_weather(config)
     end
 
-    -- 置換変数のマッピング
+    -- 置換変数の準備
     local batt_ic, batt_num = get_battery_info()
     local vals = {
       cal_ic     = "",
@@ -180,7 +180,7 @@ function M.setup(opts)
       batt_num   = batt_num,
     }
 
-    -- 置換（長いキーワード優先）
+    -- キーワード置換（長い順）
     local keys = {}
     for k in pairs(vals) do table.insert(keys, k) end
     table.sort(keys, function(a, b) return #a > #b end)
