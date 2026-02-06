@@ -21,7 +21,7 @@ local weather_icons = {
 
 
 --- ==========================================
---- 状態管理用テーブル
+--- 状態管理用の変数
 --- ==========================================
 local state = {
   weather_ic    = weather_icons.loading,
@@ -48,7 +48,6 @@ local state = {
 -- 外部コマンドを安全に実行
 local function run_child_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
-
   return success, stdout
 end
 
@@ -70,17 +69,17 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
   if is_startup_waiting then
     return state.net_state.disp_str, state.net_state.avg_str
   end
-
+  -- 現在時刻と前回チェック時刻の差分を計算
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
-
+  -- 更新間隔に満たない場合は前回値を返す
   if time_delta < cfg_net.int then
     return state.net_state.disp_str, state.net_state.avg_str
   end
-
+  -- ネットワーク受信バイト数の取得
   local is_win  = wezterm.target_triple:find("windows")
   local curr_rx = 0
-
+  -- 現在の受信バイト数を取得
   if is_win then
     local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
     curr_rx = ok and tonumber(out:match("%a+%s+(%d+)")) or 0
@@ -89,33 +88,34 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
     local ok, out = run_child_cmd({"sh", "-c", cmd})
     curr_rx = ok and tonumber(out:match("%d+")) or 0
   end
-
+  -- 現在の速度を計算してサンプルに追加
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   table.insert(state.net_state.samples, 1, bps)
-
+  -- サンプル数が上限を超えた場合は古いサンプルを削除
   if #state.net_state.samples > cfg_net.avg_limit then
     table.remove(state.net_state.samples)
   end
-
+  -- サンプルの合計値を計算
   local sum_bps = 0
   for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
-
+  -- 平均速度の計算
   state.net_state.last_rx_bytes = curr_rx
   state.net_state.last_chk_time = curr_time
   state.net_state.disp_str      = format_bps(bps)
   state.net_state.avg_str       = format_bps(sum_bps / #state.net_state.samples)
-
   return state.net_state.disp_str, state.net_state.avg_str
 end
 
 
 -- 気象情報の取得と更新
 local function fetch_wea_data(cfg_opts)
+  -- curlコマンドの設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
+  -- 取得対象の都市名と国コードの設定
   local tgt_city = cfg_opts.city
   local tgt_code = cfg_opts.country
-
+  -- Cityが設定されていない場合はIPアドレスから都市名を取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
     if ok and res then
@@ -123,21 +123,21 @@ local function fetch_wea_data(cfg_opts)
       tgt_code = res:match('"country_code":%s*"([^"]+)"')
     end
   end
-
+  -- 都市名が取得できなかった場合の処理
   if not tgt_city or tgt_city == "" then
     state.city_name    = weather_icons.unknown
     state.is_wea_ready = false
     return
   end
-
+  -- APIリクエストURLの生成
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format(
     "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
     cfg_opts.api_key, cfg_opts.lang, query, cfg_opts.units
   )
-
+  -- 天気情報の取得
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-
+  -- 通信失敗またはエラーメッセージの場合の処理
   if not ok or not stdout or stdout:find('"message"') then
     state.city_name    = tgt_city
     state.city_code    = tgt_code or ""
@@ -145,12 +145,12 @@ local function fetch_wea_data(cfg_opts)
     state.is_wea_ready = false
     return
   end
-
+  -- 天気情報取得データを解析
   local wea_id   = tonumber(stdout:match('"id":(%d+)'))
   local temp_val = stdout:match('"temp":([%d%.%-]+)')
   local api_name = stdout:match('"name":"([^"]+)"')
   local api_code = stdout:match('"country":"([^"]+)"')
-
+  -- 天気アイコンの設定
   if wea_id then
     if     wea_id < 300 then state.weather_ic = weather_icons.thunder
     elseif wea_id < 600 then state.weather_ic = weather_icons.rain
@@ -159,15 +159,17 @@ local function fetch_wea_data(cfg_opts)
     elseif wea_id == 800 then state.weather_ic = weather_icons.clear
     else                     state.weather_ic = weather_icons.clouds end
   end
-
+  -- 温度単位の設定
   local unit_sym = cfg_opts.units == "metric" and
                     weather_icons.celsius or weather_icons.fahrenheit
-
+  -- 温度表示の設定
   state.temp_str     =  temp_val and
                         string.format("%4.1f%s", tonumber(temp_val), unit_sym) or
                         state.temp_str
+  -- 都市名と国コードの設定
   state.city_name    = api_name or tgt_city
   state.city_code    = api_code or tgt_code or ""
+  -- 更新時刻の記録と成功フラグの設定
   state.last_wea_upd = os.time()
   state.is_wea_ready = true
 end
@@ -176,16 +178,15 @@ end
 -- バッテリー情報の取得
 local function get_batt_disp()
   local batt_list = wezterm.battery_info()
-
+  -- バッテリー情報がない場合はコンセント接続とみなす
   if not batt_list or #batt_list == 0 then
     return "󰚥", ""
   end
-
+  -- バッテリー情報を設定
   local batt   = batt_list[1]
   local charge = (batt.state_of_charge or 0) * 100
   local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
                   charge >= 30 and "󱊤" or "󰢟"
-
   return icon, string.format("%.0f%%", charge)
 end
 
@@ -194,16 +195,19 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
+  -- 必須オプションのチェック
   if not opts or not opts.api_key then
     wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
     return
   end
 
+  -- デフォルトのフォーマット文字列
   local def_fmt =
     " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
     "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
+  -- 設定オプションの初期化
   local cfg = {
     api_key      = opts.api_key,                  -- OpenWeatherMap APIキー
     lang         = opts.lang or "en",             -- 言語コード
@@ -217,28 +221,31 @@ function M.setup(opts)
       int        = opts.net_update_interval or 3, -- ネットワーク速度更新間隔
       avg_limit  = opts.net_avg_samples or 20     -- 平均速度のサンプル数
     },
+    separator    = opts.separator or {
+      left       = "",
+      right      = ""
+    },
     colors       = opts.colors or {
       background = "#1a1b26",
       foreground = "#7aa2f7",
       text       = "#ffffff"
     },
-    separator    = opts.separator or {
-      left       = "",
-      right      = ""
-    },
     fmt          = opts.format or def_fmt,
   }
 
+  -- フォーマット文字列のを小文字化して変数を判定
   local low_fmt = cfg.fmt:lower()
   local use_weather = low_fmt:find("$city") or low_fmt:find("$code") or
                       low_fmt:find("$weather_ic") or low_fmt:find("$temp")
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
+  -- 定期更新イベントの登録
   wezterm.on('update-right-status', function(window, _)
     local now        = os.time()
     local elapsed    = now - state.proc_start
     local is_waiting = elapsed < cfg.start_delay
 
+    -- 起動直後の待機時間中は取得をスキップ
     if use_weather and not is_waiting then
       local diff = now - state.last_wea_upd
       local should_fetch = false
@@ -250,16 +257,18 @@ function M.setup(opts)
       elseif not state.is_wea_ready and diff > cfg.retry_int then
         should_fetch = true
       end
-
+      -- 天気情報の取得・更新
       if should_fetch then
         fetch_wea_data(cfg)
       end
     end
 
+    -- ネットワーク速度の計算・取得
     local batt_ic, batt_num = get_batt_disp()
     local net_curr, net_avg = "", ""
     if use_net then net_curr, net_avg = calc_net_speed(cfg.net, is_waiting) end
 
+    -- フォーマット文字列の変数を置換
     local replace_map = {
       cal_ic      = "",
       clock_ic    = "",
@@ -281,10 +290,12 @@ function M.setup(opts)
       batt_num    = batt_num,
     }
 
+    -- ステータス文字列の生成
     local final_status = cfg.fmt:gsub("%$([%a%d_]+)", function(key)
       return replace_map[key:lower()] or ("$" .. key)
     end)
 
+    -- 右ステータスバーの更新
     window:set_right_status(wezterm.format({
       { Background = { Color = cfg.colors.background } },
       { Foreground = { Color = cfg.colors.foreground } },
