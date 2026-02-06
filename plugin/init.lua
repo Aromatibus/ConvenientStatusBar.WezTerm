@@ -202,7 +202,7 @@ function M.setup(opts)
   local def_fmt =
     " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
-    "$Net_ic net_speed($Net_avg) $Batt_ic$Batt_num "
+    "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local cfg = {
     api_key      = opts.api_key,                  -- OpenWeatherMap APIキー
