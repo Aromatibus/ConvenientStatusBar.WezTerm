@@ -198,8 +198,8 @@ function M.setup(opts)
   end
 
   local def_fmt =
-    " $Cal_ic $Year.$Month.$Day $Week $Clock_ic $Time24 " ..
-    "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
+    " $Cal_ic $Year.$Month.$Day ($Week) $Clock_ic $Time24 " ..
+    "$Loc_ic $City($Code) $Weather_ic $Temp_ic$Temp " ..
     "$Net_ic $Net_speed $Batt_ic$Batt_num "
 
   local cfg = {
