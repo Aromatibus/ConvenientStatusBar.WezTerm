@@ -138,7 +138,7 @@ function M.setup(opts)
     " " ..
     "$cal_ic $year.$month.$day " ..
     "$clock_ic $time_24 " ..
-    "$loc_ic$location($country) " ..
+    "$loc_ic $location($country) " ..
     "$weather_ic $temp_ic($temp) " ..
     "$batt_ic$batt_num" ..
     " "
