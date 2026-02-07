@@ -39,7 +39,7 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- 1. 文字列置換用のマップを作成 (ここでは mem_free は純粋な文字列)
+    -- 全項目を純粋な文字列として定義
     local replace_map = {
       cal_ic      = "",
       clock_ic    = "",
@@ -57,56 +57,60 @@ function M.setup(opts)
       temp        = state.temp_str,
       cpu         = cpu_usage,
       mem_used    = mem_used,
-      mem_free    = mem_free, -- 一旦普通の文字列として格納
+      mem_free    = mem_free,
       net_speed   = net_curr,
       net_avg     = net_avg,
       ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "",
     }
 
-    -- 2. $変数を置換して、全体の文字列を組み立てる
-    local raw_status = config.format:gsub("%$([%a%d_]+)", function(key)
+    -- $変数を置換して一つの長い文字列を作る
+    local final_str = config.format:gsub("%$([%a%d_]+)", function(key)
       local val = replace_map[key:lower()]
       return val ~= nil and tostring(val) or ("$" .. key)
     end)
 
-    -- 3. フリーメモリのアイコン箇所だけ色を変えるためのテーブルを構成
-    -- 文字列を mem_free の前後で分割して、アイコンの色設定を挟み込む
-    local parts = {}
-    table.insert(parts, { Background = { Color = config.color_foreground } })
-    table.insert(parts, { Foreground = { Color = config.color_text } })
-
-    -- 全体のテキストを走査し、$MEM_FREE のアイコン部分だけ色指定を挿入
-    -- 簡略化のため、完成した文字列内のアイコンを置換
-    local final_parts = {
+    -- 描画用リストの組み立て
+    local render_list = {
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
-      { Text = "" },
+      { Text       = "" },
       { Background = { Color = config.color_foreground } },
       { Foreground = { Color = config.color_text } },
     }
 
-    -- ステータス文字列をループで処理せず、直接構成
-    -- アイコン「」を見つけて、その前後の色を変える
-    local start_idx, end_idx = raw_status:find("")
-    if start_idx then
-      -- アイコンより前の部分
-      table.insert(final_parts, { Text = raw_status:sub(1, start_idx - 1) })
-      -- アイコン部分のみ文字色を背景色に
-      table.insert(final_parts, { Foreground = { Color = config.color_background } })
-      table.insert(final_parts, { Text = raw_status:sub(start_idx, end_idx) })
-      -- アイコン直後で文字色を元に戻す
-      table.insert(final_parts, { Foreground = { Color = config.color_text } })
-      -- 残りの部分
-      table.insert(final_parts, { Text = raw_status:sub(end_idx + 1) })
-    else
-      table.insert(final_parts, { Text = raw_status })
+    -- 文字列をスキャンして、フリーメモリのアイコン「」の部分だけ色を変える
+    -- 文字列の中に「」が2つある場合（使用メモリと空きメモリ）を考慮し、
+    -- 後ろにある方の「」（空きメモリ用）をターゲットにします
+    local first_ic_start, first_ic_end = final_str:find("")
+    local second_ic_start, second_ic_end = nil, nil
+    
+    if first_ic_start then
+      second_ic_start, second_ic_end = final_str:find("", first_ic_end + 1)
     end
 
-    table.insert(final_parts, { Background = { Color = config.color_background } })
-    table.insert(final_parts, { Foreground = { Color = config.color_foreground } })
-    table.insert(final_parts, { Text = "" })
+    local target_start = second_ic_start or first_ic_start
+    local target_end = second_ic_end or first_ic_end
 
-    window:set_right_status(wezterm.format(final_parts))
+    if target_start then
+      -- アイコンより前
+      table.insert(render_list, { Text = final_str:sub(1, target_start - 1) })
+      -- アイコン：文字色のみを背景色（#1a1b26）に変更
+      table.insert(render_list, { Foreground = { Color = config.color_background } })
+      table.insert(render_list, { Text = final_str:sub(target_start, target_end) })
+      -- アイコン後：文字色を元の色（白）に戻す
+      table.insert(render_list, { Foreground = { Color = config.color_text } })
+      -- 残りの文字列
+      table.insert(render_list, { Text = final_str:sub(target_end + 1) })
+    else
+      table.insert(render_list, { Text = final_str })
+    end
+
+    -- 閉じ
+    table.insert(render_list, { Background = { Color = config.color_background } })
+    table.insert(render_list, { Foreground = { Color = config.color_foreground } })
+    table.insert(render_list, { Text = "" })
+
+    window:set_right_status(wezterm.format(render_list))
   end)
 end
 
