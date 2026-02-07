@@ -97,26 +97,6 @@ local function get_sys_resources()
   return string.format("%2d%%", cpu_val), string.format("%4.1fGB", mem_u_val), string.format("%4.1fGB", mem_f_val)
 end
 
-local function get_ssh_info(pane)
-  if not pane then return "" end
-  local domain = pane:get_domain_name()
-  if domain:find("SSH") then
-    local uri = pane:get_current_working_dir()
-    if uri then
-      return "󰢩 " .. (uri.username or "user") .. "@" .. (uri.host or domain) .. " "
-    end
-  end
-  local foreground_process = pane:get_foreground_process_name() or ""
-  if foreground_process:find("ssh") or foreground_process:find("SSH") then
-    return "󰢩 SSH接続中 "
-  end
-  local title = pane:get_title()
-  if title:find("@") then
-    return "󰢩 " .. title .. " "
-  end
-  return ""
-end
-
 local function fetch_wea_data(config)
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -170,7 +150,8 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
+  -- デフォルトフォーマット：SSHを削除し、先頭に $User_ic $User を追加
+  local def_fmt = " $User_ic $User $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
@@ -204,8 +185,10 @@ function M.setup(opts)
 
     local net_curr, net_avg = calc_net_speed(config, is_waiting)
     local cpu_u, mem_u, mem_f = get_sys_resources()
-    local ssh_str = get_ssh_info(pane)
     local batt_ic, batt_num = get_batt_disp()
+    
+    -- ユーザー名の取得 (環境変数から)
+    local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
 
     local res = {
       { Background = { Color = config.color_background } },
@@ -216,7 +199,8 @@ function M.setup(opts)
     }
 
     local replace_map = {
-      ["$ssh"] = ssh_str, ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
+      ["$user_ic"] = "", ["$user"] = user_name,
+      ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
       ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
       ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
       ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
@@ -235,7 +219,6 @@ function M.setup(opts)
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
       
-      -- エラー箇所修正：分割して挿入
       if token == "$mem_free_ic" then
         table.insert(res, { Foreground = { Color = config.color_background } })
         table.insert(res, { Text = val })
@@ -247,7 +230,6 @@ function M.setup(opts)
     end
     table.insert(res, { Text = current_str })
 
-    -- エラー箇所修正：分割して挿入
     table.insert(res, { Background = { Color = config.color_background } })
     table.insert(res, { Foreground = { Color = config.color_foreground } })
     table.insert(res, { Text       = config.separator_right })
