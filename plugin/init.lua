@@ -65,7 +65,7 @@ end
 
 
 -- ネットワーク速度の計算
-local function calc_net_speed(config_net, is_startup_waiting)
+local function calc_net_speed(config, is_startup_waiting)
   if is_startup_waiting then
     return state.net_state.disp_str, state.net_state.avg_str
   end
@@ -73,7 +73,7 @@ local function calc_net_speed(config_net, is_startup_waiting)
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
   -- 更新間隔に満たない場合は前回値を返す
-  if time_delta < config_net.net_update_interval then
+  if time_delta < config.net_update_interval then
     return state.net_state.disp_str, state.net_state.avg_str
   end
   -- ネットワーク受信バイト数の取得
@@ -92,7 +92,7 @@ local function calc_net_speed(config_net, is_startup_waiting)
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   table.insert(state.net_state.samples, 1, bps)
   -- サンプル数が上限を超えた場合は古いサンプルを削除
-  if #state.net_state.samples > config_net.net_avg_samples then
+  if #state.net_state.samples > config.net_avg_samples then
     table.remove(state.net_state.samples)
   end
   -- サンプルの合計値を計算
@@ -108,13 +108,13 @@ end
 
 
 -- 気象情報の取得と更新
-local function fetch_wea_data(config_weather)
+local function fetch_wea_data(config)
   -- curlコマンドの設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
   -- 取得対象の都市名と国コードの設定
-  local tgt_city = config_weather.weather_city
-  local tgt_code = config_weather.weather_country
+  local tgt_city = config.weather_city
+  local tgt_code = config.weather_country
   -- Cityが設定されていない場合はIPアドレスから都市名を取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
@@ -134,7 +134,7 @@ local function fetch_wea_data(config_weather)
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format(
     "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-    config_weather.weather_api_key, config_weather.weather_lang, query, config_weather.weather_units
+    config.weather_api_key, config.weather_lang, query, config.weather_units
   )
   -- 天気情報の取得
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
@@ -163,7 +163,7 @@ local function fetch_wea_data(config_weather)
     else                     state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位の設定
-  local unit_sym = config_weather.weather_units == "metric" and
+  local unit_sym = config.weather_units == "metric" and
                     weather_icons.celsius or weather_icons.fahrenheit
   -- 温度表示の設定
   state.temp_str     =  temp_val and
@@ -206,22 +206,22 @@ function M.setup(opts)
 
   -- 設定オプションの初期化
   local config              = {
-    format                  = (opts and opts.format) or def_fmt,
-    startup_delay           = (opts and opts.startup_delay) or 5,
-    weather_api_key         = opts and opts.weather_api_key,
-    weather_lang            = (opts and opts.weather_lang) or "en",
-    weather_country         = (opts and opts.weather_country) or "",
-    weather_city            = (opts and opts.weather_city) or "",
-    weather_units           = (opts and opts.weather_units) or "metric",
-    weather_update_interval = (opts and opts.weather_update_interval) or 600,
-    weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
-    net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
-    separator_left          = (opts and opts.separator_left) or "",
-    separator_right         = (opts and opts.separator_right) or "",
-    color_text              = (opts and opts.color_text) or "#ffffff",
-    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
-    color_background        = (opts and opts.color_background) or "#1a1b26",
+    format                  = (opts and opts.format) or def_fmt,               -- ステータスバーのフォーマット
+    startup_delay           = (opts and opts.startup_delay) or 5,              -- 起動時の通信待機時間
+    weather_api_key         = opts and opts.weather_api_key,                   -- OpenWeatherMap APIキー
+    weather_lang            = (opts and opts.weather_lang) or "en",            -- 天気情報の言語コード
+    weather_country         = (opts and opts.weather_country) or "",           -- 国コード、都市名と組み合わせて使用
+    weather_city            = (opts and opts.weather_city) or "",              -- 都市名、省略された場合はIPアドレスから自動取得
+    weather_units           = (opts and opts.weather_units) or "metric",       -- "metric(摂氏)" or "imperial(華氏)"
+    weather_update_interval = (opts and opts.weather_update_interval) or 600,  -- 天気情報の更新時間（秒）
+    weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,    -- 天気情報取得失敗時のリトライ時間（秒）
+    net_update_interval     = (opts and opts.net_update_interval) or 3,        -- ネットワーク速度更新時間（秒）
+    net_avg_samples         = (opts and opts.net_avg_samples) or 5,            -- 平均速度のサンプル数
+    separator_left          = (opts and opts.separator_left) or "",           -- ステータスバーの始端（左側）
+    separator_right         = (opts and opts.separator_right) or "",          -- ステータスバーの終端（右側）
+    color_text              = (opts and opts.color_text) or "#ffffff",       -- ステータスバーの文字色
+    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7", -- ステータスバーの前景色
+    color_background        = (opts and opts.color_background) or "#1a1b26", -- ステータスバーの背景色
   }
 
   -- フォーマット文字列のを小文字化して変数を判定
