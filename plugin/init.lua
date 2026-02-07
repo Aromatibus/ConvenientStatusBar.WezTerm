@@ -2,7 +2,7 @@ local wezterm = require 'wezterm'
 local M       = {}
 
 --- ==========================================
---- 定数・アイコン定義
+--- 定数・アイコン定義 (weather_icons)
 --- ==========================================
 local weather_icons = {
   clear       = "󰖨 ", clouds = "󰅟 ", rain = " ", 
@@ -18,6 +18,7 @@ local state = {
   weather_ic    = weather_icons.loading,
   temp_str      = " --.-",
   city_name     = "Loading...",
+  city_code     = "---",
   last_wea_upd  = 0,
   proc_start    = os.time(),
   net_state     = {
@@ -48,7 +49,7 @@ local function calc_net_speed(config, is_waiting)
   if is_waiting then return state.net_state.disp_str, state.net_state.avg_str end
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
-  if time_delta < config.net_update_interval then return state.net_state.disp_str, state.net_state.avg_str end
+  if time_delta < config.net.interval then return state.net_state.disp_str, state.net_state.avg_str end
   
   local is_win = wezterm.target_triple:find("windows")
   local curr_rx = 0
@@ -62,7 +63,7 @@ local function calc_net_speed(config, is_waiting)
 
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   table.insert(state.net_state.samples, 1, bps)
-  if #state.net_state.samples > config.net_avg_samples then table.remove(state.net_state.samples) end
+  if #state.net_state.samples > config.net.avg_limit then table.remove(state.net_state.samples) end
   
   local sum_bps = 0
   for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
@@ -97,29 +98,26 @@ local function get_sys_resources()
   return string.format("%2d%%", cpu_val), string.format("%6.1fGB", mem_used_val), string.format("%6.1fGB", mem_free_val)
 end
 
-local function get_ssh_info(pane)
-  if not pane then return "" end
-  local process_name = pane:get_foreground_process_name() or ""
-  local domain = pane:get_domain_name()
-  if process_name:find("ssh") or domain:find("SSH") then
-    local uri = pane:get_current_working_dir()
-    if uri then
-      local user = uri.username or os.getenv("USER") or "user"
-      return "󰢩 " .. user .. "@" .. (uri.host or domain)
-    end
+local function get_battery_info()
+  local b_ic, b_num = "󰂄", "100%"
+  for _, b in ipairs(wezterm.battery_info()) do
+    b_num = string.format("%.0f%%", b.state_of_charge * 100)
+    if b.state == 'Charging' then b_ic = "󰂄"
+    elseif b.state_of_charge < 0.2 then b_ic = "󰂃"
+    else b_ic = "󰁹" end
   end
-  return ""
+  return b_ic, b_num
 end
 
 local function fetch_wea_data(config)
   local is_win = wezterm.target_triple:find("windows")
   local curl = is_win and "curl.exe" or "curl"
-  local city = config.weather_city
+  local city = config.weather.city
   if city == "" then
     local ok, res = run_child_cmd({curl, "-s", "https://ipapi.co/json/"})
     city = (ok and res) and res:match('"city":%s*"([^"]+)"') or "Tokyo"
   end
-  local url = string.format("https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s", config.weather_api_key, config.weather_lang, city, config.weather_units)
+  local url = string.format("https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s", config.weather.api_key, config.weather.lang, city, config.weather.units)
   local ok, stdout = run_child_cmd({curl, "-s", url})
   if ok and stdout and not stdout:find('"message"') then
     local wea_id = tonumber(stdout:match('"id":(%d+)'))
@@ -132,8 +130,9 @@ local function fetch_wea_data(config)
       elseif wea_id == 800 then state.weather_ic = weather_icons.clear
       else state.weather_ic = weather_icons.clouds end
     end
-    state.temp_str = temp_val and string.format("%4.1f%s", tonumber(temp_val), (config.weather_units == "metric" and "°C" or "°F")) or state.temp_str
+    state.temp_str = temp_val and string.format("%4.1f", tonumber(temp_val)) or state.temp_str
     state.city_name = stdout:match('"name":"([^"]+)"') or city
+    state.city_code = stdout:match('"country":"([^"]+)"') or "---"
     state.last_wea_upd = os.time()
   end
 end
@@ -142,63 +141,96 @@ end
 --- メイン関数
 --- ==========================================
 function M.setup(opts)
+  -- 以前の設定構造を適用
   local config = {
-    startup_delay           = (opts and opts.startup_delay) or 5,
-    weather_api_key         = opts and opts.weather_api_key,
-    weather_lang            = (opts and opts.weather_lang) or "ja",
-    weather_city            = (opts and opts.weather_city) or "",
-    weather_units           = (opts and opts.weather_units) or "metric",
-    weather_update_interval = 600,
-    net_update_interval     = 3,
-    net_avg_samples         = 10,
-    color_text              = (opts and opts.color_text) or "#ffffff",
-    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
-    color_background        = (opts and opts.color_background) or "#1a1b26",
+    fmt         = (opts and opts.fmt) or "$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num ",
+    start_delay = (opts and opts.start_delay) or 5,
+    weather = {
+      api_key  = (opts and opts.weather and opts.weather.api_key) or "",
+      lang     = (opts and opts.weather and opts.weather.lang) or "en",
+      city     = (opts and opts.weather and opts.weather.city) or "",
+      units    = (opts and opts.weather and opts.weather.units) or "metric",
+      interval = (opts and opts.weather and opts.weather.interval) or 600,
+    },
+    net = {
+      interval  = (opts and opts.net and opts.net.interval) or 3,
+      avg_limit = (opts and opts.net and opts.net.avg_limit) or 20, -- 保存情報に基づき20に設定
+    },
+    separator = (opts and opts.separator) or {
+      left  = "",
+      right = ""
+    },
+    colors = (opts and opts.colors) or {
+      text       = "#ffffff",
+      foreground = "#7aa2f7",
+      background = "#1a1b26"
+    }
   }
 
   wezterm.on('update-right-status', function(window, pane)
     local now = os.time()
-    local is_waiting = (now - state.proc_start) < config.startup_delay
+    local is_waiting = (now - state.proc_start) < config.start_delay
 
-    if config.weather_api_key and not is_waiting and (now - state.last_wea_upd > config.weather_update_interval) then
+    if config.weather.api_key ~= "" and not is_waiting and (now - state.last_wea_upd > config.weather.interval) then
       fetch_wea_data(config)
     end
 
     local net_curr, net_avg = calc_net_speed(config, is_waiting)
-    local cpu_usage, mem_used, mem_free = get_sys_resources()
-    local ssh_str = get_ssh_info(pane)
+    local cpu_u, mem_u, mem_f = get_sys_resources()
+    local batt_ic, batt_num = get_battery_info()
 
-    -- 描画テーブルの組み立て
-    local render = {
-      { Background = { Color = config.color_background } },
-      { Foreground = { Color = config.color_foreground } },
-      { Text = "" },
-      { Background = { Color = config.color_foreground } },
-      { Foreground = { Color = config.color_text } },
+    -- 置換マップ (以前のフォーマット変数に対応)
+    local replace_map = {
+      cal_ic      = "", clock_ic = "", loc_ic = "", net_ic = "󰓅",
+      cpu_ic      = "", mem_ic = "", temp_ic = "",
+      year        = wezterm.strftime('%Y'), month = wezterm.strftime('%m'),
+      day         = wezterm.strftime('%d'), week = wezterm.strftime('%a'),
+      time24      = wezterm.strftime('%H:%M'), 
+      city        = state.city_name, code = state.city_code,
+      weather_ic  = state.weather_ic, temp = state.temp_str,
+      cpu         = cpu_u, mem_used = mem_u, mem_free = mem_f,
+      net_speed   = net_curr, net_avg = net_avg,
+      batt_ic     = batt_ic, batt_num = batt_num,
     }
 
-    -- パーツ追加
-    local function add(t) table.insert(render, { Text = " " .. t }) end
-    
-    if ssh_str ~= "" then add(ssh_str) end
-    add(" " .. wezterm.strftime('%Y.%m.%d(%a)'))
-    add(" " .. wezterm.strftime('%H:%M'))
-    add(" " .. state.city_name .. " " .. state.weather_ic .. state.temp_str)
-    add(" " .. cpu_usage)
-    add(" " .. mem_used)
+    -- 変数置換
+    local final_str = config.fmt:gsub("%$([%a%d_]+)", function(key)
+      local val = replace_map[key:lower()]
+      return val ~= nil and tostring(val) or ("$" .. key)
+    end)
 
-    --- フリーメモリのアイコンのみテキスト色変更
-    table.insert(render, { Foreground = { Color = config.color_background } })
-    table.insert(render, { Text = "  " })
-    table.insert(render, { Foreground = { Color = config.color_text } })
-    table.insert(render, { Text = mem_free })
+    -- 描画テーブル
+    local render = {
+      { Background = { Color = config.colors.background } },
+      { Foreground = { Color = config.colors.foreground } },
+      { Text = config.separator.left },
+      { Background = { Color = config.colors.foreground } },
+      { Foreground = { Color = config.colors.text } },
+    }
 
-    add("󰓅 " .. net_curr .. "(" .. net_avg .. ") ")
+    -- フリーメモリのアイコン色だけを変更
+    -- 文字列中の「」を探し、そこだけ色指定を挿入する
+    local first_idx = final_str:find("")
+    local second_idx = nil
+    if first_idx then
+      second_idx = final_str:find("", first_idx + 1)
+    end
 
-    -- 閉じ（エラー修正箇所）
-    table.insert(render, { Background = { Color = config.color_background } })
-    table.insert(render, { Foreground = { Color = config.color_foreground } })
-    table.insert(render, { Text = "" })
+    local target_idx = second_idx or first_idx
+
+    if target_idx then
+      table.insert(render, { Text = final_str:sub(1, target_idx - 1) })
+      table.insert(render, { Foreground = { Color = config.colors.background } }) -- アイコンを背景色に変更
+      table.insert(render, { Text = "" })
+      table.insert(render, { Foreground = { Color = config.colors.text } })       -- 文字色に戻す
+      table.insert(render, { Text = final_str:sub(target_idx + 1) })
+    else
+      table.insert(render, { Text = final_str })
+    end
+
+    table.insert(render, { Background = { Color = config.colors.background } })
+    table.insert(render, { Foreground = { Color = config.colors.foreground } })
+    table.insert(render, { Text = config.separator.right })
 
     window:set_right_status(wezterm.format(render))
   end)
