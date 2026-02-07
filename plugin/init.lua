@@ -150,8 +150,8 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- デフォルトフォーマット：SSHを削除し、先頭に $User_ic $User を追加
-  local def_fmt = " $User_ic $User $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
+  -- デフォルトフォーマット：$user_ic $user を先頭に配置
+  local def_fmt = " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $loc_ic $city($code) $weather_ic $temp $cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num "
 
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
@@ -187,8 +187,12 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
     
-    -- ユーザー名の取得 (環境変数から)
-    local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
+    -- ユーザー名の取得ロジック（強化版）
+    local user_name = os.getenv("USER") or os.getenv("USERNAME")
+    if not user_name then
+        -- 環境変数から取れない場合、ホームディレクトリのパスから推測
+        user_name = wezterm.home_dir:match("([^/\\]+)$") or "User"
+    end
 
     local res = {
       { Background = { Color = config.color_background } },
