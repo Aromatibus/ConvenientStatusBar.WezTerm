@@ -565,13 +565,119 @@ function M.setup(opts)
     wezterm.on("update-right-status", function(window, pane)
 
         local format = get_current_format()
-        -- 以降は元の update-right-status コードと同じ
-        ...
-    end)
+        local fmt_lower  = format:lower()
+        local use_weather = fmt_lower:find("$weather") or fmt_lower:find("$temp") or fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
+        local use_net     = fmt_lower:find("$net")
+        local use_sys     = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
+        local use_batt    = fmt_lower:find("$batt")
 
-    -- ==========================================
+        local now        = os.time()
+        local is_waiting = (now - state.proc_start) < config.startup_delay
+        local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
+
+        if use_weather and has_weather_api and not is_waiting then
+            local diff = now - state.last_weather_upd
+            if state.last_weather_upd == 0
+                or diff > config.weather_update_interval
+                or (not state.is_weather_ready and diff > config.weather_retry_interval)
+            then
+                fetch_weather_data(config)
+            end
+        end
+
+        local net_curr, net_avg = "", ""
+        if use_net then
+            net_curr, net_avg = calc_net_speed()
+        end
+
+        local cpu_u, mem_u, mem_f = "", "", ""
+        if use_sys then
+            cpu_u, mem_u, mem_f = get_sys_resources()
+        end
+
+        local batt_ic, batt_num = "", ""
+        if use_batt then
+            batt_ic, batt_num = get_batt_disp()
+        end
+
+        local week_val = ""
+        if fmt_lower:find("$week") then
+            if config.week_str and type(config.week_str) == "table" then
+                local week_idx = tonumber(wezterm.strftime('%w'))
+                week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
+            else
+                week_val = wezterm.strftime('%a')
+            end
+        end
+
+        local user_name, user_icon = "", ""
+        if fmt_lower:find("$user") then
+            user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
+            user_icon = ""
+            local ssh_user = get_ssh_user(pane)
+            if ssh_user then
+                user_icon = "󰀑"
+                user_name = ssh_user
+            end
+        end
+
+        local replace_map = {
+            ["$user_ic"] = user_icon,
+            ["$user"] = user_name,
+            ["$cal_ic"] = "",
+            ["$year"] = wezterm.strftime('%Y'),
+            ["$month"] = wezterm.strftime('%m'),
+            ["$day"] = wezterm.strftime('%d'),
+            ["$week"] = week_val,
+            ["$clock_ic"] = "",
+            ["$time24"] = wezterm.strftime('%H:%M'),
+            ["$loc_ic"] = has_weather_api and "" or "",
+            ["$city"] = has_weather_api and state.city_name or "",
+            ["$code"] = has_weather_api and state.city_code or "",
+            ["$weather_ic"] = has_weather_api and state.weather_ic or "",
+            ["$temp"] = has_weather_api and state.temp_str or "",
+            ["$weather_ic_3h"] = state.weather_ic_3h,
+            ["$temp_3h"] = state.temp_3h,
+            ["$weather_ic_24h"] = state.weather_ic_24h,
+            ["$temp_24h"] = state.temp_24h,
+            ["$cpu_ic"] = "",
+            ["$cpu"] = cpu_u,
+            ["$mem_used_ic"] = "",
+            ["$mem_used"] = mem_u,
+            ["$mem_free_ic"] = "",
+            ["$mem_free"] = mem_f,
+            ["$net_ic"] = "󰓅",
+            ["$net_speed"] = net_curr,
+            ["$net_avg"] = net_avg,
+            ["$batt_ic"] = batt_ic,
+            ["$batt_num"] = batt_num,
+        }
+
+        local res = {
+            { Background = { Color = config.color_background } },
+            { Foreground = { Color = config.color_foreground } },
+            { Text       = config.separator_left },
+            { Background = { Color = config.color_foreground } },
+            { Foreground = { Color = config.color_text } },
+        }
+
+        local current_str = format
+        while true do
+            local s, e = current_str:find("%$[%a%d_]+")
+            if not s then break end
+            table.insert(res, { Text = current_str:sub(1, s - 1) })
+            local token = current_str:sub(s, e):lower()
+            table.insert(res, { Text = replace_map[token] or token })
+            current_str = current_str:sub(e + 1)
+        end
+        table.insert(res, { Text = current_str })
+        table.insert(res, { Background = { Color = config.color_background } })
+        table.insert(res, { Foreground = { Color = config.color_foreground } })
+        table.insert(res, { Text = config.separator_right })
+
+        window:set_right_status(wezterm.format(res))
+    end)
     -- マウスバインド追加（左クリックで切替）
-    -- ==========================================
     return {
         mouse_bindings = {
             {
