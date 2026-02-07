@@ -296,7 +296,7 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
     week_str                = opts and opts.week_str,
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
