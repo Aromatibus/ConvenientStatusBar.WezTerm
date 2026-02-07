@@ -164,7 +164,6 @@ local function get_ssh_user(pane)
   local t_user = title:match("([^@]+)@[^@]+")
   -- タイトルにユーザー名が含まれている場合
   if t_user then return t_user end
-
   return nil
 end
 
@@ -270,9 +269,8 @@ function M.setup(opts)
     "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
     "$net_ic $net_speed($net_avg) " ..
     "$batt_ic$batt_num "
-
-    -- 設定の初期化
-    local config              = {
+  -- 設定の初期化
+  local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
     weather_api_key         = opts and opts.weather_api_key,
     weather_lang            = (opts and opts.weather_lang) or "en",
@@ -295,7 +293,9 @@ function M.setup(opts)
   -- ステータスバー更新イベントの登録
   wezterm.on('update-right-status', function(window, pane)
     local now        = os.time()
+    -- スタートアップ待機中フラグ
     local is_waiting = (now - state.proc_start) < config.startup_delay
+    -- 天気APIキーの有無チェック
     local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
     -- 天気情報の更新
     if has_weather_api and not is_waiting then
@@ -313,7 +313,6 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     -- バッテリー情報の取得
     local batt_ic, batt_num = get_batt_disp()
-
     -- 指定された曜日文字列の取得
     local week_val
     if config.week_str and type(config.week_str) == "table" then
@@ -330,7 +329,6 @@ function M.setup(opts)
         user_icon = "󰀑"
         user_name = ssh_user
     end
-
     -- ステータスバーの文字列作成
     local res = {
       { Background = { Color = config.color_background } },
@@ -339,7 +337,6 @@ function M.setup(opts)
       { Background = { Color = config.color_foreground } },
       { Foreground = { Color = config.color_text } },
     }
-
     -- 置換マップの作成
     local replace_map = {
       ["$user_ic"] = user_icon,
@@ -368,8 +365,7 @@ function M.setup(opts)
       ["$batt_ic"] = batt_ic,
       ["$batt_num"] = batt_num,
     }
-
-    -- フォーマット文字列の解析と置換
+    -- フォーマット文字列の置換
     local current_str = config.format
     while true do
       local start_idx, end_idx = current_str:find("%$[%a%d_]+")
@@ -393,7 +389,6 @@ function M.setup(opts)
     -- ステータスバーの表示更新
     window:set_right_status(wezterm.format(res))
   end)
-
 end
 
 
