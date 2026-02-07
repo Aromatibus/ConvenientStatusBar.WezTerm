@@ -194,7 +194,8 @@ local function fetch_weather_data(config)
     state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
       weather_icons.unknown,
       string.format("%5s", weather_icons.unknown),
-      weather_icons.unknown, false
+      weather_icons.unknown,
+      false
     return
   end
   -- クエリ文字列の作成
