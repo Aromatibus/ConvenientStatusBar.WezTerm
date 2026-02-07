@@ -180,16 +180,6 @@ end
 --- 天気情報取得
 --- ==========================================
 local function fetch_weather_data(config)
-    -- APIキーが指定されていない、または空の場合は処理を中断
-    if not config.weather_api_key or config.weather_api_key == "" then
-        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
-            weather_icons.unknown,
-            string.format("%5s", weather_icons.unknown),
-            "No API Key",
-            false
-        return
-    end
-
     -- OS別のcurlコマンド設定
     local is_win   = wezterm.target_triple:find("windows")
     local curl_cmd = is_win and "curl.exe" or "curl"
@@ -204,8 +194,8 @@ local function fetch_weather_data(config)
             tgt_code = res:match('"country_code":%s*"([^"]+)"')
         end
     end
-    -- 都市名が取得できない場合の処理
-    if not tgt_city or tgt_city == "" then
+    -- 都市名が取得できない、またはAPIキーがない場合の処理
+    if not tgt_city or tgt_city == "" or not config.weather_api_key then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
             weather_icons.unknown,
             string.format("%5s", weather_icons.unknown),
@@ -296,13 +286,13 @@ function M.setup(opts)
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
 
-    -- デフォルトのAPIキー（自動取得用）
-    local default_api_key = "YOUR_DEFAULT_OPENWEATHER_API_KEY"
+    -- 自動取得用のデフォルトAPIキー（お手持ちのキーをここに入力してください）
+    local default_api_key = "PASTE_YOUR_API_KEY_HERE"
 
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
-        weather_api_key         = (opts and opts.weather_api_key) or default_api_key,
+        weather_api_key         = (opts and opts.weather_api_key ~= nil) and opts.weather_api_key or default_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
         weather_city            = (opts and opts.weather_city) or "",
@@ -338,7 +328,7 @@ function M.setup(opts)
         local use_batt = fmt_lower:find("$batt")
 
         -- 天気情報の処理判定
-        -- キーが明示的に "" の場合は一切処理しない。それ以外（nil含む）は処理。
+        -- キーが明示的に "" の場合は一切処理しない。
         local has_weather_api = config.weather_api_key ~= ""
         -- 天気情報の更新
         if use_weather and has_weather_api and not is_waiting then
