@@ -39,16 +39,7 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- フリーメモリのアイコンのテキスト色のみを背景色に変更する
-    local mem_free_formatted = wezterm.format({
-      -- アイコン部分: 文字色を背景色(#1a1b26)に変更
-      { Foreground = { Color = config.color_background } },
-      { Text = "  " },
-      -- アイコン終了後、即座に元の文字色(白など)に戻す
-      { Foreground = { Color = config.color_text } },
-      { Text = mem_free },
-    })
-
+    -- 1. 文字列置換用のマップを作成 (ここでは mem_free は純粋な文字列)
     local replace_map = {
       cal_ic      = "",
       clock_ic    = "",
@@ -66,28 +57,56 @@ function M.setup(opts)
       temp        = state.temp_str,
       cpu         = cpu_usage,
       mem_used    = mem_used,
-      mem_free    = mem_free_formatted, -- ここでフォーマット済み文字列を適用
+      mem_free    = mem_free, -- 一旦普通の文字列として格納
       net_speed   = net_curr,
       net_avg     = net_avg,
       ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "",
     }
 
-    local final_status = config.format:gsub("%$([%a%d_]+)", function(key)
+    -- 2. $変数を置換して、全体の文字列を組み立てる
+    local raw_status = config.format:gsub("%$([%a%d_]+)", function(key)
       local val = replace_map[key:lower()]
-      return val ~= nil and val or ("$" .. key)
+      return val ~= nil and tostring(val) or ("$" .. key)
     end)
 
-    window:set_right_status(wezterm.format({
+    -- 3. フリーメモリのアイコン箇所だけ色を変えるためのテーブルを構成
+    -- 文字列を mem_free の前後で分割して、アイコンの色設定を挟み込む
+    local parts = {}
+    table.insert(parts, { Background = { Color = config.color_foreground } })
+    table.insert(parts, { Foreground = { Color = config.color_text } })
+
+    -- 全体のテキストを走査し、$MEM_FREE のアイコン部分だけ色指定を挿入
+    -- 簡略化のため、完成した文字列内のアイコンを置換
+    local final_parts = {
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
-      { Text       = "" },
+      { Text = "" },
       { Background = { Color = config.color_foreground } },
       { Foreground = { Color = config.color_text } },
-      { Text       = final_status },
-      { Background = { Color = config.color_background } },
-      { Foreground = { Color = config.color_foreground } },
-      { Text       = "" },
-    }))
+    }
+
+    -- ステータス文字列をループで処理せず、直接構成
+    -- アイコン「」を見つけて、その前後の色を変える
+    local start_idx, end_idx = raw_status:find("")
+    if start_idx then
+      -- アイコンより前の部分
+      table.insert(final_parts, { Text = raw_status:sub(1, start_idx - 1) })
+      -- アイコン部分のみ文字色を背景色に
+      table.insert(final_parts, { Foreground = { Color = config.color_background } })
+      table.insert(final_parts, { Text = raw_status:sub(start_idx, end_idx) })
+      -- アイコン直後で文字色を元に戻す
+      table.insert(final_parts, { Foreground = { Color = config.color_text } })
+      -- 残りの部分
+      table.insert(final_parts, { Text = raw_status:sub(end_idx + 1) })
+    else
+      table.insert(final_parts, { Text = raw_status })
+    end
+
+    table.insert(final_parts, { Background = { Color = config.color_background } })
+    table.insert(final_parts, { Foreground = { Color = config.color_foreground } })
+    table.insert(final_parts, { Text = "" })
+
+    window:set_right_status(wezterm.format(final_parts))
   end)
 end
 
