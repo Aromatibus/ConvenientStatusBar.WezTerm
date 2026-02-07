@@ -238,31 +238,43 @@ function M.setup(opts)
     }
 
     local replace_map = {
-      ["$ssh"] = ssh_str, ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
-      ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
-      ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
-      ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
-      ["$cpu"] = cpu_u, 
-      ["$mem_used_ic"] = "", -- ユーズド用アイコン
-      ["$mem_used"] = mem_u, 
-      ["$mem_free_ic"] = "", -- フリー用アイコン
+      ["$ssh"] = ssh_str,
+      ["$cal_ic"] = "",
+      ["$year"] = wezterm.strftime('%Y'),
+      ["$month"] = wezterm.strftime('%m'),
+      ["$day"] = wezterm.strftime('%d'),
+      ["$week"] = wezterm.strftime('%a'),
+      ["$clock_ic"] = "",
+      ["$time24"] = wezterm.strftime('%H:%M'),
+      ["$loc_ic"] = "",
+      ["$city"] = state.city_name,
+      ["$code"] = state.city_code,
+      ["$weather_ic"] = state.weather_ic,
+      ["$temp"] = state.temp_str,
+      ["$cpu_ic"] = "",
+      ["$cpu"] = cpu_u,
+      ["$mem_used_ic"] = "",
+      ["$mem_used"] = mem_u,
+      ["$mem_free_ic"] = "",
       ["$mem_free"] = mem_f,
-      ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
-      ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
+      ["$net_ic"] = "󰓅",
+      ["$net_speed"] = net_curr,
+      ["$net_avg"] = net_avg,
+      ["$batt_ic"] = batt_ic,
+      ["$batt_num"] = batt_num,
     }
 
     local current_str = config.format
     while true do
       local start_idx, end_idx = current_str:find("%$[%a%d_]+")
       if not start_idx then break end
-      
+
       table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
-      
+
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
 
-      -- $mem_free_ic のときだけ色を背景色に変える
+      -- $mem_free_ic のときだけテキスト色を背景色に変える
       if token == "$mem_free_ic" then
         table.insert(res, { Foreground = { Color = config.color_background } })
         table.insert(res, { Text = val })
@@ -270,7 +282,7 @@ function M.setup(opts)
       else
         table.insert(res, { Text = val })
       end
-      
+
       current_str = current_str:sub(end_idx + 1)
     end
     table.insert(res, { Text = current_str })
