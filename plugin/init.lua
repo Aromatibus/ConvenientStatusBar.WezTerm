@@ -191,13 +191,11 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- デフォルトのフォーマット文字列（Git関連を削除）
   local def_fmt =
     " $SSH $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City $Weather_ic $Temp " ..
     "$CPU_ic $CPU $MEM_ic $MEM_USED $MEM_FREE $Net_ic $Net_speed($Net_avg) "
 
-  -- 設定オプションの初期化
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
     weather_api_key         = opts and opts.weather_api_key,
@@ -206,7 +204,7 @@ function M.setup(opts)
     weather_units           = (opts and opts.weather_units) or "metric",
     weather_update_interval = 600,
     net_update_interval     = 3,
-    net_avg_samples         = 20,
+    net_avg_samples         = 10, -- メモリ情報より初期値10に設定
     color_text              = (opts and opts.color_text) or "#ffffff",
     color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
     color_background        = (opts and opts.color_background) or "#1a1b26",
@@ -217,17 +215,15 @@ function M.setup(opts)
     local now        = os.time()
     local is_waiting = (now - state.proc_start) < config.startup_delay
 
-    -- 天気更新
     if config.weather_api_key and not is_waiting and (now - state.last_wea_upd > config.weather_update_interval) then
       fetch_wea_data(config)
     end
 
-    -- 各種情報の計算・取得
     local net_curr, net_avg = calc_net_speed(config, is_waiting)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- 反転表示用の関数（アイコンのみ反転）
+    -- アイコンのみ反転させる関数
     local function format_rev_ic(icon, text)
       return wezterm.format({
         { Attribute = { Reverse = true } },
@@ -253,8 +249,8 @@ function M.setup(opts)
       city        = state.city_name,                           -- 都市名
       weather_ic  = state.weather_ic,                          -- 天気アイコン
       temp        = state.temp_str,                            -- 気温
-      cpu         = cpu_usage,                                 -- CPU使用率 (?0%)
-      mem_used    = mem_used,                                  -- 使用中メモリ (???0.0GB)
+      cpu         = cpu_usage,                                 -- CPU使用率
+      mem_used    = mem_used,                                  -- 使用中メモリ
       mem_free    = format_rev_ic("", mem_free),              -- 空きメモリ (アイコンのみ反転)
       net_speed   = net_curr,                                  -- 現在のネットワーク速度
       net_avg     = net_avg,                                   -- 平均ネットワーク速度
@@ -266,7 +262,6 @@ function M.setup(opts)
       return val ~= nil and val or ("$" .. key)
     end)
 
-    -- 右ステータスバーの更新
     window:set_right_status(wezterm.format({
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
