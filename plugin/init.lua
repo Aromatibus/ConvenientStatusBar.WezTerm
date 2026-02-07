@@ -296,7 +296,6 @@ function M.setup(opts)
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
-        -- APIキーがオプションに無い(nil)場合はデフォルトキーを使用
         weather_api_key         = (opts and opts.weather_api_key ~= nil) and opts.weather_api_key or default_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
@@ -410,8 +409,10 @@ function M.setup(opts)
         
         table.insert(res, { Text = current_str })
         table.insert(res, { Background = { Color = config.color_background } })
-        table.insert(res, { Foreground = { Color = config.color_foreground } }, { Text = config.separator_right })
+        table.insert(res, { Foreground = { Color = config.color_foreground } })
+        table.insert(res, { Text = config.separator_right })
         
+        -- ステータスバーの表示更新
         window:set_right_status(wezterm.format(res))
     end)
 end
