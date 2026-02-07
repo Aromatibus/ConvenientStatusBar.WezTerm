@@ -235,8 +235,8 @@ function M.setup(opts)
   -- APIキーがある場合のみ天気情報を処理対象にする
   local has_api_key = cfg.weather.api_key and cfg.weather.api_key ~= ""
   local use_weather = has_api_key and
-                      ( low_fmt:find("$city") or low_fmt:find("$code") or
-                        low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
+                    ( low_fmt:find("$city") or low_fmt:find("$code") or
+                      low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   -- 定期更新イベントの登録
