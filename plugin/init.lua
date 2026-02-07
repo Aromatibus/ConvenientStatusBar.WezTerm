@@ -52,7 +52,7 @@ local function run_child_cmd(args)
 end
 
 
--- 数値のフォーマット (B/S, KB/S, MB/S)
+-- 数値のフォーマット化 (B/S -> KB/S, MB/S)
 local function format_bps(bps)
   if bps > 1024 * 1024 then
     return string.format("%5.1fMB/S", bps / (1024 * 1024))
@@ -65,7 +65,7 @@ end
 
 
 -- ネットワーク速度の計算
-local function calc_net_speed(cfg_net, is_startup_waiting)
+local function calc_net_speed(config_net, is_startup_waiting)
   if is_startup_waiting then
     return state.net_state.disp_str, state.net_state.avg_str
   end
@@ -73,7 +73,7 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
   -- 更新間隔に満たない場合は前回値を返す
-  if time_delta < cfg_net.interval then
+  if time_delta < config_net.net_update_interval then
     return state.net_state.disp_str, state.net_state.avg_str
   end
   -- ネットワーク受信バイト数の取得
@@ -92,7 +92,7 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   table.insert(state.net_state.samples, 1, bps)
   -- サンプル数が上限を超えた場合は古いサンプルを削除
-  if #state.net_state.samples > cfg_net.avg_limit then
+  if #state.net_state.samples > config_net.net_avg_samples then
     table.remove(state.net_state.samples)
   end
   -- サンプルの合計値を計算
@@ -108,13 +108,13 @@ end
 
 
 -- 気象情報の取得と更新
-local function fetch_wea_data(cfg_wea)
+local function fetch_wea_data(config_wea)
   -- curlコマンドの設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
   -- 取得対象の都市名と国コードの設定
-  local tgt_city = cfg_wea.city
-  local tgt_code = cfg_wea.country
+  local tgt_city = config_wea.weather_city
+  local tgt_code = config_wea.weather_country
   -- Cityが設定されていない場合はIPアドレスから都市名を取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
@@ -134,7 +134,7 @@ local function fetch_wea_data(cfg_wea)
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format(
     "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-    cfg_wea.api_key, cfg_wea.lang, query, cfg_wea.units
+    config_wea.weather_api_key, config_wea.weather_lang, query, config_wea.weather_units
   )
   -- 天気情報の取得
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
@@ -163,7 +163,7 @@ local function fetch_wea_data(cfg_wea)
     else                     state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位の設定
-  local unit_sym = cfg_wea.units == "metric" and
+  local unit_sym = config_wea.weather_units == "metric" and
                     weather_icons.celsius or weather_icons.fahrenheit
   -- 温度表示の設定
   state.temp_str     =  temp_val and
@@ -203,69 +203,64 @@ function M.setup(opts)
     " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
     "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
+
   -- 設定オプションの初期化
-  local cfg          = {
-    fmt              = (opts and opts.format) or def_fmt,      -- ステータスバーのフォーマット
-    start_delay      = (opts and opts.startup_delay) or 5,     -- 起動時の通信待機時間
-    weather          = {
-      api_key        = opts and opts.api_key,                  -- OpenWeatherMap APIキー
-      lang           = (opts and opts.lang) or "en",           -- 取得言語コード
-      country        = (opts and opts.country) or "",          -- 国コード、都市名と併用
-      city           = (opts and opts.city) or "",             -- 都市名、省略時自動取得
-      units          = (opts and opts.units) or "metric",      -- "metric" or "imperial"
-      interval       = (opts and opts.update_interval) or 600, -- 天気情報の更新秒数
-      retry_interval = (opts and opts.retry_interval) or 30,   -- 取得失敗時のリトライ秒数
-    },
-    net              = {
-      interval       = (opts and opts.net_update_interval) or 3, -- ネットワーク速度更新秒数
-      avg_limit      = (opts and opts.net_avg_samples) or 20,    -- 平均速度のサンプル数
-    },
-    separator        = (opts and opts.separator) or {
-      left           = "",                           -- ステータスバーの始端（左）
-      right          = ""                            -- ステータスバーの終端（右）
-    },
-    colors           = (opts and opts.colors) or {
-      text           = "#ffffff",                   -- ステータスバーの文字色
-      foreground     = "#7aa2f7",                   -- ステータスバーの前景色
-      background     = "#1a1b26"                    -- ステータスバーの背景色
-    },
+  local config              = {
+    format                  = (opts and opts.format) or def_fmt,
+    startup_delay           = (opts and opts.startup_delay) or 5,
+    weather_api_key         = opts and opts.weather_api_key,
+    weather_lang            = (opts and opts.weather_lang) or "en",
+    weather_country         = (opts and opts.weather_country) or "",
+    weather_city            = (opts and opts.weather_city) or "",
+    weather_units           = (opts and opts.weather_units) or "metric",
+    weather_update_interval = (opts and opts.weather_update_interval) or 600,
+    weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
+    net_update_interval     = (opts and opts.net_update_interval) or 3,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 5,
+    separator_left          = (opts and opts.separator_left) or "",
+    separator_right         = (opts and opts.separator_right) or "",
+    color_text              = (opts and opts.color_text) or "#ffffff",
+    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
+    color_background        = (opts and opts.color_background) or "#1a1b26",
   }
 
-  -- フォーマット文字列を小文字化して変数を判定
-  local low_fmt = cfg.fmt:lower()
+  -- フォーマット文字列のを小文字化して変数を判定
+  local low_fmt = config.format:lower()
   -- APIキーがある場合のみ天気情報を処理対象にする
-  local has_api_key = cfg.weather.api_key and cfg.weather.api_key ~= ""
-  local use_weather = has_api_key and
-                    ( low_fmt:find("$city") or low_fmt:find("$code") or
-                      low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
+  local has_api_key = config.weather_api_key and config.weather_api_key ~= ""
+  local use_weather = has_api_key and 
+                      (low_fmt:find("$city") or low_fmt:find("$code") or
+                       low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   -- 定期更新イベントの登録
   wezterm.on('update-right-status', function(window, _)
     local now        = os.time()
     local elapsed    = now - state.proc_start
-    local is_waiting = elapsed < cfg.start_delay
+    local is_waiting = elapsed < config.startup_delay
+
     -- 起動直後の待機時間中は取得をスキップ
     if use_weather and not is_waiting then
       local diff = now - state.last_wea_upd
       local should_fetch = false
+
       -- 初回または通常インターバル経過時の判定
-      if state.last_wea_upd == 0 or diff > cfg.weather.interval then
+      if state.last_wea_upd == 0 or diff > config.weather_update_interval then
         should_fetch = true
       -- 通信に失敗している場合のリトライ判定
-      elseif not state.is_wea_ready and diff > cfg.weather.retry_interval then
+      elseif not state.is_wea_ready and diff > config.weather_retry_interval then
         should_fetch = true
       end
       -- 天気情報の取得・更新
       if should_fetch then
-        fetch_wea_data(cfg.weather)
+        fetch_wea_data(config)
       end
     end
 
     -- ネットワーク速度の計算・取得
     local batt_ic, batt_num = get_batt_disp()
-    local net_speed, net_avg = "", ""
-    if use_net then net_speed, net_avg = calc_net_speed(cfg.net, is_waiting) end
+    local net_curr, net_avg = "", ""
+    if use_net then net_curr, net_avg = calc_net_speed(config, is_waiting) end
 
     -- フォーマット文字列の変数を置換
     local replace_map = {
@@ -283,28 +278,28 @@ function M.setup(opts)
       code        = use_weather and state.city_code or "",
       temp        = use_weather and state.temp_str or "",
       net_ic      = "󰓅",
-      net_speed   = net_speed,
+      net_speed   = net_curr,
       net_avg     = net_avg,
       batt_ic     = batt_ic,
       batt_num    = batt_num,
     }
 
     -- ステータス文字列の生成
-    local final_status = cfg.fmt:gsub("%$([%a%d_]+)", function(key)
+    local final_status = config.format:gsub("%$([%a%d_]+)", function(key)
       return replace_map[key:lower()] or ("$" .. key)
     end)
 
     -- 右ステータスバーの更新
     window:set_right_status(wezterm.format({
-      { Background = { Color = cfg.colors.background } },
-      { Foreground = { Color = cfg.colors.foreground } },
-      { Text       = cfg.separator.left },
-      { Background = { Color = cfg.colors.foreground } },
-      { Foreground = { Color = cfg.colors.text } },
+      { Background = { Color = config.color_background } },
+      { Foreground = { Color = config.color_foreground } },
+      { Text       = config.separator_left },
+      { Background = { Color = config.color_foreground } },
+      { Foreground = { Color = config.color_text } },
       { Text       = final_status },
-      { Background = { Color = cfg.colors.background } },
-      { Foreground = { Color = cfg.colors.foreground } },
-      { Text       = cfg.separator.right },
+      { Background = { Color = config.color_background } },
+      { Foreground = { Color = config.color_foreground } },
+      { Text       = config.separator_right },
     }))
   end)
 end
