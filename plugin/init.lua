@@ -408,7 +408,6 @@ function M.setup(opts)
             ["$code"] = has_weather_api and state.city_code or "",
             ["$weather_ic"] = has_weather_api and state.weather_ic or "",
             ["$temp"] = has_weather_api and state.temp_str or "",
-            -- 追加：予報
             ["$weather_ic_3h"] = has_weather_api and state.weather_ic_3h or "",
             ["$temp_3h"] = has_weather_api and state.temp_str_3h or "",
             ["$weather_ic_24h"] = has_weather_api and state.weather_ic_24h or "",
