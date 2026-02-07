@@ -216,7 +216,7 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,  -- 天気情報の更新時間（秒）
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,    -- 天気情報取得失敗時のリトライ時間（秒）
     net_update_interval     = (opts and opts.net_update_interval) or 3,        -- ネットワーク速度更新時間（秒）
-    net_avg_samples         = (opts and opts.net_avg_samples) or 5,            -- 平均速度のサンプル数
+    net_avg_samples         = (opts and opts.net_avg_samples) or 20,           -- 平均速度のサンプル数
     separator_left          = (opts and opts.separator_left) or "",           -- ステータスバーの始端（左側）
     separator_right         = (opts and opts.separator_right) or "",          -- ステータスバーの終端（右側）
     color_text              = (opts and opts.color_text) or "#ffffff",       -- ステータスバーの文字色
