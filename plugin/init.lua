@@ -102,20 +102,22 @@ end
 -- システムリソース（CPU/MEM）の取得
 local function get_sys_resources()
   local is_win = wezterm.target_triple:find("windows")
-  local cpu_usage, mem_free = "??%", "??GB"
+  local cpu_val, mem_val = 0, 0
 
   if is_win then
     local ok_c, out_c = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "Get-WmiObject Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average"})
-    if ok_c then cpu_usage = (out_c:gsub("%s+", "")) .. "%" end
+    if ok_c then cpu_val = tonumber(out_c:match("[%d%.]+")) or 0 end
     local ok_m, out_m = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "[math]::Round((Get-WmiObject Win32_OperatingSystem).FreePhysicalMemory / 1024 / 1024, 1)"})
-    if ok_m then mem_free = (out_m:gsub("%s+", "")) .. "GB" end
+    if ok_m then mem_val = tonumber(out_m:match("[%d%.]+")) or 0 end
   else
     local ok_c, out_c = run_child_cmd({"sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $2}' || top -l 1 | grep 'CPU usage' | awk '{print $3}'"})
-    if ok_c then cpu_usage = (out_c:gsub("%%", ""):gsub("%s+", "")) .. "%" end
-    local ok_m, out_m = run_child_cmd({"sh", "-c", "free -g | awk '/^Mem:/ {print $4}' || vm_stat | awk '/free/ {print $3}' | sed 's/\\.//'"})
-    if ok_m then mem_free = (out_m:gsub("%s+", "")) .. "GB" end
+    if ok_c then cpu_val = tonumber(out_c:match("[%d%.]+")) or 0 end
+    local ok_m, out_m = run_child_cmd({"sh", "-c", "free -g | awk '/^Mem:/ {print $4}' || vm_stat | awk '/free/ {print $3}' | sed 's/\\.//' | awk '{print $1*4096/1024/1024/1024}'"})
+    if ok_m then mem_val = tonumber(out_m:match("[%d%.]+")) or 0 end
   end
-  return cpu_usage, mem_free
+  
+  -- 先頭の0は空白
+  return string.format("%2d%%", cpu_val), string.format("%5.1fGB", mem_val)
 end
 
 
@@ -141,7 +143,11 @@ local function get_pane_info(pane)
   if cwd then
     local path = cwd.file_path
     local ok, out = run_child_cmd({"git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"})
-    if ok and out then info.branch = out:gsub("%s+", "") end
+    if ok and out then 
+      local branch = out:gsub("%s+", "")
+      -- ブランチ名が取得できている場合のみセット
+      if branch ~= "" then info.branch = branch end
+    end
   end
 
   return info
@@ -303,7 +309,7 @@ function M.setup(opts)
       mem_ic      = "",
       mem         = mem_free,
       git_ic      = pane_info.branch ~= "" and "" or "",
-      branch      = pane_info.branch,
+      branch      = pane_info.branch, -- ブランチがない場合は ""
       ssh         = pane_info.ssh ~= "" and ("󰣀 " .. pane_info.ssh) or "",
     }
 
