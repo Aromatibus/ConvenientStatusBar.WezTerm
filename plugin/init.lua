@@ -301,6 +301,9 @@ function M.setup(opts)
     format                  = (opts and opts.format) or def_fmt,
   }
 
+  -- ログに最終的に使用されたConfigの値をそのまま出力
+  wezterm.log_info("Final Config: " .. wezterm.to_string(config))
+
   -- ステータスバー更新イベントの登録
   wezterm.on('update-right-status', function(window, pane)
     local now        = os.time()
