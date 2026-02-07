@@ -150,8 +150,11 @@ end
 --- SSHユーザー抽出
 --- ==========================================
 local function get_ssh_user(pane)
-    local uri = pane:get_current_working_dir()
-    if uri and uri.username and uri.username ~= "" then return uri.username end
+    -- 【修正】Paneが有効かチェック
+    if not pane then return nil end
+    local success, uri = pcall(function() return pane:get_current_working_dir() end)
+    if success and uri and uri.username and uri.username ~= "" then return uri.username end
+    
     local proc = pane:get_foreground_process_info()
     if proc and proc.executable:find("ssh") then
         for _, arg in ipairs(proc.argv) do
@@ -177,9 +180,7 @@ local function fetch_weather_data(config)
 
     if not tgt_city or tgt_city == "" then
         local ip_url = "https://ipapi.co/json/"
-        wezterm.log_info("Fetching location from IP: " .. ip_url)
         local ok, res = run_child_cmd({curl_cmd, "-s", ip_url})
-        wezterm.log_info("Location API Response: " .. (res or "nil"))
         if ok and res then
             tgt_city = res:match('"city":%s*"([^"]+)"')
             tgt_code = res:match('"country_code":%s*"([^"]+)"')
@@ -197,17 +198,13 @@ local function fetch_weather_data(config)
         config.weather_api_key, config.weather_lang, query, config.weather_units
     )
     
-    wezterm.log_info("Fetching weather forecast: " .. url)
     local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-    wezterm.log_info("Weather API Response: " .. (stdout or "nil"))
-
     if not ok or not stdout or stdout:find('"message"') then
         state.is_weather_ready = false
         state.last_weather_upd = os.time()
         return
     end
 
-    -- 【重要】ネストされた "weather":[{"id":...}] 構造に対応するためのパース関数
     local function parse_item(item_json)
         local id_str = item_json:match('"weather":%s*%[%s*{%s*"id":%s*(%d+)')
         local id     = tonumber(id_str)
@@ -277,7 +274,6 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    -- 【修正】トークンの区切りを明確にするため、スペースを挿入
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
@@ -306,9 +302,10 @@ function M.setup(opts)
         format                  = (opts and opts.format) or def_fmt,
     }
 
-    wezterm.log_info("Final Config: " .. wezterm.to_string(config))
-
     wezterm.on('update-right-status', function(window, pane)
+        -- 【修正】Paneが存在しない場合は処理を中断
+        if not pane then return end
+
         local now        = os.time()
         local is_waiting = (now - state.proc_start) < config.startup_delay
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
@@ -366,15 +363,22 @@ function M.setup(opts)
             table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
             local token = current_str:sub(start_idx, end_idx):lower()
             local val = replace_map[token] or token
+            
+            -- 【修正】table.insertは一度に1つずつ（または連結して）追加
             if token == "$mem_free_ic" then
-                table.insert(res, { Foreground = { Color = config.color_background } }, { Text = val }, { Foreground = { Color = config.color_text } })
+                table.insert(res, { Foreground = { Color = config.color_background } })
+                table.insert(res, { Text = val })
+                table.insert(res, { Foreground = { Color = config.color_text } })
             else
                 table.insert(res, { Text = val })
             end
             current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
-        table.insert(res, { Background = { Color = config.color_background } }, { Foreground = { Color = config.color_foreground } }, { Text = config.separator_right })
+        table.insert(res, { Background = { Color = config.color_background } })
+        table.insert(res, { Foreground = { Color = config.color_foreground } })
+        table.insert(res, { Text = config.separator_right })
+        
         window:set_right_status(wezterm.format(res))
     end)
 end
