@@ -191,7 +191,7 @@ function M.setup(opts)
     " $user_ic $user " ..
     "$cal_ic $year.$month.$day($week) $clock_ic $time24 "..
     "$loc_ic $city($code) $weather_ic $temp "..
-    "cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free "..
+    "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free "..
     "$net_ic $net_speed($net_avg) "..
     "$batt_ic$batt_num "
 
