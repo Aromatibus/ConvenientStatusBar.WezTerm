@@ -209,29 +209,29 @@ function M.setup(opts)
 
   -- 設定オプションの初期化
   local cfg          = {
-    fmt              = opts.format or def_fmt,
-    start_delay      = opts.startup_delay or 5,       -- 起動時の通信待機時間
+    fmt              = opts.format or def_fmt,        -- [省略可]ステータスバーのフォーマット文字列
+    start_delay      = opts.startup_delay or 5,       -- [省略可]起動時の通信待機時間
     weather          = {
-      api_key        = opts.api_key,                  -- OpenWeatherMap APIキー
-      lang           = opts.lang or "en",             -- 言語コード
-      country        = opts.country or "",            -- 国コード、都市名と組み合わせて使用
-      city           = opts.city or "",               -- 都市名、省略された場合は自動取得
-      units          = opts.units or "metric",        -- "metric(摂氏)" or "imperial(華氏)"
-      interval       = opts.update_interval or 600,   -- 天気情報の更新間隔
-      retry_interval = opts.retry_interval or 30,     -- 天気情報取得失敗時のリトライ間隔
+      api_key        = opts.api_key,                  -- [省略不可]OpenWeatherMap APIキー
+      lang           = opts.lang or "en",             -- [省略可]言語コード
+      country        = opts.country or "",            -- [省略可]国コード、都市名と組み合わせて使用
+      city           = opts.city or "",               -- [省略可]都市名、省略された場合は自動取得
+      units          = opts.units or "metric",        -- [省略可]"metric(摂氏)" or "imperial(華氏)"
+      interval       = opts.update_interval or 600,   -- [省略可]天気情報の更新間隔
+      retry_interval = opts.retry_interval or 30,     -- [省略可]天気情報取得失敗時のリトライ間隔
     },
     net              = {
-      interval       = opts.net_update_interval or 3, -- ネットワーク速度更新間隔
-      avg_limit      = opts.net_avg_samples or 20     -- 平均速度のサンプル数
+      interval       = opts.net_update_interval or 3, -- [省略可]ネットワーク速度更新間隔
+      avg_limit      = opts.net_avg_samples or 20     -- [省略可]平均速度のサンプル数
     },
     separator        = opts.separator or {
-      left           = "",
-      right          = ""
+      left           = "",                           -- [省略可]ステータスバーの区切り文字（左側）
+      right          = ""                            -- [省略可]ステータスバーの区切り文字（右側）
     },
     colors           = opts.colors or {
-      background     = "#1a1b26",
-      foreground     = "#7aa2f7",
-      text           = "#ffffff"
+      text           = "#ffffff",                   -- [省略可]ステータスバーの文字色
+      foreground     = "#7aa2f7",                   -- [省略可]ステータスバーの前景色
+      background     = "#1a1b26"                    -- [省略可]ステータスバーの背景色
     },
   }
 
