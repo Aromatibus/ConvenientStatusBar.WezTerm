@@ -248,9 +248,12 @@ local function fetch_weather_data(config)
 
     -- パース用補助関数 (forecast形式のJSONに対応)
     local function parse_item(item_json)
-        local id = tonumber(item_json:match('"id":(%d+)'))
-        local t  = item_json:match('"temp":([%d%.%-]+)')
-        local ic = weather_icons.unknown
+        -- weather配列の中にある id を探すように正規表現を調整
+        local id_str = item_json:match('"weather":%s*%[%s*{%s*"id":%s*(%d+)')
+        local id     = tonumber(id_str)
+        local t      = item_json:match('"temp":([%d%.%-]+)')
+        local ic     = weather_icons.unknown
+
         if id then
             if     id < 300  then ic = weather_icons.thunder
             elseif id < 600  then ic = weather_icons.rain
