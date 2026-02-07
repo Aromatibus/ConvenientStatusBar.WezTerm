@@ -1,7 +1,6 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
-
 --- ==========================================
 --- 定数・アイコン定義
 --- ==========================================
@@ -18,7 +17,6 @@ local weather_icons = {
   loading     = " ", -- 取得中
   unknown     = " ", -- 不明
 }
-
 
 --- ==========================================
 --- 状態管理用の変数
@@ -40,19 +38,15 @@ local state = {
   }
 }
 
-
 --- ==========================================
 --- サブ関数
 --- ==========================================
 
--- 外部コマンドを安全に実行
 local function run_child_cmd(args)
   local success, stdout, _ = wezterm.run_child_process(args)
   return success, stdout
 end
 
-
--- 数値のフォーマット化 (B/S, KB/S, MB/S)
 local function format_bps(bps)
   if bps > 1024 * 1024 then
     return string.format("%5.1fMB/S", bps / (1024 * 1024))
@@ -63,8 +57,6 @@ local function format_bps(bps)
   end
 end
 
-
--- ネットワーク速度の計算
 local function calc_net_speed(config, is_startup_waiting)
   if is_startup_waiting then
     return state.net_state.disp_str, state.net_state.avg_str
@@ -97,8 +89,6 @@ local function calc_net_speed(config, is_startup_waiting)
   return state.net_state.disp_str, state.net_state.avg_str
 end
 
-
--- システムリソース（CPU/メモリ）の取得
 local function get_sys_resources()
   local is_win = wezterm.target_triple:find("windows")
   local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
@@ -125,8 +115,6 @@ local function get_sys_resources()
   return string.format("%2d%%", cpu_val), string.format("%4.1fGB", mem_u_val), string.format("%4.1fGB", mem_f_val)
 end
 
-
--- SSH接続情報の取得
 local function get_ssh_info(pane)
   if not pane then return "" end
   local domain = pane:get_domain_name()
@@ -140,8 +128,6 @@ local function get_ssh_info(pane)
   return ""
 end
 
-
--- 気象情報の取得と更新
 local function fetch_wea_data(config)
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -192,8 +178,6 @@ local function fetch_wea_data(config)
   state.is_wea_ready = true
 end
 
-
--- バッテリー情報の取得
 local function get_batt_disp()
   local batt_list = wezterm.battery_info()
   if not batt_list or #batt_list == 0 then return "󰚥", "" end
@@ -203,12 +187,12 @@ local function get_batt_disp()
   return icon, string.format("%.0f%%", charge)
 end
 
-
 --- ==========================================
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $MEM_ic $MEM_USED $MEM_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
+  -- デフォルトフォーマットを新変数に対応
+  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
@@ -259,14 +243,16 @@ function M.setup(opts)
       ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
       ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
       ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
-      ["$cpu"] = cpu_u, ["$mem_ic"] = "", ["$mem_used"] = mem_u, ["$mem_free"] = mem_f,
+      ["$cpu"] = cpu_u, 
+      ["$mem_used_ic"] = "", -- ユーズド用アイコン
+      ["$mem_used"] = mem_u, 
+      ["$mem_free_ic"] = "", -- フリー用アイコン
+      ["$mem_free"] = mem_f,
       ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
       ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
     }
 
     local current_str = config.format
-    local mem_ic_count = 0 -- $MEM_ICの出現回数をカウント
-
     while true do
       local start_idx, end_idx = current_str:find("%$[%a%d_]+")
       if not start_idx then break end
@@ -276,16 +262,11 @@ function M.setup(opts)
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
 
-      -- $MEM_ICの2回目出現時のみ色を背景色に変える
-      if token == "$mem_ic" then
-        mem_ic_count = mem_ic_count + 1
-        if mem_ic_count == 2 then
-          table.insert(res, { Foreground = { Color = config.color_background } })
-          table.insert(res, { Text = val })
-          table.insert(res, { Foreground = { Color = config.color_text } })
-        else
-          table.insert(res, { Text = val })
-        end
+      -- $mem_free_ic のときだけ色を背景色に変える
+      if token == "$mem_free_ic" then
+        table.insert(res, { Foreground = { Color = config.color_background } })
+        table.insert(res, { Text = val })
+        table.insert(res, { Foreground = { Color = config.color_text } })
       else
         table.insert(res, { Text = val })
       end
