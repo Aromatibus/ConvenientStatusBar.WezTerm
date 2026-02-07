@@ -45,7 +45,7 @@ local state = {
 
     net_state = {
         last_rx_bytes = 0,
-        last_chk_time = os.time(),,
+        last_chk_time = os.time(),
         disp_str      = string.format("%9s", weather_icons.loading),
         avg_str       = string.format("%9s", weather_icons.loading),
         samples       = {}
