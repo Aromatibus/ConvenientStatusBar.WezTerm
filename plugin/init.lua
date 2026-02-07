@@ -1,326 +1,286 @@
 local wezterm = require 'wezterm'
-local module = {}
+local M       = {}
 
 --- ==========================================
---- 静的定数の定義
+--- 定数・アイコン定義
 --- ==========================================
-
--- ギガバイト換算用
-local GIGABYTE = 1024 ^ 3
-
--- メガバイト換算用
-local MEGABYTE = 1024 * 1024
-
--- キロバイト換算用
-local KILOBYTE = 1024
-
--- 天気予報用アイコン
-local WEATHER_ICONS = {
-  clear   = "󰖨 ",
-  clouds  = "󰅟 ",
-  rain    = " ",
-  wind    = " ",
-  thunder = "󱐋 ",
-  snow    = " ",
-  unknown = " ",
-  loading = " ",
-}
-
--- システム状態用アイコン
-local SYSTEM_ICONS = {
-  user_local  = " ",
-  user_ssh    = "󰀑 ",
-  calendar    = " ",
-  clock       = " ",
-  location    = " ",
-  cpu         = " ",
-  memory_used = " ",
-  memory_free = " ",
-  network     = "󰓅 ",
-  battery     = { "󰢟 ", "󱊤 ", "󱊥 ", "󱊦 " },
+local weather_icons = {
+  clear       = "󰖨 ", -- 快晴
+  clouds      = "󰅟 ", -- 曇り
+  rain        = " ", -- 雨
+  wind        = " ", -- 強風・霧
+  thunder     = "󱐋 ", -- 雷
+  snow        = " ", -- 雪
+  thermometer = "", -- 温度計
+  celsius     = "󰔄", -- 摂氏
+  fahrenheit  = "󰔅", -- 華氏
+  loading     = " ", -- 取得中
+  unknown     = " ", -- 不明
 }
 
 --- ==========================================
---- 状態管理 (実行時の動的データ)
+--- 状態管理用の変数
 --- ==========================================
-
 local state = {
-  weather = {
-    icon = WEATHER_ICONS.loading,
-    temp = " -- ",
-    city = "Loading...",
-    last_update = 0,
-  },
-  network = {
-    last_bytes = 0,
-    last_time = os.clock(),
-    current_str = "0B/S",
-    average_str = "0B/S",
-    samples = {},
-  },
-  start_time = os.time(),
+  weather_ic    = weather_icons.loading,
+  temp_str      = string.format("%5s", weather_icons.loading),
+  city_name     = weather_icons.loading,
+  city_code     = "",
+  last_wea_upd  = 0,
+  is_wea_ready  = false,
+  proc_start    = os.time(),
+  net_state     = {
+    last_rx_bytes = 0,
+    last_chk_time = os.clock(),
+    disp_str      = string.format("%9s", weather_icons.loading),
+    avg_str       = string.format("%9s", weather_icons.loading),
+    samples       = {}
+  }
 }
 
 --- ==========================================
---- 内部ロジック関数
+--- サブ関数
 --- ==========================================
 
--- 外部プロセスを安全に実行し標準出力を取得する
-local function safe_run(args)
-
-  local success, stdout, stderr = wezterm.run_child_process(args)
-
-  if not success then
-    return nil
-  end
-
-  return stdout
+local function run_child_cmd(args)
+  local success, stdout, _ = wezterm.run_child_process(args)
+  return success, stdout
 end
 
-
--- 通信速度を適切な単位に整形する
-local function format_speed(bps)
-
-  if bps > MEGABYTE then
-    return string.format("%5.1fMB/S", bps / MEGABYTE)
-  elseif bps > KILOBYTE then
-    return string.format("%5.1fKB/S", bps / KILOBYTE)
-  end
-
-  return string.format("%6.1fB/S", bps)
-end
-
-
--- ネットワーク速度を算出し状態を更新する
-local function update_network(config)
-
-  local now = os.clock()
-  local delta = now - state.network.last_time
-
-  if delta < 1 then return end
-
-  local is_win = wezterm.target_triple:find("windows") ~= nil
-  local current_rx = 0
-
-  if is_win then
-    local out = safe_run({"cmd.exe", "/c", "netstat -e"})
-    local match = out and out:match("Bytes%s+(%d+)")
-    current_rx = tonumber(match) or 0
+local function format_bps(bps)
+  if bps > 1024 * 1024 then
+    return string.format("%5.1fMB/S", bps / (1024 * 1024))
+  elseif bps > 1024 then
+    return string.format("%5.1fKB/S", bps / 1024)
   else
-    local out = safe_run({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
-    current_rx = tonumber(out) or 0
+    return string.format("%6.1fB/S", bps)
   end
-
-  local bps = (current_rx - state.network.last_bytes) / delta
-  if state.network.last_bytes == 0 then bps = 0 end
-
-  table.insert(state.network.samples, 1, bps)
-
-  if #state.network.samples > config.samples then
-    table.remove(state.network.samples)
-  end
-
-  local sum = 0
-  for _, v in ipairs(state.network.samples) do sum = sum + v end
-
-  state.network.current_str = format_speed(bps)
-  state.network.average_str = format_speed(sum / #state.network.samples)
-  state.network.last_bytes = current_rx
-  state.network.last_time = now
 end
 
-
--- 天気情報を取得する (OpenWeatherMap APIを使用)
-local function update_weather(config)
-
-  local now = os.time()
-  if (now - state.weather.last_update) < 600 then return end
-
-  local api_key = config.weather_api_key
-  if not api_key or api_key == "" then return end
-
-  local url = "https://api.openweathermap.org/data/2.5/weather?q=" .. 
-              config.city .. "&appid=" .. api_key .. "&units=metric"
-  
-  -- 非同期で情報を取得
-  wezterm.run_child_process({"curl", "-s", url}, function(success, stdout)
-    if not success or not stdout then return end
-    local data = wezterm.json_decode(stdout)
-    if data and data.main then
-      state.weather.temp = string.format("%.1f°C", data.main.temp)
-      state.weather.city = data.name
-      state.weather.last_update = now
-      local main = (data.weather[1].main or ""):lower()
-      if main:find("clear") then state.weather.icon = WEATHER_ICONS.clear
-      elseif main:find("cloud") then state.weather.icon = WEATHER_ICONS.clouds
-      elseif main:find("rain") then state.weather.icon = WEATHER_ICONS.rain
-      else state.weather.icon = WEATHER_ICONS.unknown end
-    end
-  end)
-end
-
-
--- システムリソース（CPU/メモリ）の使用状況を取得する
-local function fetch_resources()
-
-  local is_win = wezterm.target_triple:find("windows") ~= nil
-  local cpu, mem_u, mem_f = 0, 0, 0
-
+local function calc_net_speed(config, is_startup_waiting)
+  if is_startup_waiting then
+    return state.net_state.disp_str, state.net_state.avg_str
+  end
+  local curr_time  = os.clock()
+  local time_delta = curr_time - state.net_state.last_chk_time
+  if time_delta < config.net_update_interval then
+    return state.net_state.disp_str, state.net_state.avg_str
+  end
+  local is_win  = wezterm.target_triple:find("windows")
+  local curr_rx = 0
   if is_win then
-    local ps = "Get-CimInstance Win32_Processor | " ..
-               "Select-Object -ExpandProperty LoadPercentage; " ..
-               "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; " ..
-               "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"
-    local out = safe_run({"powershell.exe", "-NoProfile", "-Command", ps})
-    if out then
+    local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
+    curr_rx = ok and tonumber(out:match("%a+%s+(%d+)")) or 0
+  else
+    local ok, out = run_child_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
+    curr_rx = ok and tonumber(out:match("%d+")) or 0
+  end
+  local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
+  table.insert(state.net_state.samples, 1, bps)
+  if #state.net_state.samples > config.net_avg_samples then
+    table.remove(state.net_state.samples)
+  end
+  local sum_bps = 0
+  for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
+  state.net_state.last_rx_bytes = curr_rx
+  state.net_state.last_chk_time = curr_time
+  state.net_state.disp_str      = format_bps(bps)
+  state.net_state.avg_str       = format_bps(sum_bps / #state.net_state.samples)
+  return state.net_state.disp_str, state.net_state.avg_str
+end
+
+local function get_sys_resources()
+  local is_win = wezterm.target_triple:find("windows")
+  local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
+  
+  if is_win then
+    local ok, out = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; (Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"})
+    if ok and out then
       local lines = {}
-      for l in out:gmatch("[^\r\n]+") do table.insert(lines, l) end
-      cpu = tonumber(lines[1]) or 0
+      for line in out:gmatch("[^\r\n]+") do table.insert(lines, line) end
+      cpu_val = tonumber(lines[1]) or 0
       local f_kb = tonumber(lines[2]) or 0
       local t_kb = tonumber(lines[3]) or 0
-      mem_f = f_kb / (1024 * 1024)
-      mem_u = (t_kb - f_kb) / (1024 * 1024)
+      mem_f_val = f_kb / 1024 / 1024
+      mem_u_val = (t_kb - f_kb) / 1024 / 1024
     end
   else
-    local out = safe_run({"sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4}'"})
-    if out then
-      local u, f = out:match("(%d+)%s+(%d+)")
-      mem_u = (tonumber(u) or 0) / GIGABYTE
-      mem_f = (tonumber(f) or 0) / GIGABYTE
+    local ok, out = run_child_cmd({"sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4, $2}'"})
+    if ok and out then
+      local u, f, t = out:match("(%d+)%s+(%d+)%s+(%d+)")
+      mem_u_val = (tonumber(u) or 0) / 1024^3
+      mem_f_val = (tonumber(f) or 0) / 1024^3
     end
   end
-
-  return string.format("%2d%%", cpu), 
-         string.format("%4.1fGB", mem_u), 
-         string.format("%4.1fGB", mem_f)
+  return string.format("%2d%%", cpu_val), string.format("%4.1fGB", mem_u_val), string.format("%4.1fGB", mem_f_val)
 end
 
-
--- ローカルまたはSSH接続のユーザー情報を判定する
-local function get_user_context(pane)
-
-  local name = os.getenv("USER") or os.getenv("USERNAME") or "User"
-  local icon = SYSTEM_ICONS.user_local
-  local proc = (pane:get_foreground_process_name() or ""):lower()
-  local is_ssh = (pane:get_domain_name():find("SSH") ~= nil) or 
-                 (proc:find("ssh") ~= nil)
-
-  if is_ssh then
-    icon = SYSTEM_ICONS.user_ssh
-    local cwd = pane:get_current_working_dir()
-    if cwd and cwd.username and cwd.username ~= "" then
-      name = cwd.username
-    else
-      local t_user = pane:get_title():match("([^@]+)@[^@]+")
-      if t_user then name = t_user end
+local function get_ssh_info(pane)
+  if not pane then return "" end
+  local domain = pane:get_domain_name()
+  if domain:find("SSH") then
+    local uri = pane:get_current_working_dir()
+    if uri then
+      local user = uri.username or os.getenv("USER") or "user"
+      return "󰢩 " .. user .. "@" .. (uri.host or domain) .. " "
     end
   end
+  return ""
+end
 
-  return icon, name
+local function fetch_wea_data(config)
+  local is_win   = wezterm.target_triple:find("windows")
+  local curl_cmd = is_win and "curl.exe" or "curl"
+  local tgt_city = config.weather_city
+  local tgt_code = config.weather_country
+  if not tgt_city or tgt_city == "" then
+    local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
+    if ok and res then
+      tgt_city = res:match('"city":%s*"([^"]+)"')
+      tgt_code = res:match('"country_code":%s*"([^"]+)"')
+    end
+  end
+  if not tgt_city or tgt_city == "" then
+    state.weather_ic   = weather_icons.unknown
+    state.city_name    = weather_icons.unknown
+    state.is_wea_ready = false
+    return
+  end
+  local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
+  local url   = string.format("https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s", config.weather_api_key, config.weather_lang, query, config.weather_units)
+  local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
+  if not ok or not stdout or stdout:find('"message"') then
+    state.weather_ic   = weather_icons.unknown
+    state.temp_str     = string.format("%5s", weather_icons.unknown)
+    state.city_name    = tgt_city
+    state.city_code    = tgt_code or ""
+    state.last_wea_upd = os.time()
+    state.is_wea_ready = false
+    return
+  end
+  local wea_id   = tonumber(stdout:match('"id":(%d+)'))
+  local temp_val = stdout:match('"temp":([%d%.%-]+)')
+  local api_name = stdout:match('"name":"([^"]+)"')
+  local api_code = stdout:match('"country":"([^"]+)"')
+  if wea_id then
+    if     wea_id < 300 then state.weather_ic = weather_icons.thunder
+    elseif wea_id < 600 then state.weather_ic = weather_icons.rain
+    elseif wea_id < 700 then state.weather_ic = weather_icons.snow
+    elseif wea_id < 800 then state.weather_ic = weather_icons.wind
+    elseif wea_id == 800 then state.weather_ic = weather_icons.clear
+    else                     state.weather_ic = weather_icons.clouds end
+  end
+  local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
+  state.temp_str     = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
+  state.city_name    = api_name or tgt_city
+  state.city_code    = api_code or tgt_code or ""
+  state.last_wea_upd = os.time()
+  state.is_wea_ready = true
+end
+
+local function get_batt_disp()
+  local batt_list = wezterm.battery_info()
+  if not batt_list or #batt_list == 0 then return "󰚥", "" end
+  local batt   = batt_list[1]
+  local charge = (batt.state_of_charge or 0) * 100
+  local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or charge >= 30 and "󱊤" or "󰢟"
+  return icon, string.format("%.0f%%", charge)
 end
 
 --- ==========================================
---- 公開セットアップ関数
+--- メイン
 --- ==========================================
+function M.setup(opts)
+  -- デフォルトフォーマットを新変数に対応
+  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
-function module.setup(opts)
-
-  local def_fmt = " $user_icon $user_name $cal_icon $date $clock_icon $time " ..
-                  "$loc_icon $city $wea_icon $temp $cpu_icon $cpu $mem_u_icon " ..
-                  "$mem_u $mem_f_icon $mem_f $net_icon $net_s($net_a) " ..
-                  "$batt_icon$batt_l "
-
-  local config = {
-    delay   = (opts and opts.startup_delay) or 5,
-    samples = (opts and opts.net_avg_samples) or 10,
-    c_txt   = (opts and opts.color_text) or "#ffffff",
-    c_fg    = (opts and opts.color_foreground) or "#7aa2f7",
-    c_bg    = (opts and opts.color_background) or "#1a1b26",
-    fmt     = (opts and opts.format) or def_fmt,
-    sep_l   = (opts and opts.separator_left) or "",
-    sep_r   = (opts and opts.separator_right) or "",
-    weather_api_key = opts and opts.weather_api_key,
-    city    = (opts and opts.city) or "Tokyo",
+  local config              = {
+    startup_delay           = (opts and opts.startup_delay) or 5,
+    weather_api_key         = opts and opts.weather_api_key,
+    weather_lang            = (opts and opts.weather_lang) or "en",
+    weather_country         = (opts and opts.weather_country) or "",
+    weather_city            = (opts and opts.weather_city) or "",
+    weather_units           = (opts and opts.weather_units) or "metric",
+    weather_update_interval = (opts and opts.weather_update_interval) or 600,
+    weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
+    net_update_interval     = (opts and opts.net_update_interval) or 3,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+    separator_left          = (opts and opts.separator_left) or "",
+    separator_right         = (opts and opts.separator_right) or "",
+    color_text              = (opts and opts.color_text) or "#ffffff",
+    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
+    color_background        = (opts and opts.color_background) or "#1a1b26",
+    format                  = (opts and opts.format) or def_fmt,
   }
 
   wezterm.on('update-right-status', function(window, pane)
+    local now        = os.time()
+    local is_waiting = (now - state.proc_start) < config.startup_delay
 
-    -- 各種動的データの更新実行
-    update_network(config)
-    update_weather(config)
-
-    local cpu_v, mem_u, mem_f = fetch_resources()
-    local u_icon, u_name = get_user_context(pane)
-    
-    -- バッテリー情報（デスクトップPCでは非表示）
-    local bat = wezterm.battery_info()
-    local b_icon, b_per = "", ""
-    if #bat > 0 then
-      local c = bat[1].state_of_charge * 100
-      b_per = string.format("%.0f%%", c)
-      local idx = c >= 90 and 4 or c >= 60 and 3 or c >= 30 and 2 or 1
-      b_icon = SYSTEM_ICONS.battery[idx]
-    end
-
-    -- トークンマッピングの生成
-    local tokens = {
-      ["$user_icon"]  = u_icon,
-      ["$user_name"]  = u_name,
-      ["$cal_icon"]   = SYSTEM_ICONS.calendar,
-      ["$date"]       = wezterm.strftime('%Y.%m.%d(%a)'),
-      ["$clock_icon"] = SYSTEM_ICONS.clock,
-      ["$time"]       = wezterm.strftime('%H:%M'),
-      ["$loc_icon"]   = SYSTEM_ICONS.location,
-      ["$city"]       = state.weather.city,
-      ["$wea_icon"]   = state.weather.icon,
-      ["$temp"]       = state.weather.temp,
-      ["$cpu_icon"]   = SYSTEM_ICONS.cpu,
-      ["$cpu"]        = cpu_v,
-      ["$mem_u_icon"] = SYSTEM_ICONS.memory_used,
-      ["$mem_u"]      = mem_u,
-      ["$mem_f_icon"] = SYSTEM_ICONS.memory_free,
-      ["$mem_f"]      = mem_f,
-      ["$net_icon"]   = SYSTEM_ICONS.network,
-      ["$net_s"]      = state.network.current_str,
-      ["$net_a"]      = state.network.average_str,
-      ["$batt_icon"]  = b_icon,
-      ["$batt_l"]     = b_per,
-    }
-
-    local elements = {
-      { Background = { Color = config.c_bg } },
-      { Foreground = { Color = config.c_fg } },
-      { Text       = config.sep_l },
-      { Background = { Color = config.c_fg } },
-      { Foreground = { Color = config.c_txt } },
-    }
-
-    -- フォーマットテンプレートの解析
-    local stream = config.fmt
-    while true do
-      local s, e = stream:find("%$[%a%d_]+")
-      if not s then break end
-      table.insert(elements, { Text = stream:sub(1, s - 1) })
-      local t = stream:sub(s, e):lower()
-      local val = tokens[t] or t
-      if t == "$mem_f_icon" then
-        table.insert(elements, { Foreground = { Color = config.c_bg } })
-        table.insert(elements, { Text = val })
-        table.insert(elements, { Foreground = { Color = config.c_txt } })
-      else
-        table.insert(elements, { Text = val })
+    if config.weather_api_key and config.weather_api_key ~= "" and not is_waiting then
+      local diff = now - state.last_wea_upd
+      if state.last_wea_upd == 0 or diff > config.weather_update_interval or (not state.is_wea_ready and diff > config.weather_retry_interval) then
+        fetch_wea_data(config)
       end
-      stream = stream:sub(e + 1)
     end
-    table.insert(elements, { Text = stream })
 
-    -- エラーのあった箇所：右セパレータの追加を分割
-    table.insert(elements, { Background = { Color = config.c_bg } })
-    table.insert(elements, { Foreground = { Color = config.c_fg } })
-    table.insert(elements, { Text       = config.sep_r })
+    local net_curr, net_avg = calc_net_speed(config, is_waiting)
+    local cpu_u, mem_u, mem_f = get_sys_resources()
+    local ssh_str = get_ssh_info(pane)
+    local batt_ic, batt_num = get_batt_disp()
 
-    window:set_right_status(wezterm.format(elements))
+    local res = {
+      { Background = { Color = config.color_background } },
+      { Foreground = { Color = config.color_foreground } },
+      { Text       = config.separator_left },
+      { Background = { Color = config.color_foreground } },
+      { Foreground = { Color = config.color_text } },
+    }
+
+    local replace_map = {
+      ["$ssh"] = ssh_str, ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
+      ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
+      ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
+      ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
+      ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
+      ["$cpu"] = cpu_u, 
+      ["$mem_used_ic"] = "", -- ユーズド用アイコン
+      ["$mem_used"] = mem_u, 
+      ["$mem_free_ic"] = "", -- フリー用アイコン
+      ["$mem_free"] = mem_f,
+      ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
+      ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
+    }
+
+    local current_str = config.format
+    while true do
+      local start_idx, end_idx = current_str:find("%$[%a%d_]+")
+      if not start_idx then break end
+      
+      table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
+      
+      local token = current_str:sub(start_idx, end_idx):lower()
+      local val = replace_map[token] or token
+
+      -- $mem_free_ic のときだけ色を背景色に変える
+      if token == "$mem_free_ic" then
+        table.insert(res, { Foreground = { Color = config.color_background } })
+        table.insert(res, { Text = val })
+        table.insert(res, { Foreground = { Color = config.color_text } })
+      else
+        table.insert(res, { Text = val })
+      end
+      
+      current_str = current_str:sub(end_idx + 1)
+    end
+    table.insert(res, { Text = current_str })
+
+    table.insert(res, { Background = { Color = config.color_background } })
+    table.insert(res, { Foreground = { Color = config.color_foreground } })
+    table.insert(res, { Text       = config.separator_right })
+
+    window:set_right_status(wezterm.format(res))
   end)
 end
 
-return module
+return M
