@@ -112,7 +112,6 @@ local function get_ssh_user(pane)
   if uri and uri.username and uri.username ~= "" then
     return uri.username
   end
-
   local proc = pane:get_foreground_process_info()
   if proc and proc.executable:find("ssh") then
     for _, arg in ipairs(proc.argv) do
@@ -120,11 +119,9 @@ local function get_ssh_user(pane)
       if u then return u end
     end
   end
-
   local title = pane:get_title()
   local t_user = title:match("([^@]+)@[^@]+")
   if t_user then return t_user end
-
   return nil
 end
 
@@ -202,7 +199,7 @@ function M.setup(opts)
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
     net_avg_samples         = (opts and opts.net_avg_samples) or 10,
-    week_str                = opts and opts.week_str, -- 指定なしなら nil
+    week_str                = opts and opts.week_str,
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
     color_text              = (opts and opts.color_text) or "#ffffff",
@@ -227,10 +224,10 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
 
-    -- 曜日文字列の解決
+    -- 曜日解決
     local week_val
-    if config.week_str then
-      local week_idx = tonumber(wezterm.strftime('%w'))
+    if config.week_str and type(config.week_str) == "table" then
+      local week_idx = tonumber(wezterm.strftime('%w')) -- 0=Sun
       week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
     else
       week_val = wezterm.strftime('%a')
@@ -238,7 +235,6 @@ function M.setup(opts)
 
     local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
     local user_icon = ""
-
     local ssh_user = get_ssh_user(pane)
     if ssh_user then
         user_icon = "󰀑"
@@ -260,7 +256,7 @@ function M.setup(opts)
       ["$year"] = wezterm.strftime('%Y'),
       ["$month"] = wezterm.strftime('%m'),
       ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = week_val,
+      ["$week"] = week_val, -- ここが反映されます
       ["$clock_ic"] = "",
       ["$time24"] = wezterm.strftime('%H:%M'),
       ["$loc_ic"] = has_weather_api and "" or "",
