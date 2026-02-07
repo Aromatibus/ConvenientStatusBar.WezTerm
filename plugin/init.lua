@@ -45,7 +45,7 @@ local state = {
 
     net_state = {
         last_rx_bytes = 0,
-        last_chk_time = wezterm.time.now(),
+        last_chk_time = os.time(),,
         disp_str      = string.format("%9s", weather_icons.loading),
         avg_str       = string.format("%9s", weather_icons.loading),
         samples       = {}
@@ -78,7 +78,7 @@ end
 --- ネットワーク速度計算
 --- ==========================================
 local function calc_net_speed()
-    local now = wezterm.time.now()
+    local now = os.time()
 
     local dt = now - state.net_state.last_chk_time
 
