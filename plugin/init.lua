@@ -204,12 +204,11 @@ local function fetch_weather_data(config)
   local tgt_city = config.weather_city
   local tgt_code = config.weather_country
 
-  -- IP自動取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
-    if ok and res then
-      local ip_json = wezterm.json_parse(res)
-      if ip_json then
+    if ok and res and res:match("^%s*{") then
+      local ok_json, ip_json = pcall(wezterm.json_parse, res)
+      if ok_json and ip_json then
         tgt_city = ip_json.city
         tgt_code = ip_json.country_code
       end
@@ -224,9 +223,6 @@ local function fetch_weather_data(config)
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local now   = os.time()
 
-  ------------------------------------------------------------
-  -- キャッシュ有効ならAPI呼ばない
-  ------------------------------------------------------------
   if state.forecast_cache
      and state.forecast_city == query
      and (now - state.last_weather_upd) < config.weather_update_interval
@@ -234,9 +230,6 @@ local function fetch_weather_data(config)
     return
   end
 
-  ------------------------------------------------------------
-  -- forecast API（1回のみ）
-  ------------------------------------------------------------
   local url = string.format(
     "https://api.openweathermap.org/data/2.5/forecast?appid=%s&lang=%s&q=%s&units=%s",
     config.weather_api_key,
@@ -246,22 +239,33 @@ local function fetch_weather_data(config)
   )
 
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-  if not ok or not stdout then
+
+  -- ★ 完全防御
+  if not ok or not stdout or stdout == "" then
     state.is_weather_ready = false
     return
   end
 
-  local data = wezterm.json_parse(stdout)
-  if not data or not data.list then
+  -- JSONっぽいか確認
+  if not stdout:match("^%s*{") then
     state.is_weather_ready = false
     return
   end
 
-  ------------------------------------------------------------
-  -- キャッシュ保存
-  ------------------------------------------------------------
-  state.forecast_cache = data.list
-  state.forecast_city  = query
+  local ok_json, data = pcall(wezterm.json_parse, stdout)
+  if not ok_json or not data or not data.list then
+    state.is_weather_ready = false
+    return
+  end
+
+  -- APIエラー検出
+  if data.cod and tostring(data.cod) ~= "200" then
+    state.is_weather_ready = false
+    return
+  end
+
+  state.forecast_cache   = data.list
+  state.forecast_city    = query
   state.last_weather_upd = now
 
   if data.city then
@@ -271,7 +275,6 @@ local function fetch_weather_data(config)
 
   state.is_weather_ready = true
 end
-
 
 --- ==========================================
 --- 天気情報時間検索
