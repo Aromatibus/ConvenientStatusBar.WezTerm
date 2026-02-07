@@ -338,7 +338,7 @@ function M.setup(opts)
       return replace_map[key:lower()] or ("$" .. key)
     end)
 
-    -- 右ステータスバーの描画（フリーメモリのアイコン色変更を適用）
+    -- 右ステータスバーの描画
     local render_list = {
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
@@ -362,11 +362,10 @@ function M.setup(opts)
       table.insert(render_list, { Text = final_status })
     end
 
-    table.insert(render_list, {
-      { Background = { Color = config.color_background } },
-      { Foreground = { Color = config.color_foreground } },
-      { Text       = config.separator_right },
-    })
+    -- 右側のセパレータを追加（入れ子エラーを修正）
+    table.insert(render_list, { Background = { Color = config.color_background } })
+    table.insert(render_list, { Foreground = { Color = config.color_foreground } })
+    table.insert(render_list, { Text       = config.separator_right })
 
     window:set_right_status(wezterm.format(render_list))
   end)
