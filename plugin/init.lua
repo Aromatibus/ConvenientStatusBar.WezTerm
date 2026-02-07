@@ -28,8 +28,8 @@ local state = {
   temp_str      = string.format("%5s", weather_icons.loading),
   city_name     = weather_icons.loading,
   city_code     = "",
-  last_wea_upd  = 0,
-  is_wea_ready  = false,
+  last_weather_upd  = 0,
+  is_weather_ready  = false,
   proc_start    = os.time(),
   net_state     = {
     last_rx_bytes = 0,
@@ -69,7 +69,8 @@ local function calc_net_speed(config, is_startup_waiting)
   -- 更新間隔のチェック
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
-  if time_delta < config.net_update_interval then return state.net_state.disp_str, state.net_state.avg_str end
+  if time_delta < config.net_update_interval
+    then return state.net_state.disp_str, state.net_state.avg_str end
   -- OS別のコマンド実行
   local is_win  = wezterm.target_triple:find("windows")
   -- 現在の受信バイト数の取得
@@ -78,14 +79,16 @@ local function calc_net_speed(config, is_startup_waiting)
     local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
     curr_rx = ok and tonumber(out:match("%a+%s+(%d+)")) or 0
   else
-    local ok, out = run_child_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
+    local ok, out =
+      run_child_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
     curr_rx = ok and tonumber(out:match("%d+")) or 0
   end
   -- 経過時間から速度計算
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   -- サンプルの追加と古いサンプルの削除
   table.insert(state.net_state.samples, 1, bps)
-  if #state.net_state.samples > config.net_avg_samples then table.remove(state.net_state.samples) end
+  if #state.net_state.samples > config.net_avg_samples
+    then table.remove(state.net_state.samples) end
   -- 平均速度の計算
   local sum_bps = 0
   for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
@@ -171,7 +174,7 @@ end
 --- ==========================================
 --- 天気情報取得
 --- ==========================================
-local function fetch_wea_data(config)
+local function fetch_weather_data(config)
   -- OS別のcurlコマンド設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -188,8 +191,10 @@ local function fetch_wea_data(config)
   end
   -- 都市名が取得できない場合の処理
   if not tgt_city or tgt_city == "" then
-    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready =
-      weather_icons.unknown, string.format("%5s", weather_icons.unknown), weather_icons.unknown, false
+    state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
+      weather_icons.unknown,
+      string.format("%5s", weather_icons.unknown),
+      weather_icons.unknown, false
     return
   end
   -- クエリ文字列の作成
@@ -206,9 +211,12 @@ local function fetch_wea_data(config)
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
   -- エラーチェック とメッセージフィールドでエラーの確認
   if not ok or not stdout or stdout:find('"message"') then
-    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready =
-      weather_icons.unknown, string.format("%5s", weather_icons.unknown), tgt_city, false
-    state.last_wea_upd = os.time()
+    state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
+      weather_icons.unknown,
+      string.format("%5s", weather_icons.unknown),
+      tgt_city,
+      false
+    state.last_weather_upd = os.time()
     return
   end
   -- 天気情報の更新
@@ -226,7 +234,7 @@ local function fetch_wea_data(config)
     elseif weather_id < 700  then state.weather_ic = weather_icons.snow
     elseif weather_id < 800  then state.weather_ic = weather_icons.wind
     elseif weather_id == 800 then state.weather_ic = weather_icons.clear
-    else                      state.weather_ic = weather_icons.clouds end
+    else                          state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位シンボルの設定
   local unit_sym =
@@ -235,7 +243,7 @@ local function fetch_wea_data(config)
   state.temp_str     =
     temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
   -- 都市名と国コードの設定
-  state.city_name, state.city_code, state.last_wea_upd, state.is_wea_ready =
+  state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
     api_name or tgt_city,
     api_code or tgt_code or "",
     os.time(),
@@ -299,12 +307,12 @@ function M.setup(opts)
     local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
     -- 天気情報の更新
     if has_weather_api and not is_waiting then
-      local diff = now - state.last_wea_upd
-      if state.last_wea_upd == 0
+      local diff = now - state.last_weather_upd
+      if state.last_weather_upd == 0
         or diff > config.weather_update_interval
-        or (not state.is_wea_ready and diff > config.weather_retry_interval)
+        or (not state.is_weather_ready and diff > config.weather_retry_interval)
       then
-        fetch_wea_data(config)
+        fetch_weather_data(config)
       end
     end
     -- ネットワーク速度の計算
