@@ -204,7 +204,7 @@ function M.setup(opts)
     weather_units           = (opts and opts.weather_units) or "metric",
     weather_update_interval = 600,
     net_update_interval     = 3,
-    net_avg_samples         = 10, -- メモリ情報より初期値10に設定
+    net_avg_samples         = 10,
     color_text              = (opts and opts.color_text) or "#ffffff",
     color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
     color_background        = (opts and opts.color_background) or "#1a1b26",
@@ -223,12 +223,15 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- アイコンのみ反転させる関数
-    local function format_rev_ic(icon, text)
+    -- アイコンのみ反転させ、直後に必ずリセットする関数
+    local function format_rev_ic(icon, text, fg, bg)
       return wezterm.format({
         { Attribute = { Reverse = true } },
         { Text = " " .. icon .. " " },
         { Attribute = { Reverse = false } },
+        -- リセット後に元の色を指定し直すことで色化けを防ぐ
+        { Background = { Color = bg } },
+        { Foreground = { Color = fg } },
         { Text = " " .. text },
       })
     end
@@ -251,7 +254,7 @@ function M.setup(opts)
       temp        = state.temp_str,                            -- 気温
       cpu         = cpu_usage,                                 -- CPU使用率
       mem_used    = mem_used,                                  -- 使用中メモリ
-      mem_free    = format_rev_ic("", mem_free),              -- 空きメモリ (アイコンのみ反転)
+      mem_free    = format_rev_ic("", mem_free, config.color_text, config.color_foreground), -- 空きメモリ (反転解除対応)
       net_speed   = net_curr,                                  -- 現在のネットワーク速度
       net_avg     = net_avg,                                   -- 平均ネットワーク速度
       ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "", -- SSHアイコン & 接続情報
