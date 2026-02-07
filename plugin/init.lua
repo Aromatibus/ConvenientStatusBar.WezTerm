@@ -141,7 +141,8 @@ local function get_ssh_info(pane)
     local uri = pane:get_current_working_dir()
     if uri then
       local user = uri.username or os.getenv("USER") or "user"
-      return "󰢩 " .. user .. "@" .. (uri.host or domain)
+      local host = uri.host or domain
+      return "󰢩 " .. user .. "@" .. host
     end
   end
   return ""
@@ -338,7 +339,7 @@ function M.setup(opts)
       return replace_map[key:lower()] or ("$" .. key)
     end)
 
-    -- 右ステータスバーの描画
+    -- 右ステータスバーの描画リスト組み立て
     local render_list = {
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
@@ -353,20 +354,25 @@ function M.setup(opts)
     local target_idx = second_idx or first_idx
 
     if target_idx then
+      -- 1. アイコンまでのテキストを追加
       table.insert(render_list, { Text = final_status:sub(1, target_idx - 1) })
+      -- 2. アイコンの色を変えて追加
       table.insert(render_list, { Foreground = { Color = config.color_background } })
       table.insert(render_list, { Text = "" })
+      -- 3. 以降のテキストを元の色で追加
       table.insert(render_list, { Foreground = { Color = config.color_text } })
       table.insert(render_list, { Text = final_status:sub(target_idx + 1) })
     else
+      -- アイコンが見つからない場合はそのまま追加
       table.insert(render_list, { Text = final_status })
     end
 
-    -- 右側のセパレータを追加（入れ子エラーを修正）
+    -- 右端の装飾
     table.insert(render_list, { Background = { Color = config.color_background } })
     table.insert(render_list, { Foreground = { Color = config.color_foreground } })
     table.insert(render_list, { Text       = config.separator_right })
 
+    -- 反映
     window:set_right_status(wezterm.format(render_list))
   end)
 end
