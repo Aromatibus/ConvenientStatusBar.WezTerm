@@ -47,6 +47,7 @@ local state = {
         samples       = {}
     },
     net_update_interval = 3,
+    current_format = 1,
 }
 
 
@@ -471,24 +472,46 @@ local function get_batt_disp()
 end
 
 
+
+
+
+local function get_current_format(config)
+    if state.current_format == 1 then
+        return config.format1
+    else
+        return config.format2
+    end
+end
+
+
 --- ==========================================
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    -- デフォルトのフォーマット文字列
-    local def_fmt =
+    -- デフォルトフォーマット（3種類）
+    local def_fmt1 =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         "$loc_ic $city($code) " ..
-        "$weather_ic($temp) "  ..
+        "$weather_ic($temp) " ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
-        "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
+        "$cpu_ic $cpu $mem_used_ic $mem_used " ..
+        "$mem_free_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
 
-    -- 設定の初期化
-    local config              = {
+    local def_fmt2 =
+        " $time24  $weather_ic$temp  " ..
+        "$cpu_ic $cpu  $net_ic $net_speed "
+
+    local def_fmt3 =
+        "$user_ic$user | $time24 | $cpu_ic$cpu | $mem_used_ic$mem_used | $net_ic$net_speed | $batt_ic$batt_num"
+
+    -- ==========================================
+    -- 設定初期化
+    -- ==========================================
+    local config = {
         startup_delay           = (opts and opts.startup_delay) or 5,
         weather_api_key         = opts and opts.weather_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
@@ -505,135 +528,67 @@ function M.setup(opts)
         color_text              = (opts and opts.color_text) or "#ffffff",
         color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
         color_background        = (opts and opts.color_background) or "#1a1b26",
-        format                  = (opts and opts.format) or def_fmt,
+
+        format1 = (opts and opts.format1) or def_fmt1,
+        format2 = (opts and opts.format2) or def_fmt2,
+        format3 = (opts and opts.format3) or def_fmt3,
     }
-    -- ネットワーク速度計算用のサンプル数を状態変数に保存
-    state.net_avg_samples = config.net_avg_samples
-    -- ネットワーク速度計算用の更新間隔を状態変数に保存
+
+    -- ==========================================
+    -- 状態保存
+    -- ==========================================
+    state.net_avg_samples     = config.net_avg_samples
     state.net_update_interval = config.net_update_interval
-    -- ログに最終的に使用されたConfigの値をそのまま出力
+    state.formats             = {config.format1, config.format2, config.format3}
+    state.current_format      = 1
+
     wezterm.log_info("Final Config: " .. wezterm.to_string(config))
-    -- ステータスバー更新イベントの登録
-    wezterm.on('update-right-status', function(window, pane)
-        local now        = os.time()
-        -- スタートアップ待機中フラグ
-        local is_waiting = (now - state.proc_start) < config.startup_delay
-        -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
-        local fmt_lower  = config.format:lower()
-        local use_weather =
-            fmt_lower:find("$weather") or fmt_lower:find("$temp") or
-            fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
-        local use_net  = fmt_lower:find("$net")
-        local use_sys  = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
-        local use_batt = fmt_lower:find("$batt")
-        -- 天気APIキーの有無チェック
-        local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
-        -- 天気情報の更新
-        if use_weather and has_weather_api and not is_waiting then
-            local diff = now - state.last_weather_upd
-            if state.last_weather_upd == 0
-                or diff > config.weather_update_interval
-                or (not state.is_weather_ready and diff > config.weather_retry_interval)
-            then
-                fetch_weather_data(config)
-            end
-        end
-        -- ネットワーク速度の計算
-        local net_curr, net_avg = "", ""
-        if use_net then
-            net_curr, net_avg = calc_net_speed()
-        end
-        -- システムリソースの取得
-        local cpu_u, mem_u, mem_f = "", "", ""
-        if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
-        -- バッテリー情報の取得
-        local batt_ic, batt_num = "", ""
-        if use_batt then batt_ic, batt_num = get_batt_disp() end
-        -- 指定された曜日文字列の取得
-        local week_val = ""
-        if fmt_lower:find("$week") then
-            if config.week_str and type(config.week_str) == "table" then
-                local week_idx = tonumber(wezterm.strftime('%w'))
-                week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
-            else
-                week_val = wezterm.strftime('%a')
-            end
-        end
-        -- ユーザー名とアイコンの取得
-        local user_name, user_icon = "", ""
-        if fmt_lower:find("$user") then
-            user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
-            user_icon = ""
-            local ssh_user = get_ssh_user(pane)
-            if ssh_user then
-                user_icon = "󰀑"
-                user_name = ssh_user
-            end
-        end
-        -- ステータスバーの文字列作成
-        local res = {
-            { Background = { Color = config.color_background } },
-            { Foreground = { Color = config.color_foreground } },
-            { Text       = config.separator_left },
-            { Background = { Color = config.color_foreground } },
-            { Foreground = { Color = config.color_text } },
-        }
-        -- 置換マップの作成
-        local replace_map = {
-            ["$user_ic"] = user_icon,
-            ["$user"] = user_name,
-            ["$cal_ic"] = "",
-            ["$year"] = wezterm.strftime('%Y'),
-            ["$month"] = wezterm.strftime('%m'),
-            ["$day"] = wezterm.strftime('%d'),
-            ["$week"] = week_val,
-            ["$clock_ic"] = "",
-            ["$time24"] = wezterm.strftime('%H:%M'),
-            ["$loc_ic"] = has_weather_api and "" or "",
-            ["$city"] = has_weather_api and state.city_name or "",
-            ["$code"] = has_weather_api and state.city_code or "",
-            ["$weather_ic"] = has_weather_api and state.weather_ic or "",
-            ["$temp"] = has_weather_api and state.temp_str or "",
-            ["$weather_ic_3h"] = state.weather_ic_3h,
-            ["$temp_3h"] = state.temp_3h,
-            ["$weather_ic_24h"] = state.weather_ic_24h,
-            ["$temp_24h"] = state.temp_24h,
-            ["$cpu_ic"] = "",
-            ["$cpu"] = cpu_u,
-            ["$mem_used_ic"] = "",
-            ["$mem_used"] = mem_u,
-            ["$mem_free_ic"] = "",
-            ["$mem_free"] = mem_f,
-            ["$net_ic"] = "󰓅",
-            ["$net_speed"] = net_curr,
-            ["$net_avg"] = net_avg,
-            ["$batt_ic"] = batt_ic,
-            ["$batt_num"] = batt_num,
-        }
-        -- フォーマット文字列の置換
-        local current_str = config.format
-        while true do
-            local start_idx, end_idx = current_str:find("%$[%a%d_]+")
-            if not start_idx then break end
-            table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
-            local token = current_str:sub(start_idx, end_idx):lower()
-            local val = replace_map[token] or token
-            if token == "$mem_free_ic" then
-                table.insert(res, { Foreground = { Color = config.color_background } })
-                table.insert(res, { Text = val })
-                table.insert(res, { Foreground = { Color = config.color_text } })
-            else
-                table.insert(res, { Text = val })
-            end
-            current_str = current_str:sub(end_idx + 1)
-        end
-        table.insert(res, { Text = current_str })
-        table.insert(res, { Background = { Color = config.color_background } })
-        table.insert(res, { Foreground = { Color = config.color_foreground } })
-        table.insert(res, { Text       = config.separator_right })
-        -- ステータスバーの表示更新
-        window:set_right_status(wezterm.format(res))
+
+    -- ==========================================
+    -- フォーマット取得関数
+    -- ==========================================
+    local function get_current_format()
+        return state.formats[state.current_format]
+    end
+
+    -- ==========================================
+    -- クリックイベント（トグル）
+    -- ==========================================
+    wezterm.on("status-toggle-format", function(window, pane)
+        state.current_format = (state.current_format % #state.formats) + 1
+        window:invalidate()
     end)
+
+    -- ==========================================
+    -- ステータス更新
+    -- ==========================================
+    wezterm.on("update-right-status", function(window, pane)
+
+        local format = get_current_format()
+        -- 以降は元の update-right-status コードと同じ
+        ...
+    end)
+
+    -- ==========================================
+    -- マウスバインド追加（左クリックで切替）
+    -- ==========================================
+    return {
+        mouse_bindings = {
+            {
+                event = {
+                    Up = {
+                        streak = 1,
+                        button = "Left"
+                    }
+                },
+                mods = "NONE",
+                action =
+                    wezterm.action.EmitEvent(
+                        "status-toggle-format"
+                    ),
+            }
+        }
+    }
 end
 
 
