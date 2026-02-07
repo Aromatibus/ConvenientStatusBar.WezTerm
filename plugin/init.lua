@@ -5,10 +5,17 @@ local M       = {}
 --- 定数・アイコン定義
 --- ==========================================
 local weather_icons = {
-  clear       = "󰖨 ", clouds      = "󰅟 ", rain        = " ", 
-  wind        = " ", thunder     = "󱐋 ", snow        = " ", 
-  thermometer = "", celsius     = "󰔄", fahrenheit  = "󰔅", 
-  loading     = " ", unknown     = " ",
+  clear       = "󰖨 ",
+  clouds      = "󰅟 ",
+  rain        = " ",
+  wind        = " ",
+  thunder     = "󱐋 ",
+  snow        = " ",
+  thermometer = "",
+  celsius     = "󰔄",
+  fahrenheit  = "󰔅",
+  loading     = " ",
+  unknown     = " ",
 }
 
 --- ==========================================
@@ -154,12 +161,12 @@ local function fetch_wea_data(config)
   local api_name = stdout:match('"name":"([^"]+)"')
   local api_code = stdout:match('"country":"([^"]+)"')
   if wea_id then
-    if     wea_id < 300 then state.weather_ic = weather_icons.thunder
-    elseif wea_id < 600 then state.weather_ic = weather_icons.rain
-    elseif wea_id < 700 then state.weather_ic = weather_icons.snow
-    elseif wea_id < 800 then state.weather_ic = weather_icons.wind
+    if     wea_id < 300  then state.weather_ic = weather_icons.thunder
+    elseif wea_id < 600  then state.weather_ic = weather_icons.rain
+    elseif wea_id < 700  then state.weather_ic = weather_icons.snow
+    elseif wea_id < 800  then state.weather_ic = weather_icons.wind
     elseif wea_id == 800 then state.weather_ic = weather_icons.clear
-    else                     state.weather_ic = weather_icons.clouds end
+    else                      state.weather_ic = weather_icons.clouds end
   end
   local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
   state.temp_str     = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
@@ -170,7 +177,9 @@ local function get_batt_disp()
   local batt_list = wezterm.battery_info()
   if not batt_list or #batt_list == 0 then return "󰚥", "" end
   local charge = (batt_list[1].state_of_charge or 0) * 100
-  local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or charge >= 30 and "󱊤" or "󰢟"
+  local icon   =  charge >= 90 and "󱊦" or
+                  charge >= 60 and "󱊥" or
+                  charge >= 30 and "󱊤" or "󰢟"
   return icon, string.format("%.0f%%", charge)
 end
 
@@ -178,7 +187,13 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  local def_fmt = " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $loc_ic $city($code) $weather_ic $temp $cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num "
+  local def_fmt =
+    " $user_ic $user " ..
+    "$cal_ic $year.$month.$day($week) $clock_ic $time24 "..
+    "$loc_ic $city($code) $weather_ic $temp "..
+    "cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free "..
+    "$net_ic $net_speed($net_avg) "..
+    "$batt_ic$batt_num "
 
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
@@ -190,7 +205,7 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
     color_text              = (opts and opts.color_text) or "#ffffff",
@@ -213,7 +228,7 @@ function M.setup(opts)
     local net_curr, net_avg = calc_net_speed(config, is_waiting)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
-    
+
     -- ユーザー名の初期値
     local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
     local user_icon = ""
@@ -234,16 +249,31 @@ function M.setup(opts)
     }
 
     local replace_map = {
-      ["$user_ic"] = user_icon, ["$user"] = user_name,
-      ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
-      ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
-      ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
-      ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
-      ["$cpu"] = cpu_u, ["$mem_used_ic"] = "", ["$mem_used"] = mem_u,
-      ["$mem_free_ic"] = "", ["$mem_free"] = mem_f,
-      ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
-      ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
+      ["$user_ic"] = user_icon,
+      ["$user"] = user_name,
+      ["$cal_ic"] = "",
+      ["$year"] = wezterm.strftime('%Y'),
+      ["$month"] = wezterm.strftime('%m'),
+      ["$day"] = wezterm.strftime('%d'),
+      ["$week"] = wezterm.strftime('%a'),
+      ["$clock_ic"] = "",
+      ["$time24"] = wezterm.strftime('%H:%M'),
+      ["$loc_ic"] = "",
+      ["$city"] = state.city_name,
+      ["$code"] = state.city_code,
+      ["$weather_ic"] = state.weather_ic,
+      ["$temp"] = state.temp_str,
+      ["$cpu_ic"] = "",
+      ["$cpu"] = cpu_u,
+      ["$mem_used_ic"] = "",
+      ["$mem_used"] = mem_u,
+      ["$mem_free_ic"] = "",
+      ["$mem_free"] = mem_f,
+      ["$net_ic"] = "󰓅",
+      ["$net_speed"] = net_curr,
+      ["$net_avg"] = net_avg,
+      ["$batt_ic"] = batt_ic,
+      ["$batt_num"] = batt_num,
     }
 
     local current_str = config.format
