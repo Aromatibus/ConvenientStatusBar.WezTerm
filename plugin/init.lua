@@ -1,3 +1,4 @@
+
 local wezterm = require 'wezterm'
 local M       = {}
 
