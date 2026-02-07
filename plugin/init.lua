@@ -73,7 +73,7 @@ local function calc_net_speed(cfg_net, is_startup_waiting)
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
   -- 更新間隔に満たない場合は前回値を返す
-  if time_delta < cfg_net.int then
+  if time_delta < cfg_net.interval then
     return state.net_state.disp_str, state.net_state.avg_str
   end
   -- ネットワーク受信バイト数の取得
@@ -108,13 +108,13 @@ end
 
 
 -- 気象情報の取得と更新
-local function fetch_wea_data(cfg_opts)
+local function fetch_wea_data(cfg_wea)
   -- curlコマンドの設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
   -- 取得対象の都市名と国コードの設定
-  local tgt_city = cfg_opts.city
-  local tgt_code = cfg_opts.country
+  local tgt_city = cfg_wea.city
+  local tgt_code = cfg_wea.country
   -- Cityが設定されていない場合はIPアドレスから都市名を取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
@@ -133,11 +133,11 @@ local function fetch_wea_data(cfg_opts)
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format(
     "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-    cfg_opts.api_key, cfg_opts.lang, query, cfg_opts.units
+    cfg_wea.api_key, cfg_wea.lang, query, cfg_wea.units
   )
   -- 天気情報の取得
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-  -- 通信失敗またはエラーメッセージの場合の処理
+  -- 通信失敗、エラーメッセージが見つかった場合の処理
   if not ok or not stdout or stdout:find('"message"') then
     state.city_name    = tgt_city
     state.city_code    = tgt_code or ""
@@ -160,7 +160,7 @@ local function fetch_wea_data(cfg_opts)
     else                     state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位の設定
-  local unit_sym = cfg_opts.units == "metric" and
+  local unit_sym = cfg_wea.units == "metric" and
                     weather_icons.celsius or weather_icons.fahrenheit
   -- 温度表示の設定
   state.temp_str     =  temp_val and
@@ -208,29 +208,31 @@ function M.setup(opts)
     "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   -- 設定オプションの初期化
-  local cfg = {
-    api_key      = opts.api_key,                  -- OpenWeatherMap APIキー
-    lang         = opts.lang or "en",             -- 言語コード
-    country      = opts.country or "",            -- 国コード（省略可）
-    city         = opts.city or "",               -- 自動取得の場合は空文字
-    units        = opts.units or "metric",        -- "metric" or "imperial"
-    start_delay  = opts.startup_delay or 5,       -- 起動時の通信待機時間
-    wea_int      = opts.update_interval or 600,   -- 天気情報の更新間隔
-    retry_int    = opts.retry_interval or 30,     -- 天気情報取得失敗時のリトライ間隔
-    net          = {
-      int        = opts.net_update_interval or 3, -- ネットワーク速度更新間隔
-      avg_limit  = opts.net_avg_samples or 20     -- 平均速度のサンプル数
+  local cfg          = {
+    fmt              = opts.format or def_fmt,
+    start_delay      = opts.startup_delay or 5,       -- 起動時の通信待機時間
+    weather          = {
+      api_key        = opts.api_key,                  -- OpenWeatherMap APIキー
+      lang           = opts.lang or "en",             -- 言語コード
+      country        = opts.country or "",            -- 国コード、都市名と組み合わせて使用
+      city           = opts.city or "",               -- 都市名、省略された場合は自動取得
+      units          = opts.units or "metric",        -- "metric(摂氏)" or "imperial(華氏)"
+      interval       = opts.update_interval or 600,   -- 天気情報の更新間隔
+      retry_interval = opts.retry_interval or 30,     -- 天気情報取得失敗時のリトライ間隔
     },
-    separator    = opts.separator or {
-      left       = "",
-      right      = ""
+    net              = {
+      interval       = opts.net_update_interval or 3, -- ネットワーク速度更新間隔
+      avg_limit      = opts.net_avg_samples or 20     -- 平均速度のサンプル数
     },
-    colors       = opts.colors or {
-      background = "#1a1b26",
-      foreground = "#7aa2f7",
-      text       = "#ffffff"
+    separator        = opts.separator or {
+      left           = "",
+      right          = ""
     },
-    fmt          = opts.format or def_fmt,
+    colors           = opts.colors or {
+      background     = "#1a1b26",
+      foreground     = "#7aa2f7",
+      text           = "#ffffff"
+    },
   }
 
   -- フォーマット文字列のを小文字化して変数を判定
@@ -251,15 +253,15 @@ function M.setup(opts)
       local should_fetch = false
 
       -- 初回または通常インターバル経過時の判定
-      if state.last_wea_upd == 0 or diff > cfg.wea_int then
+      if state.last_wea_upd == 0 or diff > cfg.weather.interval then
         should_fetch = true
       -- 通信に失敗している場合のリトライ判定
-      elseif not state.is_wea_ready and diff > cfg.retry_int then
+      elseif not state.is_wea_ready and diff > cfg.weather.retry_interval then
         should_fetch = true
       end
       -- 天気情報の取得・更新
       if should_fetch then
-        fetch_wea_data(cfg)
+        fetch_wea_data(cfg.weather)
       end
     end
 
