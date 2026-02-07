@@ -552,7 +552,7 @@ function M.setup(opts)
     end
 
     -- ==========================================
-    -- クリックイベント（トグル）
+    -- フォーマット切替イベント
     -- ==========================================
     wezterm.on("status-toggle-format", function(window, pane)
         state.current_format = (state.current_format % #state.formats) + 1
@@ -560,10 +560,9 @@ function M.setup(opts)
     end)
 
     -- ==========================================
-    -- ステータス更新
+    -- ステータス描画
     -- ==========================================
     wezterm.on("update-right-status", function(window, pane)
-
         local format = get_current_format()
         local fmt_lower  = format:lower()
         local use_weather = fmt_lower:find("$weather") or fmt_lower:find("$temp") or fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
@@ -677,21 +676,16 @@ function M.setup(opts)
 
         window:set_right_status(wezterm.format(res))
     end)
+
+    -- ==========================================
     -- マウスバインド追加（右クリックで切替）
+    -- ==========================================
     return {
         mouse_bindings = {
             {
-                event = {
-                    Up = {
-                        streak = 1,
-                        button = "Right"
-                    }
-                },
-                mods = "NONE",
-                action =
-                    wezterm.action.EmitEvent(
-                        "status-toggle-format"
-                    ),
+                event = { Up = { streak = 1, button = "Right" } },
+                mods  = "NONE",
+                action = wezterm.action.EmitEvent("status-toggle-format"),
             }
         }
     }
