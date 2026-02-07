@@ -152,12 +152,12 @@ local function fetch_wea_data(cfg_wea)
   local api_code = stdout:match('"country":"([^"]+)"')
   -- 天気アイコンの設定
   if wea_id then
-    if     wea_id < 300 then state.weather_ic = weather_icons.thunder
-    elseif wea_id < 600 then state.weather_ic = weather_icons.rain
-    elseif wea_id < 700 then state.weather_ic = weather_icons.snow
-    elseif wea_id < 800 then state.weather_ic = weather_icons.wind
+    if     wea_id <  300 then state.weather_ic = weather_icons.thunder
+    elseif wea_id <  600 then state.weather_ic = weather_icons.rain
+    elseif wea_id <  700 then state.weather_ic = weather_icons.snow
+    elseif wea_id <  800 then state.weather_ic = weather_icons.wind
     elseif wea_id == 800 then state.weather_ic = weather_icons.clear
-    else                     state.weather_ic = weather_icons.clouds end
+    else                      state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位の設定
   local unit_sym = cfg_wea.units == "metric" and
@@ -185,7 +185,8 @@ local function get_batt_disp()
   -- バッテリー情報を設定
   local batt   = batt_list[1]
   local charge = (batt.state_of_charge or 0) * 100
-  local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or
+  local icon   =  charge >= 90 and "󱊦" or
+                  charge >= 60 and "󱊥" or
                   charge >= 30 and "󱊤" or "󰢟"
   return icon, string.format("%.0f%%", charge)
 end
@@ -195,12 +196,6 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- 必須オプションのチェック
-  if not opts or not opts.api_key then
-    wezterm.log_error("ConvenientStatusBar: 'api_key' is required")
-    return
-  end
-
   -- デフォルトのフォーマット文字列
   local def_fmt =
     " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
@@ -209,36 +204,39 @@ function M.setup(opts)
 
   -- 設定オプションの初期化
   local cfg          = {
-    fmt              = opts.format or def_fmt,        -- [省略可]ステータスバーのフォーマット文字列
-    start_delay      = opts.startup_delay or 5,       -- [省略可]起動時の通信待機時間
+    fmt              = (opts and opts.format) or def_fmt,        -- ステータスバーのフォーマット文字列
+    start_delay      = (opts and opts.startup_delay) or 5,       -- 起動時の通信待機時間
     weather          = {
-      api_key        = opts.api_key,                  -- [省略不可]OpenWeatherMap APIキー
-      lang           = opts.lang or "en",             -- [省略可]言語コード
-      country        = opts.country or "",            -- [省略可]国コード、都市名と組み合わせて使用
-      city           = opts.city or "",               -- [省略可]都市名、省略された場合は自動取得
-      units          = opts.units or "metric",        -- [省略可]"metric(摂氏)" or "imperial(華氏)"
-      interval       = opts.update_interval or 600,   -- [省略可]天気情報の更新間隔
-      retry_interval = opts.retry_interval or 30,     -- [省略可]天気情報取得失敗時のリトライ間隔
+      api_key        = opts and opts.api_key,                    -- OpenWeatherMap APIキー
+      lang           = (opts and opts.lang) or "en",             -- 言語コード
+      country        = (opts and opts.country) or "",            -- 国コード、都市名と組み合わせて使用
+      city           = (opts and opts.city) or "",               -- 都市名、省略された場合は自動取得
+      units          = (opts and opts.units) or "metric",        -- "metric(摂氏)" or "imperial(華氏)"
+      interval       = (opts and opts.update_interval) or 600,   -- 天気情報の更新間隔
+      retry_interval = (opts and opts.retry_interval) or 30,     -- 天気情報取得失敗時のリトライ間隔
     },
     net              = {
-      interval       = opts.net_update_interval or 3, -- [省略可]ネットワーク速度更新間隔
-      avg_limit      = opts.net_avg_samples or 20     -- [省略可]平均速度のサンプル数
+      interval       = (opts and opts.net_update_interval) or 3, -- ネットワーク速度更新間隔
+      avg_limit      = (opts and opts.net_avg_samples) or 20     -- 平均速度のサンプル数
     },
-    separator        = opts.separator or {
-      left           = "",                           -- [省略可]ステータスバーの区切り文字（左側）
-      right          = ""                            -- [省略可]ステータスバーの区切り文字（右側）
+    separator        = (opts and opts.separator) or {
+      left           = "",                                      -- ステータスバーの区切り文字（左側）
+      right          = ""                                       -- ステータスバーの区切り文字（右側）
     },
-    colors           = opts.colors or {
-      text           = "#ffffff",                   -- [省略可]ステータスバーの文字色
-      foreground     = "#7aa2f7",                   -- [省略可]ステータスバーの前景色
-      background     = "#1a1b26"                    -- [省略可]ステータスバーの背景色
+    colors           = (opts and opts.colors) or {
+      text           = "#ffffff",                              -- ステータスバーの文字色
+      foreground     = "#7aa2f7",                              -- ステータスバーの前景色
+      background     = "#1a1b26"                               -- ステータスバーの背景色
     },
   }
 
   -- フォーマット文字列のを小文字化して変数を判定
   local low_fmt = cfg.fmt:lower()
-  local use_weather = low_fmt:find("$city") or low_fmt:find("$code") or
-                      low_fmt:find("$weather_ic") or low_fmt:find("$temp")
+  -- APIキーがある場合のみ天気情報を処理対象にする
+  local has_api_key = cfg.weather.api_key and cfg.weather.api_key ~= ""
+  local use_weather = has_api_key and
+                      ( low_fmt:find("$city") or low_fmt:find("$code") or
+                        low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   -- 定期更新イベントの登録
@@ -276,15 +274,15 @@ function M.setup(opts)
       clock_ic    = "",
       loc_ic      = "",
       temp_ic     = weather_icons.thermometer,
-      weather_ic  = state.weather_ic,
+      weather_ic  = use_weather and state.weather_ic or "",
       year        = wezterm.strftime('%Y'),
       month       = wezterm.strftime('%m'),
       day         = wezterm.strftime('%d'),
       week        = wezterm.strftime('%a'),
       time24      = wezterm.strftime('%H:%M'),
-      city        = state.city_name,
-      code        = state.city_code,
-      temp        = state.temp_str,
+      city        = use_weather and state.city_name or "",
+      code        = use_weather and state.city_code or "",
+      temp        = use_weather and state.temp_str or "",
       net_ic      = "󰓅",
       net_speed   = net_curr,
       net_avg     = net_avg,
