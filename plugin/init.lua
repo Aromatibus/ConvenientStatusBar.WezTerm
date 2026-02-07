@@ -151,7 +151,7 @@ local function get_pane_info(pane)
     local path = cwd.file_path
     local ok, out = run_child_cmd({"git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"})
     if ok and out then 
-      local branch = out:gsub("%s+", "")
+      local branch = out:gsub("^%s*(.-)%s*$", "%1")
       if branch ~= "" then info.branch = branch end
     end
   end
@@ -207,22 +207,22 @@ function M.setup(opts)
   local def_fmt =
     " $SSH $Git_ic $Branch $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City $Weather_ic $Temp " ..
-    "$CPU_ic $CPU $MEM_ic U:$MEM_USED F:$MEM_FREE $Net_ic $Net_speed($Net_avg) "
+    "$CPU_ic $CPU $MEM_ic $MEM_USED $MEM_FREE $Net_ic $Net_speed($Net_avg) "
 
   -- 設定オプションの初期化
   local config              = {
-    startup_delay           = (opts and opts.startup_delay) or 5,              -- 起動時の通信待機時間
-    weather_api_key         = opts and opts.weather_api_key,                   -- OpenWeatherMap APIキー
-    weather_lang            = (opts and opts.weather_lang) or "en",            -- 天気情報の言語コード
-    weather_city            = (opts and opts.weather_city) or "",              -- 都市名
-    weather_units           = (opts and opts.weather_units) or "metric",       -- 単位
-    weather_update_interval = 600,                                             -- 天気情報の更新時間（秒）
-    net_update_interval     = 3,                                               -- ネットワーク速度更新時間（秒）
-    net_avg_samples         = 20,                                              -- 平均速度のサンプル数
-    color_text              = (opts and opts.color_text) or "#ffffff",         -- 文字色
-    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",   -- 前景色
-    color_background        = (opts and opts.color_background) or "#1a1b26",   -- 背景色
-    format                  = (opts and opts.format) or def_fmt,               -- フォーマット
+    startup_delay           = (opts and opts.startup_delay) or 5,
+    weather_api_key         = opts and opts.weather_api_key,
+    weather_lang            = (opts and opts.weather_lang) or "en",
+    weather_city            = (opts and opts.weather_city) or "",
+    weather_units           = (opts and opts.weather_units) or "metric",
+    weather_update_interval = 600,
+    net_update_interval     = 3,
+    net_avg_samples         = 20, -- デフォルト値
+    color_text              = (opts and opts.color_text) or "#ffffff",
+    color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
+    color_background        = (opts and opts.color_background) or "#1a1b26",
+    format                  = (opts and opts.format) or def_fmt,
   }
 
   -- 定期更新イベントの登録
@@ -240,13 +240,23 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
+    -- 反転表示用の関数（パターン1）
+    local function format_rev(icon, text)
+      return wezterm.format({
+        { Attribute = { Reverse = true } },
+        { Text = " " .. icon .. " " },
+        { Attribute = { Reverse = false } },
+        { Text = " " .. text },
+      })
+    end
+
     -- フォーマット文字列の変数を置換 (1項目1行・コメント付き)
     local replace_map = {
       cal_ic      = "",                                       -- カレンダーアイコン
       clock_ic    = "",                                       -- 時計アイコン
       loc_ic      = "",                                       -- 位置情報アイコン
       net_ic      = "󰓅",                                       -- ネットワークアイコン
-      cpu_ic      = "",                                       -- CPUアイコン
+      cpu_ic      = "",                                       -- CPUアイコン
       mem_ic      = "",                                       -- メモリアイコン
       year        = wezterm.strftime('%Y'),                    -- 年
       month       = wezterm.strftime('%m'),                    -- 月
@@ -258,16 +268,17 @@ function M.setup(opts)
       temp        = state.temp_str,                            -- 気温
       cpu         = cpu_usage,                                 -- CPU使用率 (?0%)
       mem_used    = mem_used,                                  -- 使用中メモリ (???0.0GB)
-      mem_free    = mem_free,                                  -- 空きメモリ (???0.0GB)
+      mem_free    = format_rev("", mem_free),                 -- 空きメモリ (パターン1:反転)
       net_speed   = net_curr,                                  -- 現在のネットワーク速度
       net_avg     = net_avg,                                   -- 平均ネットワーク速度
-      git_ic      = pane_info.branch ~= "" and "" or "",      -- Gitアイコン (ブランチがない場合は空)
-      branch      = pane_info.branch,                          -- Gitブランチ名 (ブランチがない場合は空)
-      ssh         = pane_info.ssh ~= "" and ("󰣀 " .. pane_info.ssh) or "", -- SSH接続情報
+      git_ic      = pane_info.branch ~= "" and "" or "",      -- Gitアイコン
+      branch      = pane_info.branch,                          -- Gitブランチ名
+      ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "", -- SSHアイコン & 接続情報
     }
 
     local final_status = config.format:gsub("%$([%a%d_]+)", function(key)
-      return replace_map[key:lower()] or ("$" .. key)
+      local val = replace_map[key:lower()]
+      return val ~= nil and val or ("$" .. key)
     end)
 
     -- 右ステータスバーの更新
