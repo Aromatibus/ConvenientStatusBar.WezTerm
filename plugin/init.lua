@@ -97,6 +97,34 @@ local function get_sys_resources()
   return string.format("%2d%%", cpu_val), string.format("%4.1fGB", mem_u_val), string.format("%4.1fGB", mem_f_val)
 end
 
+--- ==========================================
+--- SSHユーザー抽出ロジック
+--- ==========================================
+local function get_ssh_user(pane)
+  -- WezTermのドメインから取得を試みる
+  local uri = pane:get_current_working_dir()
+  if uri and uri.username and uri.username ~= "" then
+    return uri.username
+  end
+
+  -- プロセス情報から強引に取得
+  local proc = pane:get_foreground_process_info()
+  if proc and proc.executable:find("ssh") then
+    for _, arg in ipairs(proc.argv) do
+      -- user@host の形式を探す
+      local u = arg:match("([^@]+)@[^@]+")
+      if u then return u end
+    end
+  end
+
+  -- タイトルから推測 (user@host)
+  local title = pane:get_title()
+  local t_user = title:match("([^@]+)@[^@]+")
+  if t_user then return t_user end
+
+  return nil
+end
+
 local function fetch_wea_data(config)
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -186,21 +214,15 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
     
-    -- ユーザー名とアイコンの判定
+    -- ユーザー名の初期値
     local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
     local user_icon = ""
 
-    -- SSH接続の判定 (paneから情報を取得)
-    local foreground_process = (pane:get_foreground_process_name() or ""):lower()
-    local domain = pane:get_domain_name()
-
-    if domain:find("SSH") or foreground_process:find("ssh") then
+    -- SSH接続の判定とユーザー名上書き
+    local ssh_user = get_ssh_user(pane)
+    if ssh_user then
         user_icon = "󰀑"
-        -- SSH時はWezTermのURI情報からリモートユーザー取得を試みる
-        local uri = pane:get_current_working_dir()
-        if uri and uri.username then
-            user_name = uri.username
-        end
+        user_name = ssh_user
     end
 
     local res = {
