@@ -150,7 +150,6 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- デフォルトフォーマット：$user_ic $user を先頭に配置
   local def_fmt = " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $loc_ic $city($code) $weather_ic $temp $cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num "
 
   local config              = {
@@ -187,11 +186,21 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
     
-    -- ユーザー名の取得ロジック（強化版）
-    local user_name = os.getenv("USER") or os.getenv("USERNAME")
-    if not user_name then
-        -- 環境変数から取れない場合、ホームディレクトリのパスから推測
-        user_name = wezterm.home_dir:match("([^/\\]+)$") or "User"
+    -- ユーザー名とアイコンの判定
+    local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
+    local user_icon = ""
+
+    -- SSH接続の判定 (paneから情報を取得)
+    local foreground_process = (pane:get_foreground_process_name() or ""):lower()
+    local domain = pane:get_domain_name()
+
+    if domain:find("SSH") or foreground_process:find("ssh") then
+        user_icon = "󰀑"
+        -- SSH時はWezTermのURI情報からリモートユーザー取得を試みる
+        local uri = pane:get_current_working_dir()
+        if uri and uri.username then
+            user_name = uri.username
+        end
     end
 
     local res = {
@@ -203,7 +212,7 @@ function M.setup(opts)
     }
 
     local replace_map = {
-      ["$user_ic"] = "", ["$user"] = user_name,
+      ["$user_ic"] = user_icon, ["$user"] = user_name,
       ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
       ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
       ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
