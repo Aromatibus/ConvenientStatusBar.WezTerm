@@ -65,17 +65,14 @@ end
 --- ネットワーク速度計算
 --- ==========================================
 local function calc_net_speed(config, is_startup_waiting)
-    -- スタートアップ待機中は初期値を返す
     if is_startup_waiting
         then return state.net_state.disp_str, state.net_state.avg_str end
-    -- 更新間隔のチェック
     local curr_time  = os.clock()
     local time_delta = curr_time - state.net_state.last_chk_time
     if time_delta < config.net_update_interval
         then return state.net_state.disp_str, state.net_state.avg_str end
-    -- OS別のコマンド実行
+    
     local is_win  = wezterm.target_triple:find("windows")
-    -- 現在の受信バイト数の取得
     local curr_rx = 0
     if is_win then
         local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
@@ -86,13 +83,12 @@ local function calc_net_speed(config, is_startup_waiting)
         })
         curr_rx = ok and tonumber(out:match("%d+")) or 0
     end
-    -- 経過時間から速度計算
+    
     local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
-    -- サンプルの追加と古いサンプルの削除
     table.insert(state.net_state.samples, 1, bps)
     if #state.net_state.samples > config.net_avg_samples
         then table.remove(state.net_state.samples) end
-    -- 平均速度の計算
+    
     local sum_bps = 0
     for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
     state.net_state.last_rx_bytes = curr_rx
@@ -107,12 +103,9 @@ end
 --- システムリソース取得
 --- ==========================================
 local function get_sys_resources()
-    -- 初期値の設定
     local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
-    -- OS別のコマンド実行
     local is_win = wezterm.target_triple:find("windows")
     if is_win then
-        -- CPU使用率とメモリ情報の取得 (Windows)
         local ok, out = run_child_cmd({
             "powershell.exe", "-NoProfile", "-Command",
             "Get-CimInstance Win32_Processor | Measure-Object -Property " ..
@@ -130,7 +123,6 @@ local function get_sys_resources()
             mem_u_val = (t_kb - f_kb) / 1024 / 1024
         end
     else
-        -- CPU使用率とメモリ情報の取得 (Unix系)
         local ok, out = run_child_cmd({
             "sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4, $2}'"
         })
@@ -151,36 +143,26 @@ end
 --- SSHユーザー抽出
 --- ==========================================
 local function get_ssh_user(pane)
-    -- 作業ディレクトリからの抽出
     local uri = pane:get_current_working_dir()
-    -- URIにユーザー名が含まれている場合
-    if uri and uri.username and uri.username ~= "" then
-        return uri.username
-    end
-    -- プロセス情報からの抽出
+    if uri and uri.username and uri.username ~= "" then return uri.username end
     local proc = pane:get_foreground_process_info()
-    -- SSHプロセスの場合
     if proc and proc.executable:find("ssh") then
         for _, arg in ipairs(proc.argv) do
             local u = arg:match("([^@]+)@[^@]+")
             if u then return u end
         end
     end
-    -- タイトルバーからの抽出
     local title = pane:get_title()
-    -- タイトルに"@"が含まれていない場合は終了
     local t_user = title:match("([^@]+)@[^@]+")
-    -- タイトルにユーザー名が含まれている場合
     if t_user then return t_user end
     return nil
 end
 
 
 --- ==========================================
---- 天気情報取得 (自動取得ルーチン)
+--- 天気情報取得
 --- ==========================================
 local function fetch_weather_data(config)
-    -- OS別のcurlコマンド設定
     local is_win   = wezterm.target_triple:find("windows")
     local curl_cmd = is_win and "curl.exe" or "curl"
     
@@ -196,48 +178,35 @@ local function fetch_weather_data(config)
         end
     end
 
-    -- 都市名が特定できない、またはAPIキーが無効な場合は失敗として終了
-    if not tgt_city or tgt_city == "" or not config.weather_api_key or config.weather_api_key == "" then
+    -- キーがプレースホルダのままなら処理しない
+    if not config.weather_api_key or config.weather_api_key == "" or config.weather_api_key:find("PASTE_YOUR") then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
-            weather_icons.unknown,
-            string.format("%5s", weather_icons.unknown),
-            "Not Found",
-            false
+            weather_icons.unknown, "---", "No Key", false
         state.last_weather_upd = os.time()
         return
     end
 
-    -- APIリクエストURLの作成
-    local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
+    -- APIリクエスト
+    local query = (tgt_code and tgt_code ~= "") and (tgt_city .. "," .. tgt_code) or (tgt_city or "Tokyo")
     local url = string.format(
         "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-        config.weather_api_key,
-        config.weather_lang,
-        query,
-        config.weather_units
+        config.weather_api_key, config.weather_lang, query, config.weather_units
     )
 
-    -- APIリクエストの実行
     local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
     
-    -- エラーチェック とメッセージフィールドでエラーの確認
     if not ok or not stdout or stdout:find('"message"') then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
-            weather_icons.unknown,
-            string.format("%5s", weather_icons.unknown),
-            tgt_city,
-            false
+            weather_icons.unknown, "---", tgt_city or "Error", false
         state.last_weather_upd = os.time()
         return
     end
 
-    -- 天気情報の更新
-    local weather_id   = tonumber(stdout:match('"id":(%d+)'))
-    local temp_val = stdout:match('"temp":([%d%.%-]+)')
-    local api_name = stdout:match('"name":"([^"]+)"')
-    local api_code = stdout:match('"country":"([^"]+)"')
+    local weather_id = tonumber(stdout:match('"id":(%d+)'))
+    local temp_val   = stdout:match('"temp":([%d%.%-]+)')
+    local api_name   = stdout:match('"name":"([^"]+)"')
+    local api_code   = stdout:match('"country":"([^"]+)"')
 
-    -- 天気アイコンの設定
     if weather_id then
         if     weather_id < 300  then state.weather_ic = weather_icons.thunder
         elseif weather_id < 600  then state.weather_ic = weather_icons.rain
@@ -247,19 +216,10 @@ local function fetch_weather_data(config)
         else                          state.weather_ic = weather_icons.clouds end
     end
 
-    -- 温度表示の設定
-    local unit_sym = config.weather_units == "metric" and
-                     weather_icons.celsius or weather_icons.fahrenheit
-    
-    state.temp_str = temp_val and 
-                     string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
-    
-    -- 都市名と国コードの設定
+    local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
+    state.temp_str = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or "---"
     state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
-        api_name or tgt_city,
-        api_code or tgt_code or "",
-        os.time(),
-        true
+        api_name or tgt_city, api_code or tgt_code or "", os.time(), true
 end
 
 
@@ -270,9 +230,7 @@ local function get_batt_disp()
     local batt_list = wezterm.battery_info()
     if not batt_list or #batt_list == 0 then return "󰚥", "" end
     local charge = (batt_list[1].state_of_charge or 0) * 100
-    local icon   =  charge >= 90 and "󱊦" or
-                    charge >= 60 and "󱊥" or
-                    charge >= 30 and "󱊤" or "󰢟"
+    local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or charge >= 30 and "󱊤" or "󰢟"
     return icon, string.format("%.0f%%", charge)
 end
 
@@ -281,22 +239,11 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    -- デフォルトのフォーマット文字列
-    local def_fmt =
-        " $user_ic $user " ..
-        "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) $weather_ic $temp " ..
-        "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
-        "$net_ic $net_speed($net_avg) " ..
-        "$batt_ic$batt_num "
-
-    -- デフォルトのAPIキー
     local default_api_key = "PASTE_YOUR_API_KEY_HERE"
 
-    -- 設定の初期化
-    local config              = {
+    local config = {
         startup_delay           = (opts and opts.startup_delay) or 5,
-        weather_api_key         = (opts and opts.weather_api_key ~= nil) and opts.weather_api_key or default_api_key,
+        weather_api_key         = (opts and opts.weather_api_key and opts.weather_api_key ~= "") and opts.weather_api_key or default_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
         weather_city            = (opts and opts.weather_city) or "",
@@ -311,68 +258,42 @@ function M.setup(opts)
         color_text              = (opts and opts.color_text) or "#ffffff",
         color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
         color_background        = (opts and opts.color_background) or "#1a1b26",
-        format                  = (opts and opts.format) or def_fmt,
+        format                  = (opts and opts.format) or " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $loc_ic $city($code) $weather_ic $temp $cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num ",
     }
 
-    -- ステータスバー更新イベントの登録
     wezterm.on('update-right-status', function(window, pane)
         local now        = os.time()
-        -- スタートアップ待機中フラグ
         local is_waiting = (now - state.proc_start) < config.startup_delay
-        -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
-        local fmt_lower  = config.format:lower()
-        local use_weather =
-            fmt_lower:find("$weather") or fmt_lower:find("$temp") or
-            fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
-        local use_net  = fmt_lower:find("$net")
-        local use_sys  = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
-        local use_batt = fmt_lower:find("$batt")
-
-        -- 天気情報の処理判定
-        local has_weather_api = config.weather_api_key ~= ""
         
-        -- 天気情報の更新
-        if use_weather and has_weather_api and not is_waiting then
+        -- 天気更新ロジックの修正
+        if not is_waiting then
             local diff = now - state.last_weather_upd
-            if state.last_weather_upd == 0
-                or diff > config.weather_update_interval
-                or (not state.is_weather_ready and diff > config.weather_retry_interval)
-            then
+            if state.last_weather_upd == 0 
+               or diff > config.weather_update_interval 
+               or (not state.is_weather_ready and diff > config.weather_retry_interval) then
                 fetch_weather_data(config)
             end
         end
 
-        -- データ取得
-        local net_curr, net_avg = "", ""
-        if use_net then net_curr, net_avg = calc_net_speed(config, is_waiting) end
-        
-        local cpu_u, mem_u, mem_f = "", "", ""
-        if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
-        
-        local batt_ic, batt_num = "", ""
-        if use_batt then batt_ic, batt_num = get_batt_disp() end
-
-        -- 曜日
-        local week_val = (config.week_str and config.week_str[tonumber(wezterm.strftime('%w')) + 1]) 
-                         or wezterm.strftime('%a')
-
-        -- ユーザー
+        local net_curr, net_avg = calc_net_speed(config, is_waiting)
+        local cpu_u, mem_u, mem_f = get_sys_resources()
+        local batt_ic, batt_num = get_batt_disp()
+        local week_val = (config.week_str and config.week_str[tonumber(wezterm.strftime('%w')) + 1]) or wezterm.strftime('%a')
         local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
         local user_icon = ""
         local ssh_user = get_ssh_user(pane)
         if ssh_user then user_icon, user_name = "󰀑", ssh_user end
 
-        -- 置換マップ
         local replace_map = {
             ["$user_ic"] = user_icon, ["$user"] = user_name,
             ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
             ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
             ["$week"] = week_val, ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
-            ["$loc_ic"] = has_weather_api and "" or "",
-            ["$city"] = has_weather_api and state.city_name or "",
-            ["$code"] = has_weather_api and state.city_code or "",
-            ["$weather_ic"] = has_weather_api and state.weather_ic or "",
-            ["$temp"] = has_weather_api and state.temp_str or "",
+            ["$loc_ic"] = "",
+            ["$city"] = state.city_name,
+            ["$code"] = state.city_code,
+            ["$weather_ic"] = state.weather_ic,
+            ["$temp"] = state.temp_str,
             ["$cpu_ic"] = "", ["$cpu"] = cpu_u,
             ["$mem_used_ic"] = "", ["$mem_used"] = mem_u,
             ["$mem_free_ic"] = "", ["$mem_free"] = mem_f,
@@ -380,7 +301,6 @@ function M.setup(opts)
             ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
         }
 
-        -- 表示構築
         local res = {
             { Background = { Color = config.color_background } },
             { Foreground = { Color = config.color_foreground } },
@@ -412,7 +332,6 @@ function M.setup(opts)
         table.insert(res, { Foreground = { Color = config.color_foreground } })
         table.insert(res, { Text = config.separator_right })
         
-        -- ステータスバーの表示更新
         window:set_right_status(wezterm.format(res))
     end)
 end
