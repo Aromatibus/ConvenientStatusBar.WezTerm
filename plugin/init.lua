@@ -194,7 +194,6 @@ local function fetch_weather_data(config)
             tgt_code = res:match('"country_code":%s*"([^"]+)"')
         end
     end
-
     -- 都市名が取得できない場合の処理
     if not tgt_city or tgt_city == "" then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
@@ -278,9 +277,6 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    -- デフォルトAPIキー (引数がない場合のフォールバック用)
-    local default_api_key = "PASTE_YOUR_API_KEY_HERE"
-
     -- デフォルトのフォーマット文字列
     local def_fmt =
         " $user_ic $user " ..
@@ -292,7 +288,7 @@ function M.setup(opts)
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
-        weather_api_key         = (opts and opts.weather_api_key and opts.weather_api_key ~= "") and opts.weather_api_key or default_api_key,
+        weather_api_key         = opts and opts.weather_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
         weather_city            = (opts and opts.weather_city) or "",
@@ -300,7 +296,7 @@ function M.setup(opts)
         weather_update_interval = (opts and opts.weather_update_interval) or 600,
         weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
         net_update_interval     = (opts and opts.net_update_interval) or 3,
-        net_avg_samples         = (opts and opts.net_avg_samples) or 20,
+        net_avg_samples         = (opts and opts.net_avg_samples) or 10,
         week_str                = opts and opts.week_str,
         separator_left          = (opts and opts.separator_left) or "",
         separator_right         = (opts and opts.separator_right) or "",
@@ -309,6 +305,7 @@ function M.setup(opts)
         color_background        = (opts and opts.color_background) or "#1a1b26",
         format                  = (opts and opts.format) or def_fmt,
     }
+
     -- ログに最終的に使用されたConfigの値をそのまま出力
     wezterm.log_info("Final Config: " .. wezterm.to_string(config))
 
@@ -327,7 +324,7 @@ function M.setup(opts)
         local use_batt = fmt_lower:find("$batt")
 
         -- 天気情報の処理判定
-        -- キーが "" ではない場合は天気情報の取得を試みる
+        -- キーが明示的に "" の場合は一切処理しない。nil の場合は自動取得。
         local has_weather_api = config.weather_api_key ~= ""
         -- 天気情報の更新
         if use_weather and has_weather_api and not is_waiting then
@@ -430,5 +427,6 @@ function M.setup(opts)
         window:set_right_status(wezterm.format(res))
     end)
 end
+
 
 return M
