@@ -349,9 +349,9 @@ function M.setup(opts)
     "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
     "$loc_ic $city($code) " ..
     "$weather_ic $temp " ..
-    "1h:$weather_ic_1h $temp_1h " ..
-    "3h:$weather_ic_3h $temp_3h " ..
-    "24h:$weather_ic_24h $temp_24h " ..
+    "1h($weather_ic_1h $temp_1h) " ..
+    "3h($weather_ic_3h $temp_3h) " ..
+    "24h($weather_ic_24h $temp_24h) " ..
     "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
     "$net_ic $net_speed($net_avg) " ..
     "$batt_ic$batt_num "
