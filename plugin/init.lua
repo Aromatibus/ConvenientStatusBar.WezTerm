@@ -106,7 +106,7 @@ local function get_sys_resources()
   -- OS別のコマンド実行
   local is_win = wezterm.target_triple:find("windows")
   if is_win then
-    -- CPU使用率とメモリ情報の取得
+    -- CPU使用率とメモリ情報の取得 (Windows)
     local ok, out = run_child_cmd({
       "powershell.exe", "-NoProfile", "-Command",
       "Get-CimInstance Win32_Processor | Measure-Object -Property " ..
@@ -124,7 +124,7 @@ local function get_sys_resources()
       mem_u_val = (t_kb - f_kb) / 1024 / 1024
     end
   else
-    -- CPU使用率とメモリ情報の取得
+    -- CPU使用率とメモリ情報の取得 (Unix系)
     local ok, out = run_child_cmd({"sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4, $2}'"})
     if ok and out then
       local u, f, t = out:match("(%d+)%s+(%d+)%s+(%d+)")
