@@ -5,17 +5,10 @@ local M       = {}
 --- 定数・アイコン定義
 --- ==========================================
 local weather_icons = {
-  clear       = "󰖨 ", -- 快晴
-  clouds      = "󰅟 ", -- 曇り
-  rain        = " ", -- 雨
-  wind        = " ", -- 強風・霧
-  thunder     = "󱐋 ", -- 雷
-  snow        = " ", -- 雪
-  thermometer = "", -- 温度計
-  celsius     = "󰔄", -- 摂氏
-  fahrenheit  = "󰔅", -- 華氏
-  loading     = " ", -- 取得中
-  unknown     = " ", -- 不明
+  clear       = "󰖨 ", clouds      = "󰅟 ", rain        = " ", 
+  wind        = " ", thunder     = "󱐋 ", snow        = " ", 
+  thermometer = "", celsius     = "󰔄", fahrenheit  = "󰔅", 
+  loading     = " ", unknown     = " ",
 }
 
 --- ==========================================
@@ -48,24 +41,16 @@ local function run_child_cmd(args)
 end
 
 local function format_bps(bps)
-  if bps > 1024 * 1024 then
-    return string.format("%5.1fMB/S", bps / (1024 * 1024))
-  elseif bps > 1024 then
-    return string.format("%5.1fKB/S", bps / 1024)
-  else
-    return string.format("%6.1fB/S", bps)
-  end
+  if bps > 1024 * 1024 then return string.format("%5.1fMB/S", bps / (1024 * 1024))
+  elseif bps > 1024 then return string.format("%5.1fKB/S", bps / 1024)
+  else return string.format("%6.1fB/S", bps) end
 end
 
 local function calc_net_speed(config, is_startup_waiting)
-  if is_startup_waiting then
-    return state.net_state.disp_str, state.net_state.avg_str
-  end
+  if is_startup_waiting then return state.net_state.disp_str, state.net_state.avg_str end
   local curr_time  = os.clock()
   local time_delta = curr_time - state.net_state.last_chk_time
-  if time_delta < config.net_update_interval then
-    return state.net_state.disp_str, state.net_state.avg_str
-  end
+  if time_delta < config.net_update_interval then return state.net_state.disp_str, state.net_state.avg_str end
   local is_win  = wezterm.target_triple:find("windows")
   local curr_rx = 0
   if is_win then
@@ -77,9 +62,7 @@ local function calc_net_speed(config, is_startup_waiting)
   end
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
   table.insert(state.net_state.samples, 1, bps)
-  if #state.net_state.samples > config.net_avg_samples then
-    table.remove(state.net_state.samples)
-  end
+  if #state.net_state.samples > config.net_avg_samples then table.remove(state.net_state.samples) end
   local sum_bps = 0
   for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
   state.net_state.last_rx_bytes = curr_rx
@@ -92,7 +75,6 @@ end
 local function get_sys_resources()
   local is_win = wezterm.target_triple:find("windows")
   local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
-  
   if is_win then
     local ok, out = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; (Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"})
     if ok and out then
@@ -121,9 +103,16 @@ local function get_ssh_info(pane)
   if domain:find("SSH") then
     local uri = pane:get_current_working_dir()
     if uri then
-      local user = uri.username or os.getenv("USER") or "user"
-      return "󰢩 " .. user .. "@" .. (uri.host or domain) .. " "
+      return "󰢩 " .. (uri.username or "user") .. "@" .. (uri.host or domain) .. " "
     end
+  end
+  local foreground_process = pane:get_foreground_process_name() or ""
+  if foreground_process:find("ssh") or foreground_process:find("SSH") then
+    return "󰢩 SSH接続中 "
+  end
+  local title = pane:get_title()
+  if title:find("@") then
+    return "󰢩 " .. title .. " "
   end
   return ""
 end
@@ -141,21 +130,15 @@ local function fetch_wea_data(config)
     end
   end
   if not tgt_city or tgt_city == "" then
-    state.weather_ic   = weather_icons.unknown
-    state.city_name    = weather_icons.unknown
-    state.is_wea_ready = false
+    state.weather_ic, state.city_name, state.is_wea_ready = weather_icons.unknown, weather_icons.unknown, false
     return
   end
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format("https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s", config.weather_api_key, config.weather_lang, query, config.weather_units)
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
   if not ok or not stdout or stdout:find('"message"') then
-    state.weather_ic   = weather_icons.unknown
-    state.temp_str     = string.format("%5s", weather_icons.unknown)
-    state.city_name    = tgt_city
-    state.city_code    = tgt_code or ""
+    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready = weather_icons.unknown, string.format("%5s", weather_icons.unknown), tgt_city, false
     state.last_wea_upd = os.time()
-    state.is_wea_ready = false
     return
   end
   local wea_id   = tonumber(stdout:match('"id":(%d+)'))
@@ -172,17 +155,13 @@ local function fetch_wea_data(config)
   end
   local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
   state.temp_str     = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
-  state.city_name    = api_name or tgt_city
-  state.city_code    = api_code or tgt_code or ""
-  state.last_wea_upd = os.time()
-  state.is_wea_ready = true
+  state.city_name, state.city_code, state.last_wea_upd, state.is_wea_ready = api_name or tgt_city, api_code or tgt_code or "", os.time(), true
 end
 
 local function get_batt_disp()
   local batt_list = wezterm.battery_info()
   if not batt_list or #batt_list == 0 then return "󰚥", "" end
-  local batt   = batt_list[1]
-  local charge = (batt.state_of_charge or 0) * 100
+  local charge = (batt_list[1].state_of_charge or 0) * 100
   local icon   =  charge >= 90 and "󱊦" or charge >= 60 and "󱊥" or charge >= 30 and "󱊤" or "󰢟"
   return icon, string.format("%.0f%%", charge)
 end
@@ -191,7 +170,6 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- デフォルトフォーマットを新変数に対応
   local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $mem_used_ic $MEM_USED $mem_free_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local config              = {
@@ -238,43 +216,26 @@ function M.setup(opts)
     }
 
     local replace_map = {
-      ["$ssh"] = ssh_str,
-      ["$cal_ic"] = "",
-      ["$year"] = wezterm.strftime('%Y'),
-      ["$month"] = wezterm.strftime('%m'),
-      ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = wezterm.strftime('%a'),
-      ["$clock_ic"] = "",
-      ["$time24"] = wezterm.strftime('%H:%M'),
-      ["$loc_ic"] = "",
-      ["$city"] = state.city_name,
-      ["$code"] = state.city_code,
-      ["$weather_ic"] = state.weather_ic,
-      ["$temp"] = state.temp_str,
-      ["$cpu_ic"] = "",
-      ["$cpu"] = cpu_u,
-      ["$mem_used_ic"] = "",
-      ["$mem_used"] = mem_u,
-      ["$mem_free_ic"] = "",
-      ["$mem_free"] = mem_f,
-      ["$net_ic"] = "󰓅",
-      ["$net_speed"] = net_curr,
-      ["$net_avg"] = net_avg,
-      ["$batt_ic"] = batt_ic,
-      ["$batt_num"] = batt_num,
+      ["$ssh"] = ssh_str, ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
+      ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
+      ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
+      ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
+      ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
+      ["$cpu"] = cpu_u, ["$mem_used_ic"] = "", ["$mem_used"] = mem_u, 
+      ["$mem_free_ic"] = "", ["$mem_free"] = mem_f,
+      ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
+      ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
     }
 
     local current_str = config.format
     while true do
       local start_idx, end_idx = current_str:find("%$[%a%d_]+")
       if not start_idx then break end
-
       table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
-
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
-
-      -- $mem_free_ic のときだけテキスト色を背景色に変える
+      
+      -- エラー箇所修正：分割して挿入
       if token == "$mem_free_ic" then
         table.insert(res, { Foreground = { Color = config.color_background } })
         table.insert(res, { Text = val })
@@ -282,11 +243,11 @@ function M.setup(opts)
       else
         table.insert(res, { Text = val })
       end
-
       current_str = current_str:sub(end_idx + 1)
     end
     table.insert(res, { Text = current_str })
 
+    -- エラー箇所修正：分割して挿入
     table.insert(res, { Background = { Color = config.color_background } })
     table.insert(res, { Foreground = { Color = config.color_foreground } })
     table.insert(res, { Text       = config.separator_right })
