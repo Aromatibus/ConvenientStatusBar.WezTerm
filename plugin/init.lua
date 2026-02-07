@@ -88,7 +88,15 @@ local function calc_net_speed(config, is_startup_waiting)
         curr_rx = ok and tonumber(out:match("%d+")) or 0
     end
     -- 経過時間から速度計算
-    local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
+    local diff = curr_rx - state.net_state.last_rx_bytes
+    -- 【修正】負数（リセット）を検知した場合は計算せず、基準値だけ更新して終了
+    if diff < 0 then
+        state.net_state.last_rx_bytes = curr_rx
+        state.net_state.last_chk_time = curr_time
+        return state.net_state.disp_str, state.net_state.avg_str
+    end
+    -- バイト/秒の計算
+    local bps = diff / time_delta
     -- サンプルの追加と古いサンプルの削除
     table.insert(state.net_state.samples, 1, bps)
     if #state.net_state.samples > config.net_avg_samples
