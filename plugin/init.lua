@@ -677,14 +677,14 @@ function M.setup(opts)
 
         window:set_right_status(wezterm.format(res))
     end)
-    -- マウスバインド追加（左クリックで切替）
+    -- マウスバインド追加（右クリックで切替）
     return {
         mouse_bindings = {
             {
                 event = {
                     Up = {
                         streak = 1,
-                        button = "Left"
+                        button = "Right"
                     }
                 },
                 mods = "NONE",
