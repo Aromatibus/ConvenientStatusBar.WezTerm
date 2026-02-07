@@ -52,7 +52,7 @@ local function run_child_cmd(args)
 end
 
 
--- 数値のフォーマット化 (B/S -> KB/S, MB/S)
+-- 数値のフォーマット (B/S, KB/S, MB/S)
 local function format_bps(bps)
   if bps > 1024 * 1024 then
     return string.format("%5.1fMB/S", bps / (1024 * 1024))
@@ -203,42 +203,41 @@ function M.setup(opts)
     " $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City($Code) $Weather_ic $Temp_ic($Temp) " ..
     "$Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
-
   -- 設定オプションの初期化
   local cfg          = {
-    fmt              = (opts and opts.format) or def_fmt, -- [省略可]ステータスバーのフォーマット文字列
-    start_delay      = (opts and opts.startup_delay) or 5, -- [省略可]起動時の通信待機時間
+    fmt              = (opts and opts.format) or def_fmt,      -- ステータスバーのフォーマット
+    start_delay      = (opts and opts.startup_delay) or 5,     -- 起動時の通信待機時間
     weather          = {
-      api_key        = opts and opts.api_key,             -- [省略不可]OpenWeatherMap APIキー
-      lang           = (opts and opts.lang) or "en",      -- [省略可]言語コード
-      country        = (opts and opts.country) or "",     -- [省略可]国コード、都市名と組み合わせて使用
-      city           = (opts and opts.city) or "",        -- [省略可]都市名、省略された場合は自動取得
-      units          = (opts and opts.units) or "metric", -- [省略可]"metric(摂氏)" or "imperial(華氏)"
-      interval       = (opts and opts.update_interval) or 600, -- [省略可]天気情報の更新間隔
-      retry_interval = (opts and opts.retry_interval) or 30, -- [省略可]天気情報取得失敗時のリトライ間隔
+      api_key        = opts and opts.api_key,                  -- OpenWeatherMap APIキー
+      lang           = (opts and opts.lang) or "en",           -- 取得言語コード
+      country        = (opts and opts.country) or "",          -- 国コード、都市名と併用
+      city           = (opts and opts.city) or "",             -- 都市名、省略時自動取得
+      units          = (opts and opts.units) or "metric",      -- "metric" or "imperial"
+      interval       = (opts and opts.update_interval) or 600, -- 天気情報の更新秒数
+      retry_interval = (opts and opts.retry_interval) or 30,   -- 取得失敗時のリトライ秒数
     },
     net              = {
-      interval       = (opts and opts.net_update_interval) or 3, -- [省略可]ネットワーク速度更新間隔
-      avg_limit      = (opts and opts.net_avg_samples) or 5      -- [省略可]平均速度のサンプル数
+      interval       = (opts and opts.net_update_interval) or 3, -- ネットワーク速度更新秒数
+      avg_limit      = (opts and opts.net_avg_samples) or 20,    -- 平均速度のサンプル数
     },
     separator        = (opts and opts.separator) or {
-      left           = "",                           -- [省略可]ステータスバーの区切り文字（左側）
-      right          = ""                            -- [省略可]ステータスバーの区切り文字（右側）
+      left           = "",                           -- ステータスバーの始端（左）
+      right          = ""                            -- ステータスバーの終端（右）
     },
     colors           = (opts and opts.colors) or {
-      text           = "#ffffff",                   -- [省略可]ステータスバーの文字色
-      foreground     = "#7aa2f7",                   -- [省略可]ステータスバーの前景色
-      background     = "#1a1b26"                    -- [省略可]ステータスバーの背景色
+      text           = "#ffffff",                   -- ステータスバーの文字色
+      foreground     = "#7aa2f7",                   -- ステータスバーの前景色
+      background     = "#1a1b26"                    -- ステータスバーの背景色
     },
   }
 
-  -- フォーマット文字列のを小文字化して変数を判定
+  -- フォーマット文字列を小文字化して変数を判定
   local low_fmt = cfg.fmt:lower()
   -- APIキーがある場合のみ天気情報を処理対象にする
   local has_api_key = cfg.weather.api_key and cfg.weather.api_key ~= ""
-  local use_weather = has_api_key and 
-                      (low_fmt:find("$city") or low_fmt:find("$code") or
-                       low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
+  local use_weather = has_api_key and
+                    ( low_fmt:find("$city") or low_fmt:find("$code") or
+                      low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   -- 定期更新イベントの登録
@@ -246,12 +245,10 @@ function M.setup(opts)
     local now        = os.time()
     local elapsed    = now - state.proc_start
     local is_waiting = elapsed < cfg.start_delay
-
     -- 起動直後の待機時間中は取得をスキップ
     if use_weather and not is_waiting then
       local diff = now - state.last_wea_upd
       local should_fetch = false
-
       -- 初回または通常インターバル経過時の判定
       if state.last_wea_upd == 0 or diff > cfg.weather.interval then
         should_fetch = true
@@ -267,8 +264,8 @@ function M.setup(opts)
 
     -- ネットワーク速度の計算・取得
     local batt_ic, batt_num = get_batt_disp()
-    local net_curr, net_avg = "", ""
-    if use_net then net_curr, net_avg = calc_net_speed(cfg.net, is_waiting) end
+    local net_speed, net_avg = "", ""
+    if use_net then net_speed, net_avg = calc_net_speed(cfg.net, is_waiting) end
 
     -- フォーマット文字列の変数を置換
     local replace_map = {
@@ -286,7 +283,7 @@ function M.setup(opts)
       code        = use_weather and state.city_code or "",
       temp        = use_weather and state.temp_str or "",
       net_ic      = "󰓅",
-      net_speed   = net_curr,
+      net_speed   = net_speed,
       net_avg     = net_avg,
       batt_ic     = batt_ic,
       batt_num    = batt_num,
