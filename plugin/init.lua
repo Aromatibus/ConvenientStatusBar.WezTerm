@@ -330,10 +330,11 @@ function M.setup(opts)
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) $weather_ic $temp " ..
+        "$loc_ic $city($code) $weather_ic $temp 3h($weather_ic_3h$temp_3h) 24h($weather_ic_24h$temp_24h)" ..
         "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
+
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
