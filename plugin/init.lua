@@ -123,14 +123,13 @@ local function get_sys_resources()
   end
   
   local mem_used_val = math.max(0, mem_total_val - mem_free_val)
-  -- CPU: " 5%" (2桁), MEM: "  12.5GB" (6文字)
   return string.format("%2d%%", cpu_val), string.format("%6.1fGB", mem_used_val), string.format("%6.1fGB", mem_free_val)
 end
 
 
--- ペイン情報（Git/SSH）の取得
+-- ペイン情報（SSHのみ）の取得
 local function get_pane_info(pane)
-  local info = { branch = "", ssh = "" }
+  local info = { ssh = "" }
   if not pane then return info end
 
   local process_name = pane:get_foreground_process_name() or ""
@@ -142,17 +141,6 @@ local function get_pane_info(pane)
     if uri then
       local user = uri.username or os.getenv("USER") or os.getenv("USERNAME") or "user"
       info.ssh = user .. "@" .. (uri.host or domain)
-    end
-  end
-
-  -- Gitブランチの取得
-  local cwd = pane:get_current_working_dir()
-  if cwd then
-    local path = cwd.file_path
-    local ok, out = run_child_cmd({"git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD"})
-    if ok and out then 
-      local branch = out:gsub("^%s*(.-)%s*$", "%1")
-      if branch ~= "" then info.branch = branch end
     end
   end
 
@@ -203,9 +191,9 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  -- デフォルトのフォーマット文字列
+  -- デフォルトのフォーマット文字列（Git関連を削除）
   local def_fmt =
-    " $SSH $Git_ic $Branch $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
+    " $SSH $Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 " ..
     "$Loc_ic $City $Weather_ic $Temp " ..
     "$CPU_ic $CPU $MEM_ic $MEM_USED $MEM_FREE $Net_ic $Net_speed($Net_avg) "
 
@@ -218,14 +206,13 @@ function M.setup(opts)
     weather_units           = (opts and opts.weather_units) or "metric",
     weather_update_interval = 600,
     net_update_interval     = 3,
-    net_avg_samples         = 20, -- デフォルト値
+    net_avg_samples         = 20,
     color_text              = (opts and opts.color_text) or "#ffffff",
     color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
     color_background        = (opts and opts.color_background) or "#1a1b26",
     format                  = (opts and opts.format) or def_fmt,
   }
 
-  -- 定期更新イベントの登録
   wezterm.on('update-right-status', function(window, pane)
     local now        = os.time()
     local is_waiting = (now - state.proc_start) < config.startup_delay
@@ -240,8 +227,8 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- 反転表示用の関数（パターン1）
-    local function format_rev(icon, text)
+    -- 反転表示用の関数（アイコンのみ反転）
+    local function format_rev_ic(icon, text)
       return wezterm.format({
         { Attribute = { Reverse = true } },
         { Text = " " .. icon .. " " },
@@ -268,11 +255,9 @@ function M.setup(opts)
       temp        = state.temp_str,                            -- 気温
       cpu         = cpu_usage,                                 -- CPU使用率 (?0%)
       mem_used    = mem_used,                                  -- 使用中メモリ (???0.0GB)
-      mem_free    = format_rev("", mem_free),                 -- 空きメモリ (パターン1:反転)
+      mem_free    = format_rev_ic("", mem_free),              -- 空きメモリ (アイコンのみ反転)
       net_speed   = net_curr,                                  -- 現在のネットワーク速度
       net_avg     = net_avg,                                   -- 平均ネットワーク速度
-      git_ic      = pane_info.branch ~= "" and "" or "",      -- Gitアイコン
-      branch      = pane_info.branch,                          -- Gitブランチ名
       ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "", -- SSHアイコン & 接続情報
     }
 
