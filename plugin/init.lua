@@ -196,12 +196,12 @@ local function fetch_weather_data(config)
         end
     end
 
-    -- それでも都市名が特定できない場合は失敗として終了
-    if not tgt_city or tgt_city == "" then
+    -- 都市名が特定できない、またはAPIキーが無効な場合は失敗として終了
+    if not tgt_city or tgt_city == "" or not config.weather_api_key or config.weather_api_key == "" then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
             weather_icons.unknown,
             string.format("%5s", weather_icons.unknown),
-            "Unknown Loc",
+            "Not Found",
             false
         state.last_weather_upd = os.time()
         return
@@ -291,11 +291,12 @@ function M.setup(opts)
         "$batt_ic$batt_num "
 
     -- デフォルトのAPIキー
-    local default_api_key = "YOUR_API_KEY_HERE"
+    local default_api_key = "PASTE_YOUR_API_KEY_HERE"
 
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
+        -- APIキーがオプションに無い(nil)場合はデフォルトキーを使用
         weather_api_key         = (opts and opts.weather_api_key ~= nil) and opts.weather_api_key or default_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
@@ -313,9 +314,6 @@ function M.setup(opts)
         color_background        = (opts and opts.color_background) or "#1a1b26",
         format                  = (opts and opts.format) or def_fmt,
     }
-
-    -- ログに最終的に使用されたConfigの値をそのまま出力
-    wezterm.log_info("Final Config: " .. wezterm.to_string(config))
 
     -- ステータスバー更新イベントの登録
     wezterm.on('update-right-status', function(window, pane)
@@ -345,7 +343,7 @@ function M.setup(opts)
             end
         end
 
-        -- データ取得の実行
+        -- データ取得
         local net_curr, net_avg = "", ""
         if use_net then net_curr, net_avg = calc_net_speed(config, is_waiting) end
         
@@ -355,30 +353,35 @@ function M.setup(opts)
         local batt_ic, batt_num = "", ""
         if use_batt then batt_ic, batt_num = get_batt_disp() end
 
-        -- 曜日文字列の取得
-        local week_val = ""
-        if fmt_lower:find("$week") then
-            if config.week_str and type(config.week_str) == "table" then
-                local week_idx = tonumber(wezterm.strftime('%w'))
-                week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
-            else
-                week_val = wezterm.strftime('%a')
-            end
-        end
+        -- 曜日
+        local week_val = (config.week_str and config.week_str[tonumber(wezterm.strftime('%w')) + 1]) 
+                         or wezterm.strftime('%a')
 
-        -- ユーザー名とアイコンの取得
-        local user_name, user_icon = "", ""
-        if fmt_lower:find("$user") then
-            user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
-            user_icon = ""
-            local ssh_user = get_ssh_user(pane)
-            if ssh_user then
-                user_icon = "󰀑"
-                user_name = ssh_user
-            end
-        end
+        -- ユーザー
+        local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
+        local user_icon = ""
+        local ssh_user = get_ssh_user(pane)
+        if ssh_user then user_icon, user_name = "󰀑", ssh_user end
 
-        -- ステータスバーの文字列作成
+        -- 置換マップ
+        local replace_map = {
+            ["$user_ic"] = user_icon, ["$user"] = user_name,
+            ["$cal_ic"] = "", ["$year"] = wezterm.strftime('%Y'),
+            ["$month"] = wezterm.strftime('%m'), ["$day"] = wezterm.strftime('%d'),
+            ["$week"] = week_val, ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
+            ["$loc_ic"] = has_weather_api and "" or "",
+            ["$city"] = has_weather_api and state.city_name or "",
+            ["$code"] = has_weather_api and state.city_code or "",
+            ["$weather_ic"] = has_weather_api and state.weather_ic or "",
+            ["$temp"] = has_weather_api and state.temp_str or "",
+            ["$cpu_ic"] = "", ["$cpu"] = cpu_u,
+            ["$mem_used_ic"] = "", ["$mem_used"] = mem_u,
+            ["$mem_free_ic"] = "", ["$mem_free"] = mem_f,
+            ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
+            ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
+        }
+
+        -- 表示構築
         local res = {
             { Background = { Color = config.color_background } },
             { Foreground = { Color = config.color_foreground } },
@@ -387,36 +390,6 @@ function M.setup(opts)
             { Foreground = { Color = config.color_text } },
         }
 
-        -- 置換マップの作成
-        local replace_map = {
-            ["$user_ic"] = user_icon,
-            ["$user"] = user_name,
-            ["$cal_ic"] = "",
-            ["$year"] = wezterm.strftime('%Y'),
-            ["$month"] = wezterm.strftime('%m'),
-            ["$day"] = wezterm.strftime('%d'),
-            ["$week"] = week_val,
-            ["$clock_ic"] = "",
-            ["$time24"] = wezterm.strftime('%H:%M'),
-            ["$loc_ic"] = has_weather_api and "" or "",
-            ["$city"] = has_weather_api and state.city_name or "",
-            ["$code"] = has_weather_api and state.city_code or "",
-            ["$weather_ic"] = has_weather_api and state.weather_ic or "",
-            ["$temp"] = has_weather_api and state.temp_str or "",
-            ["$cpu_ic"] = "",
-            ["$cpu"] = cpu_u,
-            ["$mem_used_ic"] = "",
-            ["$mem_used"] = mem_u,
-            ["$mem_free_ic"] = "",
-            ["$mem_free"] = mem_f,
-            ["$net_ic"] = "󰓅",
-            ["$net_speed"] = net_curr,
-            ["$net_avg"] = net_avg,
-            ["$batt_ic"] = batt_ic,
-            ["$batt_num"] = batt_num,
-        }
-
-        -- フォーマット文字列の置換
         local current_str = config.format
         while true do
             local start_idx, end_idx = current_str:find("%$[%a%d_]+")
@@ -425,7 +398,6 @@ function M.setup(opts)
             local token = current_str:sub(start_idx, end_idx):lower()
             local val = replace_map[token] or token
             
-            -- 特定のトークンで色の反転など
             if token == "$mem_free_ic" then
                 table.insert(res, { Foreground = { Color = config.color_background } })
                 table.insert(res, { Text = val })
@@ -435,13 +407,11 @@ function M.setup(opts)
             end
             current_str = current_str:sub(end_idx + 1)
         end
-
+        
         table.insert(res, { Text = current_str })
         table.insert(res, { Background = { Color = config.color_background } })
-        table.insert(res, { Foreground = { Color = config.color_foreground } })
-        table.insert(res, { Text       = config.separator_right })
-
-        -- ステータスバーの表示更新
+        table.insert(res, { Foreground = { Color = config.color_foreground } }, { Text = config.separator_right })
+        
         window:set_right_status(wezterm.format(res))
     end)
 end
