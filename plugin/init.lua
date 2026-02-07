@@ -168,7 +168,7 @@ end
 
 
 --- ==========================================
---- 天気情報取得 (修正版: message誤判定を修正)
+--- 天気情報取得
 --- ==========================================
 local function fetch_weather_data(config)
     wezterm.log_info("Fetching weather via Forecast API...")
@@ -186,7 +186,6 @@ local function fetch_weather_data(config)
 
     local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
 
-    -- 【修正箇所】"message":0 は正常なので、"cod":"200" または "cod":200 が含まれていればOKとする
     if not ok or not stdout or (not stdout:find('"cod":"200"') and not stdout:find('"cod":200')) then
         wezterm.log_error("Weather API Error: " .. (stdout or "Unknown"))
         state.is_weather_ready = false
@@ -348,7 +347,11 @@ function M.setup(opts)
             current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
-        table.insert(res, { Background = { Color = config.color_background } }, { Foreground = { Color = config.color_foreground } }, { Text = config.separator_right })
+        -- 【修正箇所】table.insertを1つずつ分割
+        table.insert(res, { Background = { Color = config.color_background } })
+        table.insert(res, { Foreground = { Color = config.color_foreground } })
+        table.insert(res, { Text = config.separator_right })
+        
         window:set_right_status(wezterm.format(res))
     end)
 end
