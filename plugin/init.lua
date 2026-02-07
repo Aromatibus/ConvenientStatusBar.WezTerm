@@ -208,7 +208,7 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $MEM_ic $MEM_USED $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
+  local def_fmt = " $SSH$Cal_ic $Year.$Month.$Day($Week) $Clock_ic $Time24 $Loc_ic $City($Code) $Weather_ic $Temp $CPU_ic $CPU $MEM_ic $MEM_USED $MEM_ic $MEM_FREE $Net_ic $Net_speed($Net_avg) $Batt_ic$Batt_num "
 
   local config              = {
     startup_delay           = (opts and opts.startup_delay) or 5,
@@ -264,32 +264,36 @@ function M.setup(opts)
       ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
     }
 
-    -- フォーマットに従って解析
     local current_str = config.format
+    local mem_ic_count = 0 -- $MEM_ICの出現回数をカウント
+
     while true do
       local start_idx, end_idx = current_str:find("%$[%a%d_]+")
       if not start_idx then break end
       
-      -- トークン前のテキスト追加
       table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
       
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
 
-      -- フリーメモリのアイコン(MEM_IC)かつ、すぐ後にMEM_FREEがある場合のみ色変更
-      if token == "$mem_ic" and current_str:find("$mem_free", end_idx, true) then
+      -- $MEM_ICの2回目出現時のみ色を背景色に変える
+      if token == "$mem_ic" then
+        mem_ic_count = mem_ic_count + 1
+        if mem_ic_count == 2 then
           table.insert(res, { Foreground = { Color = config.color_background } })
           table.insert(res, { Text = val })
           table.insert(res, { Foreground = { Color = config.color_text } })
-      else
+        else
           table.insert(res, { Text = val })
+        end
+      else
+        table.insert(res, { Text = val })
       end
       
       current_str = current_str:sub(end_idx + 1)
     end
     table.insert(res, { Text = current_str })
 
-    -- 右端セパレータの追加 (エラー箇所を修正)
     table.insert(res, { Background = { Color = config.color_background } })
     table.insert(res, { Foreground = { Color = config.color_foreground } })
     table.insert(res, { Text       = config.separator_right })
