@@ -195,17 +195,6 @@ local function fetch_weather_data(config)
         end
     end
 
-    -- キーが設定されていない、またはプレースホルダーの場合の処理
-    if not config.weather_api_key or config.weather_api_key == "" or config.weather_api_key:find("PASTE_YOUR") then
-        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
-            weather_icons.unknown,
-            "---",
-            "No Key",
-            false
-        state.last_weather_upd = os.time()
-        return
-    end
-
     -- 都市名が取得できない場合の処理
     if not tgt_city or tgt_city == "" then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
@@ -303,7 +292,6 @@ function M.setup(opts)
     -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
-        -- 引数にキーがない場合は自動的にデフォルトキーを参照
         weather_api_key         = (opts and opts.weather_api_key and opts.weather_api_key ~= "") and opts.weather_api_key or default_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
         weather_country         = (opts and opts.weather_country) or "",
@@ -339,6 +327,7 @@ function M.setup(opts)
         local use_batt = fmt_lower:find("$batt")
 
         -- 天気情報の処理判定
+        -- キーが "" ではない場合は天気情報の取得を試みる
         local has_weather_api = config.weather_api_key ~= ""
         -- 天気情報の更新
         if use_weather and has_weather_api and not is_waiting then
