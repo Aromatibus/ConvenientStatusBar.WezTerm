@@ -249,14 +249,14 @@ function M.setup(opts)
       { Foreground = { Color = config.color_text } },
     }
 
-    local replace_map = {
+local replace_map = {
       ["$user_ic"] = user_icon,
       ["$user"] = user_name,
       ["$cal_ic"] = "",
       ["$year"] = wezterm.strftime('%Y'),
       ["$month"] = wezterm.strftime('%m'),
       ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = week_val, -- ここが反映されます
+      ["$week"] = week_val,
       ["$clock_ic"] = "",
       ["$time24"] = wezterm.strftime('%H:%M'),
       ["$loc_ic"] = has_weather_api and "" or "",
