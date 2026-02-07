@@ -413,7 +413,6 @@ function M.setup(opts)
             ["$temp_3h"] = has_weather_api and state.temp_str_3h or "",
             ["$weather_ic_24h"] = has_weather_api and state.weather_ic_24h or "",
             ["$temp_24h"] = has_weather_api and state.temp_str_24h or "",
-            
             ["$cpu_ic"] = "",
             ["$cpu"] = cpu_u,
             ["$mem_used_ic"] = "",
