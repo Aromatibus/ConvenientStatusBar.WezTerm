@@ -24,9 +24,9 @@ local weather_icons = {
 --- 状態管理用の変数
 --- ==========================================
 local state = {
-    weather_ic    = weather_icons.loading,
-    temp_str      = string.format("%5s", weather_icons.loading),
-    city_name     = weather_icons.loading,
+    weather_ic    = " ",  -- loading
+    temp_str      = " ",
+    city_name     = " ",
     city_code     = "",
     last_weather_upd  = 0,
     is_weather_ready  = false,
@@ -35,17 +35,8 @@ local state = {
     weather_ic_24h = "",
     temp_24h = "",
     proc_start    = os.time(),
-    cpu_state = {
-        last_total = 0,
-        last_idle  = 0,
-    },
-    net_state = {
-        last_rx_bytes = 0,
-        last_chk_time = os.time(),
-        disp_str      = string.format("%9s", weather_icons.loading),
-        avg_str       = string.format("%9s", weather_icons.loading),
-        samples       = {}
-    },
+    cpu_state = { last_total = 0, last_idle = 0 },
+    net_state = { last_rx_bytes = 0, last_chk_time = os.time(), disp_str = " ", avg_str = " ", samples = {} },
     net_update_interval = 3,
     current_format = 1,
 }
@@ -487,30 +478,40 @@ end
 --- ==========================================
 --- メイン
 --- ==========================================
+local wezterm = require 'wezterm'
+local M = {}
+
+--- 状態管理は元の state をそのまま使用
+local state = {
+    weather_ic    = " ",  -- loading
+    temp_str      = " ",
+    city_name     = " ",
+    city_code     = "",
+    last_weather_upd  = 0,
+    is_weather_ready  = false,
+    weather_ic_3h = "",
+    temp_3h = "",
+    weather_ic_24h = "",
+    temp_24h = "",
+    proc_start    = os.time(),
+    cpu_state = { last_total = 0, last_idle = 0 },
+    net_state = { last_rx_bytes = 0, last_chk_time = os.time(), disp_str = " ", avg_str = " ", samples = {} },
+    net_update_interval = 3,
+    current_format = 1,
+}
+
+
+--- ==========================================
+--- メイン M.setup
+--- ==========================================
 function M.setup(opts)
-    -- デフォルトフォーマット（3種類）
-    local def_fmt1 =
-        " $user_ic $user " ..
-        "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) " ..
-        "$weather_ic($temp) " ..
-        "+3h:$weather_ic_3h($temp_3h) " ..
-        "+24h:$weather_ic_24h($temp_24h) " ..
-        "$cpu_ic $cpu $mem_used_ic $mem_used " ..
-        "$mem_free_ic $mem_free " ..
-        "$net_ic $net_speed($net_avg) " ..
-        "$batt_ic$batt_num "
+    local def_fmt1 = " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
+                     "$loc_ic $city($code) $weather_ic($temp) +3h:$weather_ic_3h($temp_3h) " ..
+                     "+24h:$weather_ic_24h($temp_24h) $cpu_ic $cpu $mem_used_ic $mem_used " ..
+                     "$mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num "
+    local def_fmt2 = " $time24 $weather_ic$temp $cpu_ic $cpu $net_ic $net_speed "
+    local def_fmt3 = "$user_ic$user | $time24 | $cpu_ic$cpu | $mem_used_ic$mem_used | $net_ic$net_speed | $batt_ic$batt_num"
 
-    local def_fmt2 =
-        " $time24  $weather_ic$temp  " ..
-        "$cpu_ic $cpu  $net_ic $net_speed "
-
-    local def_fmt3 =
-        "$user_ic$user | $time24 | $cpu_ic$cpu | $mem_used_ic$mem_used | $net_ic$net_speed | $batt_ic$batt_num"
-
-    -- ==========================================
-    -- 設定初期化
-    -- ==========================================
     local config = {
         startup_delay           = (opts and opts.startup_delay) or 5,
         weather_api_key         = opts and opts.weather_api_key,
@@ -528,15 +529,12 @@ function M.setup(opts)
         color_text              = (opts and opts.color_text) or "#ffffff",
         color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
         color_background        = (opts and opts.color_background) or "#1a1b26",
-
         format1 = (opts and opts.format1) or def_fmt1,
         format2 = (opts and opts.format2) or def_fmt2,
         format3 = (opts and opts.format3) or def_fmt3,
     }
 
-    -- ==========================================
     -- 状態保存
-    -- ==========================================
     state.net_avg_samples     = config.net_avg_samples
     state.net_update_interval = config.net_update_interval
     state.formats             = {config.format1, config.format2, config.format3}
@@ -544,33 +542,27 @@ function M.setup(opts)
 
     wezterm.log_info("Final Config: " .. wezterm.to_string(config))
 
-    -- ==========================================
-    -- フォーマット取得関数
-    -- ==========================================
-    local function get_current_format()
-        return state.formats[state.current_format]
-    end
-
-    -- ==========================================
-    -- フォーマット切替イベント
-    -- ==========================================
+    --- ==========================================
+    --- フォーマット切替イベント
+    --- ==========================================
     wezterm.on("status-toggle-format", function(window, pane)
         state.current_format = (state.current_format % #state.formats) + 1
         window:invalidate()
     end)
 
-    -- ==========================================
-    -- ステータス描画
-    -- ==========================================
+    --- ==========================================
+    --- ステータス描画
+    --- ==========================================
     wezterm.on("update-right-status", function(window, pane)
-        local format = get_current_format()
-        local fmt_lower  = format:lower()
+        local format = state.formats[state.current_format]
+
+        local fmt_lower = format:lower()
         local use_weather = fmt_lower:find("$weather") or fmt_lower:find("$temp") or fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
         local use_net     = fmt_lower:find("$net")
         local use_sys     = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
         local use_batt    = fmt_lower:find("$batt")
 
-        local now        = os.time()
+        local now = os.time()
         local is_waiting = (now - state.proc_start) < config.startup_delay
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
 
@@ -585,25 +577,18 @@ function M.setup(opts)
         end
 
         local net_curr, net_avg = "", ""
-        if use_net then
-            net_curr, net_avg = calc_net_speed()
-        end
+        if use_net then net_curr, net_avg = calc_net_speed() end
 
         local cpu_u, mem_u, mem_f = "", "", ""
-        if use_sys then
-            cpu_u, mem_u, mem_f = get_sys_resources()
-        end
+        if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
 
         local batt_ic, batt_num = "", ""
-        if use_batt then
-            batt_ic, batt_num = get_batt_disp()
-        end
+        if use_batt then batt_ic, batt_num = get_batt_disp() end
 
         local week_val = ""
         if fmt_lower:find("$week") then
             if config.week_str and type(config.week_str) == "table" then
-                local week_idx = tonumber(wezterm.strftime('%w'))
-                week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
+                week_val = config.week_str[tonumber(wezterm.strftime('%w')) + 1] or wezterm.strftime('%a')
             else
                 week_val = wezterm.strftime('%a')
             end
@@ -620,6 +605,7 @@ function M.setup(opts)
             end
         end
 
+        -- 🔹 replace_map 完全版
         local replace_map = {
             ["$user_ic"] = user_icon,
             ["$user"] = user_name,
@@ -655,7 +641,7 @@ function M.setup(opts)
         local res = {
             { Background = { Color = config.color_background } },
             { Foreground = { Color = config.color_foreground } },
-            { Text       = config.separator_left },
+            { Text = config.separator_left },
             { Background = { Color = config.color_foreground } },
             { Foreground = { Color = config.color_text } },
         }
@@ -676,20 +662,18 @@ function M.setup(opts)
 
         window:set_right_status(wezterm.format(res))
     end)
-
-    -- ==========================================
-    -- マウスバインド追加（右クリックで切替）
-    -- ==========================================
-    return {
-        mouse_bindings = {
-            {
-                event = { Up = { streak = 1, button = "Right" } },
-                mods  = "NONE",
-                action = wezterm.action.EmitEvent("status-toggle-format"),
-            }
-        }
-    }
 end
 
-
-return M
+--- ==========================================
+--- トップレベル mouse_bindings
+--- ==========================================
+return {
+    M = M,
+    mouse_bindings = {
+        {
+            event = { Up = { streak = 1, button = "Right" } },
+            mods = "NONE",
+            action = wezterm.action.EmitEvent("status-toggle-format"),
+        }
+    }
+}
