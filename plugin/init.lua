@@ -206,7 +206,6 @@ function M.setup(opts)
 
   -- 設定オプションの初期化
   local config              = {
-    format                  = (opts and opts.format) or def_fmt,               -- ステータスバーのフォーマット
     startup_delay           = (opts and opts.startup_delay) or 5,              -- 起動時の通信待機時間
     weather_api_key         = opts and opts.weather_api_key,                   -- OpenWeatherMap APIキー
     weather_lang            = (opts and opts.weather_lang) or "en",            -- 天気情報の言語コード
@@ -222,6 +221,7 @@ function M.setup(opts)
     color_text              = (opts and opts.color_text) or "#ffffff",       -- ステータスバーの文字色
     color_foreground        = (opts and opts.color_foreground) or "#7aa2f7", -- ステータスバーの前景色
     color_background        = (opts and opts.color_background) or "#1a1b26", -- ステータスバーの背景色
+    format                  = (opts and opts.format) or def_fmt,               -- ステータスバーのフォーマット
   }
 
   -- フォーマット文字列のを小文字化して変数を判定
