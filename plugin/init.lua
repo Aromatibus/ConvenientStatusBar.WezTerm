@@ -12,11 +12,11 @@ local weather_icons = {
   wind        = " ", -- 強風・霧
   thunder     = "󱐋 ", -- 雷
   snow        = " ", -- 雪
-  loading     = " ", -- 取得中
-  unknown     = " ", -- 不明
   thermometer = "", -- 温度計
   celsius     = "󰔄", -- 摂氏
   fahrenheit  = "󰔅", -- 華氏
+  loading     = " ", -- 取得中
+  unknown     = " ", -- 不明
 }
 
 
@@ -52,7 +52,7 @@ local function run_child_cmd(args)
 end
 
 
--- 数値のフォーマット化 (B/S -> KB/S, MB/S)
+-- 数値のフォーマット化 (B/S, KB/S, MB/S)
 local function format_bps(bps)
   if bps > 1024 * 1024 then
     return string.format("%5.1fMB/S", bps / (1024 * 1024))
