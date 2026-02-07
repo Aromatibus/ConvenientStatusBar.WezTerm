@@ -108,23 +108,19 @@ end
 --- SSHユーザー抽出ロジック
 --- ==========================================
 local function get_ssh_user(pane)
-  -- WezTermのドメインから取得を試みる
   local uri = pane:get_current_working_dir()
   if uri and uri.username and uri.username ~= "" then
     return uri.username
   end
 
-  -- プロセス情報から強引に取得
   local proc = pane:get_foreground_process_info()
   if proc and proc.executable:find("ssh") then
     for _, arg in ipairs(proc.argv) do
-      -- user@host の形式を探す
       local u = arg:match("([^@]+)@[^@]+")
       if u then return u end
     end
   end
 
-  -- タイトルから推測 (user@host)
   local title = pane:get_title()
   local t_user = title:match("([^@]+)@[^@]+")
   if t_user then return t_user end
@@ -205,7 +201,8 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+    week_str                = opts and opts.week_str, -- 指定なしなら nil
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
     color_text              = (opts and opts.color_text) or "#ffffff",
@@ -217,8 +214,9 @@ function M.setup(opts)
   wezterm.on('update-right-status', function(window, pane)
     local now        = os.time()
     local is_waiting = (now - state.proc_start) < config.startup_delay
+    local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
 
-    if config.weather_api_key and config.weather_api_key ~= "" and not is_waiting then
+    if has_weather_api and not is_waiting then
       local diff = now - state.last_wea_upd
       if state.last_wea_upd == 0 or diff > config.weather_update_interval or (not state.is_wea_ready and diff > config.weather_retry_interval) then
         fetch_wea_data(config)
@@ -229,11 +227,18 @@ function M.setup(opts)
     local cpu_u, mem_u, mem_f = get_sys_resources()
     local batt_ic, batt_num = get_batt_disp()
 
-    -- ユーザー名の初期値
+    -- 曜日文字列の解決
+    local week_val
+    if config.week_str then
+      local week_idx = tonumber(wezterm.strftime('%w'))
+      week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
+    else
+      week_val = wezterm.strftime('%a')
+    end
+
     local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
     local user_icon = ""
 
-    -- SSH接続の判定とユーザー名上書き
     local ssh_user = get_ssh_user(pane)
     if ssh_user then
         user_icon = "󰀑"
@@ -255,14 +260,14 @@ function M.setup(opts)
       ["$year"] = wezterm.strftime('%Y'),
       ["$month"] = wezterm.strftime('%m'),
       ["$day"] = wezterm.strftime('%d'),
-      ["$week"] = wezterm.strftime('%a'),
+      ["$week"] = week_val,
       ["$clock_ic"] = "",
       ["$time24"] = wezterm.strftime('%H:%M'),
-      ["$loc_ic"] = "",
-      ["$city"] = state.city_name,
-      ["$code"] = state.city_code,
-      ["$weather_ic"] = state.weather_ic,
-      ["$temp"] = state.temp_str,
+      ["$loc_ic"] = has_weather_api and "" or "",
+      ["$city"] = has_weather_api and state.city_name or "",
+      ["$code"] = has_weather_api and state.city_code or "",
+      ["$weather_ic"] = has_weather_api and state.weather_ic or "",
+      ["$temp"] = has_weather_api and state.temp_str or "",
       ["$cpu_ic"] = "",
       ["$cpu"] = cpu_u,
       ["$mem_used_ic"] = "",
