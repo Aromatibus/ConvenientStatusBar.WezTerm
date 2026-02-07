@@ -81,10 +81,10 @@ local function calc_net_speed(config, is_startup_waiting)
     local ok, out = run_child_cmd({"sh", "-c", "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"})
     curr_rx = ok and tonumber(out:match("%d+")) or 0
   end
+  -- 経過時間から速度計算
   local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
-  -- サンプルの追加
+  -- サンプルの追加と古いサンプルの削除
   table.insert(state.net_state.samples, 1, bps)
-  -- 平均サンプル数を超えた場合、古いサンプルを削除
   if #state.net_state.samples > config.net_avg_samples then table.remove(state.net_state.samples) end
   -- 平均速度の計算
   local sum_bps = 0
@@ -101,10 +101,19 @@ end
 --- システムリソース取得
 --- ==========================================
 local function get_sys_resources()
-  local is_win = wezterm.target_triple:find("windows")
+  -- 初期値の設定
   local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
+  -- OS別のコマンド実行
+  local is_win = wezterm.target_triple:find("windows")
   if is_win then
-    local ok, out = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; (Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"})
+    -- CPU使用率とメモリ情報の取得
+    local ok, out = run_child_cmd({
+      "powershell.exe", "-NoProfile", "-Command",
+      "Get-CimInstance Win32_Processor | Measure-Object -Property " ..
+      "LoadPercentage -Average | Select-Object -ExpandProperty Average; " ..
+      "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; " ..
+      "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"
+    })
     if ok and out then
       local lines = {}
       for line in out:gmatch("[^\r\n]+") do table.insert(lines, line) end
@@ -115,6 +124,7 @@ local function get_sys_resources()
       mem_u_val = (t_kb - f_kb) / 1024 / 1024
     end
   else
+    -- CPU使用率とメモリ情報の取得
     local ok, out = run_child_cmd({"sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4, $2}'"})
     if ok and out then
       local u, f, t = out:match("(%d+)%s+(%d+)%s+(%d+)")
@@ -122,12 +132,15 @@ local function get_sys_resources()
       mem_f_val = (tonumber(f) or 0) / 1024^3
     end
   end
-  return string.format("%2d%%", cpu_val), string.format("%4.1fGB", mem_u_val), string.format("%4.1fGB", mem_f_val)
+  return
+    string.format("%2d%%", cpu_val),
+    string.format("%4.1fGB", mem_u_val),
+    string.format("%4.1fGB", mem_f_val)
 end
 
 
 --- ==========================================
---- SSHユーザー抽出ロジック
+--- SSHユーザー抽出
 --- ==========================================
 local function get_ssh_user(pane)
   -- 作業ディレクトリからの抽出
@@ -157,11 +170,13 @@ end
 
 
 --- ==========================================
---- 天気情報取得ロジック
+--- 天気情報取得
 --- ==========================================
 local function fetch_wea_data(config)
+  -- OS別のcurlコマンド設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
+  -- 取得対象の都市名と国コードの設定
   local tgt_city = config.weather_city
   local tgt_code = config.weather_country
   -- 都市名が設定されていない場合、IP情報から取得
@@ -174,16 +189,26 @@ local function fetch_wea_data(config)
   end
   -- 都市名が取得できない場合の処理
   if not tgt_city or tgt_city == "" then
-    state.weather_ic, state.city_name, state.is_wea_ready = weather_icons.unknown, weather_icons.unknown, false
+    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready =
+      weather_icons.unknown, string.format("%5s", weather_icons.unknown), weather_icons.unknown, false
     return
   end
-  -- 天気情報の取得
+  -- クエリ文字列の作成
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
-  local url   = string.format("https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s", config.weather_api_key, config.weather_lang, query, config.weather_units)
+  -- APIリクエストURLの作成
+  local url = string.format(
+    "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
+    config.weather_api_key,
+    config.weather_lang,
+    query,
+    config.weather_units
+  )
+  -- APIリクエストの実行
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-  -- エラーチェック
+  -- エラーチェック とメッセージフィールドでエラーの確認
   if not ok or not stdout or stdout:find('"message"') then
-    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready = weather_icons.unknown, string.format("%5s", weather_icons.unknown), tgt_city, false
+    state.weather_ic, state.temp_str, state.city_name, state.is_wea_ready =
+      weather_icons.unknown, string.format("%5s", weather_icons.unknown), tgt_city, false
     state.last_wea_upd = os.time()
     return
   end
@@ -204,14 +229,23 @@ local function fetch_wea_data(config)
     elseif weather_id == 800 then state.weather_ic = weather_icons.clear
     else                      state.weather_ic = weather_icons.clouds end
   end
-  local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
-  state.temp_str     = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
-  state.city_name, state.city_code, state.last_wea_upd, state.is_wea_ready = api_name or tgt_city, api_code or tgt_code or "", os.time(), true
+  -- 温度単位シンボルの設定
+  local unit_sym =
+    config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
+  -- 温度表示の設定
+  state.temp_str     =
+    temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
+  -- 都市名と国コードの設定
+  state.city_name, state.city_code, state.last_wea_upd, state.is_wea_ready =
+    api_name or tgt_city,
+    api_code or tgt_code or "",
+    os.time(),
+    true
 end
 
 
 --- ==========================================
---- バッテリー情報取得ロジック
+--- バッテリー情報取得
 --- ==========================================
 local function get_batt_disp()
   local batt_list = wezterm.battery_info()
@@ -248,7 +282,7 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
     week_str                = opts and opts.week_str,
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
@@ -266,11 +300,13 @@ function M.setup(opts)
     -- 天気情報の更新
     if has_weather_api and not is_waiting then
       local diff = now - state.last_wea_upd
-      if state.last_wea_upd == 0 or diff > config.weather_update_interval or (not state.is_wea_ready and diff > config.weather_retry_interval) then
+      if state.last_wea_upd == 0
+        or diff > config.weather_update_interval
+        or (not state.is_wea_ready and diff > config.weather_retry_interval)
+      then
         fetch_wea_data(config)
       end
     end
-
     -- ネットワーク速度の計算
     local net_curr, net_avg = calc_net_speed(config, is_waiting)
     -- システムリソースの取得
@@ -359,4 +395,6 @@ function M.setup(opts)
   end)
 
 end
+
+
 return M
