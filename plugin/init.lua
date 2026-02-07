@@ -108,13 +108,13 @@ end
 
 
 -- 気象情報の取得と更新
-local function fetch_wea_data(config_wea)
+local function fetch_wea_data(config_weather)
   -- curlコマンドの設定
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
   -- 取得対象の都市名と国コードの設定
-  local tgt_city = config_wea.weather_city
-  local tgt_code = config_wea.weather_country
+  local tgt_city = config_weather.weather_city
+  local tgt_code = config_weather.weather_country
   -- Cityが設定されていない場合はIPアドレスから都市名を取得
   if not tgt_city or tgt_city == "" then
     local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
@@ -134,7 +134,7 @@ local function fetch_wea_data(config_wea)
   local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
   local url   = string.format(
     "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-    config_wea.weather_api_key, config_wea.weather_lang, query, config_wea.weather_units
+    config_weather.weather_api_key, config_weather.weather_lang, query, config_weather.weather_units
   )
   -- 天気情報の取得
   local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
@@ -163,7 +163,7 @@ local function fetch_wea_data(config_wea)
     else                     state.weather_ic = weather_icons.clouds end
   end
   -- 温度単位の設定
-  local unit_sym = config_wea.weather_units == "metric" and
+  local unit_sym = config_weather.weather_units == "metric" and
                     weather_icons.celsius or weather_icons.fahrenheit
   -- 温度表示の設定
   state.temp_str     =  temp_val and
@@ -216,7 +216,7 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval) or 600,
     weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
     net_update_interval     = (opts and opts.net_update_interval) or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples) or 5,
+    net_avg_samples         = (opts and opts.net_avg_samples) or 20,
     separator_left          = (opts and opts.separator_left) or "",
     separator_right         = (opts and opts.separator_right) or "",
     color_text              = (opts and opts.color_text) or "#ffffff",
@@ -228,9 +228,9 @@ function M.setup(opts)
   local low_fmt = config.format:lower()
   -- APIキーがある場合のみ天気情報を処理対象にする
   local has_api_key = config.weather_api_key and config.weather_api_key ~= ""
-  local use_weather = has_api_key and 
-                      (low_fmt:find("$city") or low_fmt:find("$code") or
-                       low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
+  local use_weather = has_api_key and
+                    ( low_fmt:find("$city") or low_fmt:find("$code") or
+                      low_fmt:find("$weather_ic") or low_fmt:find("$temp"))
   local use_net = low_fmt:find("$net_speed") or low_fmt:find("$net_avg")
 
   -- 定期更新イベントの登録
