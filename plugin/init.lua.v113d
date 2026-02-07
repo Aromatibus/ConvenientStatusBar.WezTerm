@@ -1,3 +1,4 @@
+
 local wezterm = require 'wezterm'
 local M       = {}
 
@@ -26,11 +27,6 @@ local weather_icons = {
 local state = {
     weather_ic    = weather_icons.loading,
     temp_str      = string.format("%5s", weather_icons.loading),
-    -- 追加の状態保持用（既存の命名規則を維持）
-    weather_ic_3h = weather_icons.loading,
-    temp_str_3h   = string.format("%5s", weather_icons.loading),
-    weather_ic_24h = weather_icons.loading,
-    temp_str_24h  = string.format("%5s", weather_icons.loading),
     city_name     = weather_icons.loading,
     city_code     = "",
     last_weather_upd  = 0,
@@ -218,9 +214,9 @@ local function fetch_weather_data(config)
     end
     -- クエリ文字列の作成
     local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
-    -- APIリクエストURLの作成 (予報APIに変更)
+    -- APIリクエストURLの作成
     local url = string.format(
-        "https://api.openweathermap.org/data/2.5/forecast?appid=%s&lang=%s&q=%s&units=%s",
+        "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
         config.weather_api_key,
         config.weather_lang,
         query,
@@ -238,57 +234,31 @@ local function fetch_weather_data(config)
         state.last_weather_upd = os.time()
         return
     end
-
-    -- アイコン判定用補助関数
-    local function get_weather_info(json_chunk)
-        local weather_id = tonumber(json_chunk:match('"id":(%d+)'))
-        local temp_val = json_chunk:match('"temp":([%d%.%-]+)')
-        local icon = weather_icons.unknown
-        if weather_id then
-            if     weather_id < 300  then icon = weather_icons.thunder
-            elseif weather_id < 600  then icon = weather_icons.rain
-            elseif weather_id < 700  then icon = weather_icons.snow
-            elseif weather_id < 800  then icon = weather_icons.wind
-            elseif weather_id == 800 then icon = weather_icons.clear
-            else                          icon = weather_icons.clouds end
-        end
-        return icon, temp_val
+    -- 天気情報の更新
+    local weather_id   = tonumber(stdout:match('"id":(%d+)'))
+    -- 天気温度、都市名、国コードの抽出
+    local temp_val = stdout:match('"temp":([%d%.%-]+)')
+    -- APIからの都市名と国コードの抽出
+    local api_name = stdout:match('"name":"([^"]+)"')
+    -- 国コード
+    local api_code = stdout:match('"country":"([^"]+)"')
+    -- 天気アイコンと温度文字列の設定
+    if weather_id then
+        if     weather_id < 300  then state.weather_ic = weather_icons.thunder
+        elseif weather_id < 600  then state.weather_ic = weather_icons.rain
+        elseif weather_id < 700  then state.weather_ic = weather_icons.snow
+        elseif weather_id < 800  then state.weather_ic = weather_icons.wind
+        elseif weather_id == 800 then state.weather_ic = weather_icons.clear
+        else                          state.weather_ic = weather_icons.clouds end
     end
-
-    -- 予報リストを分割
-    local entries = {}
-    for entry in stdout:gmatch("{(.-)}") do
-        if entry:find('"main"') and entry:find('"weather"') then
-            table.insert(entries, entry)
-        end
-    end
-
     -- 温度単位シンボルの設定
     local unit_sym =
         config.weather_units == "metric" and
         weather_icons.celsius or weather_icons.fahrenheit
-
-    -- 現在、3時間後、24時間後(3h * 8)のデータを状態にセット
-    if #entries >= 1 then
-        local ic, t = get_weather_info(entries[1])
-        state.weather_ic = ic
-        state.temp_str = t and string.format("%4.1f%s", tonumber(t), unit_sym) or state.temp_str
-    end
-    if #entries >= 2 then
-        local ic, t = get_weather_info(entries[2])
-        state.weather_ic_3h = ic
-        state.temp_str_3h = t and string.format("%4.1f%s", tonumber(t), unit_sym) or " -- "
-    end
-    if #entries >= 9 then
-        local ic, t = get_weather_info(entries[9])
-        state.weather_ic_24h = ic
-        state.temp_str_24h = t and string.format("%4.1f%s", tonumber(t), unit_sym) or " -- "
-    end
-
-    -- APIからの都市名と国コードの抽出
-    local api_name = stdout:match('"name":"([^"]+)"')
-    local api_code = stdout:match('"country":"([^"]+)"')
-
+    -- 温度表示の設定
+    state.temp_str     =
+        temp_val and
+        string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
     -- 都市名と国コードの設定
     state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
         api_name or tgt_city,
@@ -320,7 +290,7 @@ function M.setup(opts)
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) $weather_ic $temp 3H($weather_ic_3h$temp_3h) 24H($weather_ic_24h$temp_24h)" ..
+        "$loc_ic $city($code) $weather_ic $temp " ..
         "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
@@ -335,7 +305,7 @@ function M.setup(opts)
         weather_update_interval = (opts and opts.weather_update_interval) or 600,
         weather_retry_interval  = (opts and opts.weather_retry_interval) or 30,
         net_update_interval     = (opts and opts.net_update_interval) or 3,
-        net_avg_samples         = (opts and opts.net_avg_samples) or 10,
+        net_avg_samples         = (opts and opts.net_avg_samples) or 20,
         week_str                = opts and opts.week_str,
         separator_left          = (opts and opts.separator_left) or "",
         separator_right         = (opts and opts.separator_right) or "",
@@ -428,10 +398,6 @@ function M.setup(opts)
             ["$code"] = has_weather_api and state.city_code or "",
             ["$weather_ic"] = has_weather_api and state.weather_ic or "",
             ["$temp"] = has_weather_api and state.temp_str or "",
-            ["$weather_ic_3h"] = has_weather_api and state.weather_ic_3h or "",
-            ["$temp_3h"] = has_weather_api and state.temp_str_3h or "",
-            ["$weather_ic_24h"] = has_weather_api and state.weather_ic_24h or "",
-            ["$temp_24h"] = has_weather_api and state.temp_str_24h or "",
             ["$cpu_ic"] = "",
             ["$cpu"] = cpu_u,
             ["$mem_used_ic"] = "",
