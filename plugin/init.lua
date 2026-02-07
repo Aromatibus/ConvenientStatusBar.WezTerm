@@ -31,8 +31,8 @@ local state = {
     weather_ic_24h = weather_icons.loading,
     temp_str_24h  = " -- ",
     
-    city_name     = "Loading...",
-    city_code     = "",
+    city_name     = "Yokohama",
+    city_code     = "JP",
     last_weather_upd  = 0,
     is_weather_ready  = false,
     proc_start    = os.time(),
@@ -75,7 +75,7 @@ local function calc_net_speed(config, is_startup_waiting)
         then return state.net_state.disp_str, state.net_state.avg_str end
     local curr_time  = os.clock()
     local time_delta = curr_time - state.net_state.last_chk_time
-    if time_delta < config.net_update_interval
+    if time_delta < (config.net_update_interval or 3)
         then return state.net_state.disp_str, state.net_state.avg_str end
 
     local is_win  = wezterm.target_triple:find("windows")
@@ -94,7 +94,7 @@ local function calc_net_speed(config, is_startup_waiting)
     if diff >= 0 and state.net_state.last_rx_bytes ~= 0 then
         local bps = diff / time_delta
         table.insert(state.net_state.samples, 1, bps)
-        if #state.net_state.samples > config.net_avg_samples
+        if #state.net_state.samples > (config.net_avg_samples or 10)
             then table.remove(state.net_state.samples) end
         local sum_bps = 0
         for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
@@ -168,20 +168,24 @@ end
 
 
 --- ==========================================
---- 天気情報取得
+--- 天気情報取得 (修正版: 都市名の安全性を向上)
 --- ==========================================
 local function fetch_weather_data(config)
     wezterm.log_info("Fetching weather via Forecast API...")
     local is_win   = wezterm.target_triple:find("windows")
     local curl_cmd = is_win and "curl.exe" or "curl"
-    local query = (config.weather_country ~= "") and (config.weather_city .. "," .. config.weather_country) or config.weather_city
+
+    -- 都市名が空でないか厳重にチェック
+    local city = config.weather_city or "Yokohama"
+    local country = config.weather_country or "JP"
+    local query = city .. "," .. country
 
     local url = string.format(
         "https://api.openweathermap.org/data/2.5/forecast?appid=%s&lang=%s&q=%s&units=%s",
         config.weather_api_key,
-        config.weather_lang,
+        config.weather_lang or "en",
         query,
-        config.weather_units
+        config.weather_units or "metric"
     )
 
     local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
@@ -216,7 +220,7 @@ local function fetch_weather_data(config)
         if entry:find('"main"') then table.insert(entries, entry) end
     end
 
-    local unit_sym = config.weather_units == "metric" and weather_icons.celsius or weather_icons.fahrenheit
+    local unit_sym = (config.weather_units == "metric") and weather_icons.celsius or weather_icons.fahrenheit
 
     if #entries >= 1 then
         local ic, t = parse_json_item(entries[1])
@@ -231,8 +235,8 @@ local function fetch_weather_data(config)
         state.weather_ic_24h, state.temp_str_24h = ic, (t and string.format("%4.1f%s", tonumber(t), unit_sym) or " -- ")
     end
 
-    state.city_name = stdout:match('"name":"([^"]+)"') or config.weather_city
-    state.city_code = stdout:match('"country":"([^"]+)"') or config.weather_country
+    state.city_name = stdout:match('"name":"([^"]+)"') or city
+    state.city_code = stdout:match('"country":"([^"]+)"') or country
     state.last_weather_upd = os.time()
     state.is_weather_ready = true
     wezterm.log_info("Weather successfully updated for " .. state.city_name)
@@ -288,7 +292,6 @@ function M.setup(opts)
     wezterm.on('update-right-status', function(window, pane)
         local now        = os.time()
         local is_waiting = (now - state.proc_start) < config.startup_delay
-        local fmt_lower  = config.format:lower()
         
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
         if has_weather_api and not is_waiting then
@@ -347,7 +350,6 @@ function M.setup(opts)
             current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
-        -- 【修正箇所】table.insertを1つずつ分割
         table.insert(res, { Background = { Color = config.color_background } })
         table.insert(res, { Foreground = { Color = config.color_foreground } })
         table.insert(res, { Text = config.separator_right })
