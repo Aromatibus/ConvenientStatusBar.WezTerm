@@ -198,6 +198,11 @@ end)
 -- ==========================================================
 -- [Right Status]
 -- ==========================================================
+config.set_environment_variables = {
+  LANG = 'ja_JP.UTF-8',
+  LC_ALL = 'ja_JP.UTF-8',
+}
+
 local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
 
 -- セットアップの実行
@@ -205,6 +210,8 @@ ConvenientStatusBar.setup({
   --weather_api_key         = "",
   --weather_api_key         = "あなたのAPIキー",
   weather_api_key         = "88989d7e3460606958812933b3209599",
+
+--[[
   startup_delay           = 5,
   weather_lang            = "en",
   weather_country         = "",
@@ -219,6 +226,9 @@ ConvenientStatusBar.setup({
   color_text              = "#FFFFFF",
   color_foreground        = "#7AA2F7",
   color_background        = "#1A1B26",
+]]
+
+--[[
   format                  = 
     " $user_ic $user " ..
     "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
@@ -226,6 +236,7 @@ ConvenientStatusBar.setup({
     "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
     "$net_ic $net_speed($net_avg) " ..
     "$batt_ic$batt_num ",
+]]
   --week_str = {"日","一","二","三","四","五","六"}, -- Chinese
   --week_str = {"Dom","Lun","Mar","Mié","Jue","Vie","Sáb"}, -- Spanish
   --week_str = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}, -- English
