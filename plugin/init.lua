@@ -1,4 +1,3 @@
-
 local wezterm = require 'wezterm'
 local M       = {}
 
@@ -528,11 +527,9 @@ function M.setup(opts)
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         "$loc_ic $city($code) " ..
-
-        "$weather_ic$temp "  ..
-        "+3h:$weather_ic_3h$temp_3h " ..
-        "+24h:$weather_ic_24h$temp_24h " ..
-
+        "$weather_ic($temp) "  ..
+        "+3h:$weather_ic_3h($temp_3h) " ..
+        "+24h:$weather_ic_24h($temp_24h) " ..
         "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
@@ -649,12 +646,10 @@ function M.setup(opts)
             ["$code"] = has_weather_api and state.city_code or "",
             ["$weather_ic"] = has_weather_api and state.weather_ic or "",
             ["$temp"] = has_weather_api and state.temp_str or "",
-
             ["$weather_ic_3h"] = state.weather_ic_3h,
             ["$temp_3h"] = state.temp_3h,
             ["$weather_ic_24h"] = state.weather_ic_24h,
             ["$temp_24h"] = state.temp_24h,
-
             ["$cpu_ic"] = "",
             ["$cpu"] = cpu_u,
             ["$mem_used_ic"] = "",
