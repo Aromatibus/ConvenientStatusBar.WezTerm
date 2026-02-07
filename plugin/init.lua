@@ -201,7 +201,10 @@ local function fetch_weather_data(config)
     local tgt_code = config.weather_country
     -- 都市名が設定されていない場合、IP情報から取得
     if not tgt_city or tgt_city == "" then
-        local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
+        local ip_url = "https://ipapi.co/json/"
+        wezterm.log_info("Fetching location from IP: " .. ip_url)
+        local ok, res = run_child_cmd({curl_cmd, "-s", ip_url})
+        wezterm.log_info("Location API Response: " .. (res or "nil"))
         if ok and res then
             tgt_city = res:match('"city":%s*"([^"]+)"')
             tgt_code = res:match('"country_code":%s*"([^"]+)"')
@@ -226,9 +229,13 @@ local function fetch_weather_data(config)
         query,
         config.weather_units
     )
+    
+    wezterm.log_info("Fetching weather forecast: " .. url)
     -- APIリクエストの実行
     local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-    -- エラーチェック とメッセージフィールドでエラーの確認
+    wezterm.log_info("Weather API Response: " .. (stdout or "nil"))
+
+    -- エラーチェック
     if not ok or not stdout or stdout:find('"message"') then
         state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
             weather_icons.unknown,
@@ -239,28 +246,29 @@ local function fetch_weather_data(config)
         return
     end
 
-    -- アイコン判定用補助関数
-    local function get_weather_info(json_chunk)
-        local weather_id = tonumber(json_chunk:match('"id":(%d+)'))
-        local temp_val = json_chunk:match('"temp":([%d%.%-]+)')
-        local icon = weather_icons.unknown
-        if weather_id then
-            if     weather_id < 300  then icon = weather_icons.thunder
-            elseif weather_id < 600  then icon = weather_icons.rain
-            elseif weather_id < 700  then icon = weather_icons.snow
-            elseif weather_id < 800  then icon = weather_icons.wind
-            elseif weather_id == 800 then icon = weather_icons.clear
-            else                          icon = weather_icons.clouds end
+    -- パース用補助関数 (forecast形式のJSONに対応)
+    local function parse_item(item_json)
+        local id = tonumber(item_json:match('"id":(%d+)'))
+        local t  = item_json:match('"temp":([%d%.%-]+)')
+        local ic = weather_icons.unknown
+        if id then
+            if     id < 300  then ic = weather_icons.thunder
+            elseif id < 600  then ic = weather_icons.rain
+            elseif id < 700  then ic = weather_icons.snow
+            elseif id < 800  then ic = weather_icons.wind
+            elseif id == 800 then ic = weather_icons.clear
+            else                  ic = weather_icons.clouds end
         end
-        return icon, temp_val
+        return ic, t
     end
 
-    -- 予報リストを分割
+    -- "list" 配列内の各要素（予報データ）を抽出
+    local list_content = stdout:match('"list":%s*%[(.+)%],"city"')
+    if not list_content then return end
+    
     local entries = {}
-    for entry in stdout:gmatch("{(.-)}") do
-        if entry:find('"main"') and entry:find('"weather"') then
-            table.insert(entries, entry)
-        end
+    for entry in list_content:gmatch("({.-})") do
+        if entry:find('"main"') then table.insert(entries, entry) end
     end
 
     -- 温度単位シンボルの設定
@@ -268,33 +276,32 @@ local function fetch_weather_data(config)
         config.weather_units == "metric" and
         weather_icons.celsius or weather_icons.fahrenheit
 
-    -- 現在、3時間後、24時間後(3h * 8)のデータを状態にセット
+    -- 各時間のデータを抽出
     if #entries >= 1 then
-        local ic, t = get_weather_info(entries[1])
+        local ic, t = parse_item(entries[1])
         state.weather_ic = ic
         state.temp_str = t and string.format("%4.1f%s", tonumber(t), unit_sym) or state.temp_str
     end
     if #entries >= 2 then
-        local ic, t = get_weather_info(entries[2])
+        local ic, t = parse_item(entries[2])
         state.weather_ic_3h = ic
         state.temp_str_3h = t and string.format("%4.1f%s", tonumber(t), unit_sym) or " -- "
     end
     if #entries >= 9 then
-        local ic, t = get_weather_info(entries[9])
+        local ic, t = parse_item(entries[9])
         state.weather_ic_24h = ic
         state.temp_str_24h = t and string.format("%4.1f%s", tonumber(t), unit_sym) or " -- "
     end
 
-    -- APIからの都市名と国コードの抽出
-    local api_name = stdout:match('"name":"([^"]+)"')
-    local api_code = stdout:match('"country":"([^"]+)"')
+    -- 都市情報（JSONの末尾の方にある "city" オブジェクトから抽出）
+    local city_part = stdout:match('"city":%s*({.+})')
+    if city_part then
+        state.city_name = city_part:match('"name":"([^"]+)"') or tgt_city
+        state.city_code = city_part:match('"country":"([^"]+)"') or tgt_code or ""
+    end
 
-    -- 都市名と国コードの設定
-    state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
-        api_name or tgt_city,
-        api_code or tgt_code or "",
-        os.time(),
-        true
+    state.last_weather_upd = os.time()
+    state.is_weather_ready = true
 end
 
 
@@ -320,7 +327,7 @@ function M.setup(opts)
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) $weather_ic $temp 3H($weather_ic_3h$temp_3h) 24H($weather_ic_24h$temp_24h)" ..
+        "$loc_ic $city($code) $weather_ic $temp " ..
         "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
