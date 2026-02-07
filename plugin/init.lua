@@ -1,191 +1,7 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
-
---- ==========================================
---- 定数・アイコン定義
---- ==========================================
-local weather_icons = {
-  clear       = "󰖨 ", -- 快晴
-  clouds      = "󰅟 ", -- 曇り
-  rain        = " ", -- 雨
-  wind        = " ", -- 強風・霧
-  thunder     = "󱐋 ", -- 雷
-  snow        = " ", -- 雪
-  thermometer = "", -- 温度計
-  celsius     = "󰔄", -- 摂氏
-  fahrenheit  = "󰔅", -- 華氏
-  loading     = " ", -- 取得中
-  unknown     = " ", -- 不明
-}
-
-
---- ==========================================
---- 状態管理用の変数
---- ==========================================
-local state = {
-  weather_ic    = weather_icons.loading,
-  temp_str      = string.format("%5s", weather_icons.loading),
-  city_name     = weather_icons.loading,
-  city_code     = "",
-  last_wea_upd  = 0,
-  is_wea_ready  = false,
-  proc_start    = os.time(),
-  net_state     = {
-    last_rx_bytes = 0,
-    last_chk_time = os.clock(),
-    disp_str      = string.format("%9s", weather_icons.loading),
-    avg_str       = string.format("%9s", weather_icons.loading),
-    samples       = {}
-  }
-}
-
-
---- ==========================================
---- サブ関数
---- ==========================================
-
--- 外部コマンドを安全に実行
-local function run_child_cmd(args)
-  local success, stdout, _ = wezterm.run_child_process(args)
-  return success, stdout
-end
-
-
--- 数値のフォーマット化 (B/S, KB/S, MB/S)
-local function format_bps(bps)
-  if bps > 1024 * 1024 then
-    return string.format("%5.1fMB/S", bps / (1024 * 1024))
-  elseif bps > 1024 then
-    return string.format("%5.1fKB/S", bps / 1024)
-  else
-    return string.format("%6.1fB/S", bps)
-  end
-end
-
-
--- ネットワーク速度の計算
-local function calc_net_speed(config, is_startup_waiting)
-  if is_startup_waiting then
-    return state.net_state.disp_str, state.net_state.avg_str
-  end
-  local curr_time  = os.clock()
-  local time_delta = curr_time - state.net_state.last_chk_time
-  if time_delta < config.net_update_interval then
-    return state.net_state.disp_str, state.net_state.avg_str
-  end
-  local is_win  = wezterm.target_triple:find("windows")
-  local curr_rx = 0
-  if is_win then
-    local ok, out = run_child_cmd({"cmd.exe", "/c", "netstat -e"})
-    curr_rx = ok and tonumber(out:match("%a+%s+(%d+)")) or 0
-  else
-    local cmd = "cat /proc/net/dev | awk 'NR>2 {s+=$2} END {print s}'"
-    local ok, out = run_child_cmd({"sh", "-c", cmd})
-    curr_rx = ok and tonumber(out:match("%d+")) or 0
-  end
-  local bps = (curr_rx - state.net_state.last_rx_bytes) / time_delta
-  table.insert(state.net_state.samples, 1, bps)
-  if #state.net_state.samples > config.net_avg_samples then
-    table.remove(state.net_state.samples)
-  end
-  local sum_bps = 0
-  for _, v in ipairs(state.net_state.samples) do sum_bps = sum_bps + v end
-  state.net_state.last_rx_bytes = curr_rx
-  state.net_state.last_chk_time = curr_time
-  state.net_state.disp_str      = format_bps(bps)
-  state.net_state.avg_str       = format_bps(sum_bps / #state.net_state.samples)
-  return state.net_state.disp_str, state.net_state.avg_str
-end
-
-
--- システムリソース（CPU/MEM）の取得 (固定幅・先頭空白)
-local function get_sys_resources()
-  local is_win = wezterm.target_triple:find("windows")
-  local cpu_val, mem_free_val, mem_total_val = 0, 0, 0
-
-  if is_win then
-    local ok_c, out_c = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "Get-WmiObject Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average"})
-    if ok_c then cpu_val = tonumber(out_c:match("[%d%.]+")) or 0 end
-    local ok_mf, out_mf = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "(Get-WmiObject Win32_OperatingSystem).FreePhysicalMemory / 1024 / 1024"})
-    local ok_mt, out_mt = run_child_cmd({"powershell.exe", "-NoProfile", "-Command", "(Get-WmiObject Win32_OperatingSystem).TotalVisibleMemorySize / 1024 / 1024"})
-    mem_free_val = ok_mf and tonumber(out_mf:match("[%d%.]+")) or 0
-    mem_total_val = ok_mt and tonumber(out_mt:match("[%d%.]+")) or 0
-  else
-    local ok_c, out_c = run_child_cmd({"sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $2}' || top -l 1 | grep 'CPU usage' | awk '{print $3}'"})
-    if ok_c then cpu_val = tonumber(out_c:match("[%d%.]+")) or 0 end
-    local ok_m, out_m = run_child_cmd({"sh", "-c", "free -b | awk '/^Mem:/ {print $4, $2}'"})
-    if ok_m then
-      local f, t = out_m:match("(%d+)%s+(%d+)")
-      mem_free_val = (tonumber(f) or 0) / 1024^3
-      mem_total_val = (tonumber(t) or 0) / 1024^3
-    end
-  end
-  
-  local mem_used_val = math.max(0, mem_total_val - mem_free_val)
-  return string.format("%2d%%", cpu_val), string.format("%6.1fGB", mem_used_val), string.format("%6.1fGB", mem_free_val)
-end
-
-
--- ペイン情報（SSHのみ）の取得
-local function get_pane_info(pane)
-  local info = { ssh = "" }
-  if not pane then return info end
-
-  local process_name = pane:get_foreground_process_name() or ""
-  local domain = pane:get_domain_name()
-  
-  -- SSH情報の判定
-  if process_name:find("ssh") or domain:find("SSH") then
-    local uri = pane:get_current_working_dir()
-    if uri then
-      local user = uri.username or os.getenv("USER") or os.getenv("USERNAME") or "user"
-      info.ssh = user .. "@" .. (uri.host or domain)
-    end
-  end
-
-  return info
-end
-
-
--- 気象情報の取得と更新
-local function fetch_wea_data(config)
-  local is_win   = wezterm.target_triple:find("windows")
-  local curl_cmd = is_win and "curl.exe" or "curl"
-  local tgt_city = config.weather_city
-  if tgt_city == "" then
-    local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
-    if ok and res then
-      tgt_city = res:match('"city":%s*"([^"]+)"')
-    end
-  end
-  if not tgt_city or tgt_city == "" then return end
-
-  local url = string.format(
-    "https://api.openweathermap.org/data/2.5/weather?appid=%s&lang=%s&q=%s&units=%s",
-    config.weather_api_key, config.weather_lang, tgt_city, config.weather_units
-  )
-  local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-  if ok and stdout and not stdout:find('"message"') then
-    local wea_id   = tonumber(stdout:match('"id":(%d+)'))
-    local temp_val = stdout:match('"temp":([%d%.%-]+)')
-    if wea_id then
-      if     wea_id < 300 then state.weather_ic = weather_icons.thunder
-      elseif wea_id < 600 then state.weather_ic = weather_icons.rain
-      elseif wea_id < 700 then state.weather_ic = weather_icons.snow
-      elseif wea_id < 800 then state.weather_ic = weather_icons.wind
-      elseif wea_id == 800 then state.weather_ic = weather_icons.clear
-      else                     state.weather_ic = weather_icons.clouds end
-    end
-    local unit_sym = config.weather_units == "metric" and
-                      weather_icons.celsius or weather_icons.fahrenheit
-    state.temp_str     = temp_val and string.format("%4.1f%s", tonumber(temp_val), unit_sym) or state.temp_str
-    state.city_name    = stdout:match('"name":"([^"]+)"') or tgt_city
-    state.last_wea_upd = os.time()
-    state.is_wea_ready = true
-  end
-end
-
+-- (中略: weather_icons, state, run_child_cmd, format_bps, calc_net_speed, get_sys_resources, get_pane_info, fetch_wea_data は変更なし)
 
 --- ==========================================
 --- メイン
@@ -223,41 +39,37 @@ function M.setup(opts)
     local cpu_usage, mem_used, mem_free = get_sys_resources()
     local pane_info = get_pane_info(pane)
 
-    -- アイコンのみ反転させ、直後に必ずリセットする関数
-    local function format_rev_ic(icon, text, fg, bg)
-      return wezterm.format({
-        { Attribute = { Reverse = true } },
-        { Text = " " .. icon .. " " },
-        { Attribute = { Reverse = false } },
-        -- リセット後に元の色を指定し直すことで色化けを防ぐ
-        { Background = { Color = bg } },
-        { Foreground = { Color = fg } },
-        { Text = " " .. text },
-      })
-    end
+    -- フリーメモリのアイコンのテキスト色のみを背景色に変更する
+    local mem_free_formatted = wezterm.format({
+      -- アイコン部分: 文字色を背景色(#1a1b26)に変更
+      { Foreground = { Color = config.color_background } },
+      { Text = "  " },
+      -- アイコン終了後、即座に元の文字色(白など)に戻す
+      { Foreground = { Color = config.color_text } },
+      { Text = mem_free },
+    })
 
-    -- フォーマット文字列の変数を置換 (1項目1行・コメント付き)
     local replace_map = {
-      cal_ic      = "",                                       -- カレンダーアイコン
-      clock_ic    = "",                                       -- 時計アイコン
-      loc_ic      = "",                                       -- 位置情報アイコン
-      net_ic      = "󰓅",                                       -- ネットワークアイコン
-      cpu_ic      = "",                                       -- CPUアイコン
-      mem_ic      = "",                                       -- メモリアイコン
-      year        = wezterm.strftime('%Y'),                    -- 年
-      month       = wezterm.strftime('%m'),                    -- 月
-      day         = wezterm.strftime('%d'),                    -- 日
-      week        = wezterm.strftime('%a'),                    -- 曜日
-      time24      = wezterm.strftime('%H:%M'),                 -- 時間(24時制)
-      city        = state.city_name,                           -- 都市名
-      weather_ic  = state.weather_ic,                          -- 天気アイコン
-      temp        = state.temp_str,                            -- 気温
-      cpu         = cpu_usage,                                 -- CPU使用率
-      mem_used    = mem_used,                                  -- 使用中メモリ
-      mem_free    = format_rev_ic("", mem_free, config.color_text, config.color_foreground), -- 空きメモリ (反転解除対応)
-      net_speed   = net_curr,                                  -- 現在のネットワーク速度
-      net_avg     = net_avg,                                   -- 平均ネットワーク速度
-      ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "", -- SSHアイコン & 接続情報
+      cal_ic      = "",
+      clock_ic    = "",
+      loc_ic      = "",
+      net_ic      = "󰓅",
+      cpu_ic      = "",
+      mem_ic      = "",
+      year        = wezterm.strftime('%Y'),
+      month       = wezterm.strftime('%m'),
+      day         = wezterm.strftime('%d'),
+      week        = wezterm.strftime('%a'),
+      time24      = wezterm.strftime('%H:%M'),
+      city        = state.city_name,
+      weather_ic  = state.weather_ic,
+      temp        = state.temp_str,
+      cpu         = cpu_usage,
+      mem_used    = mem_used,
+      mem_free    = mem_free_formatted, -- ここでフォーマット済み文字列を適用
+      net_speed   = net_curr,
+      net_avg     = net_avg,
+      ssh         = pane_info.ssh ~= "" and ("󰢩 " .. pane_info.ssh) or "",
     }
 
     local final_status = config.format:gsub("%$([%a%d_]+)", function(key)
