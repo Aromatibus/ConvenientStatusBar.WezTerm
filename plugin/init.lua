@@ -240,7 +240,7 @@ function M.setup(opts)
       ["$week"] = wezterm.strftime('%a'), ["$clock_ic"] = "", ["$time24"] = wezterm.strftime('%H:%M'),
       ["$loc_ic"] = "", ["$city"] = state.city_name, ["$code"] = state.city_code,
       ["$weather_ic"] = state.weather_ic, ["$temp"] = state.temp_str, ["$cpu_ic"] = "",
-      ["$cpu"] = cpu_u, ["$mem_used_ic"] = "", ["$mem_used"] = mem_u, 
+      ["$cpu"] = cpu_u, ["$mem_used_ic"] = "", ["$mem_used"] = mem_u,
       ["$mem_free_ic"] = "", ["$mem_free"] = mem_f,
       ["$net_ic"] = "󰓅", ["$net_speed"] = net_curr, ["$net_avg"] = net_avg,
       ["$batt_ic"] = batt_ic, ["$batt_num"] = batt_num,
@@ -253,7 +253,7 @@ function M.setup(opts)
       table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
       local token = current_str:sub(start_idx, end_idx):lower()
       local val = replace_map[token] or token
-      
+
       if token == "$mem_free_ic" then
         table.insert(res, { Foreground = { Color = config.color_background } })
         table.insert(res, { Text = val })
