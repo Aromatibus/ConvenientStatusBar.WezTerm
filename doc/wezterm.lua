@@ -198,11 +198,8 @@ end)
 -- ==========================================================
 -- [Right Status]
 -- ==========================================================
-config.set_environment_variables = {
-  LANG = 'ja_JP.UTF-8',
-  LC_ALL = 'ja_JP.UTF-8',
-}
 
+-- ステータスバープラグイン読み込み
 local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
 
 -- セットアップの実行
@@ -210,6 +207,28 @@ ConvenientStatusBar.setup({
   --weather_api_key         = "",
   --weather_api_key         = "あなたのAPIキー",
   weather_api_key         = "88989d7e3460606958812933b3209599",
+
+
+--[[
+  formats = {
+    -- フォーマット1
+    " $user_ic $user " ..
+    "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
+    "$loc_ic $city($code) " ..
+    "$weather_ic($temp) "  ..
+    "$batt_ic$batt_num ",
+
+    -- フォーマット2
+    " Now:$weather_ic($temp) "  ..
+    "+3h:$weather_ic_3h($temp_3h) " ..
+    "+24h:$weather_ic_24h($temp_24h) " ..
+    "$cpu_ic $cpu $mem_ic $mem_free " ..
+    "$net_ic $net_speed($net_avg) ",
+
+  },
+]]
+
+
 
 --[[
   startup_delay           = 5,
@@ -263,5 +282,15 @@ ConvenientStatusBar.setup({
   --week_str = {"sön","mån","tis","ons","tors","fre","lör"}, -- Swedish
   --week_str = {"su","ma","ti","ke","to","pe","la"}, -- Finnish
 })
+
+
+--return config
+config.keys = {
+  {
+    key = "o",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.EmitEvent("toggle-status-format"),
+  },
+}
 
 return config
