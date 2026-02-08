@@ -593,7 +593,7 @@ function M.setup(opts)
             ["$week"]           = week_val,
             ["$clock_ic"]       = "",
             ["$time24"]         = wezterm.strftime("%H:%M"),
-            ["$loc_ic"]         = has_weather_api and "" or weather_icons.unknown
+            ["$loc_ic"]         = has_weather_api and "" or weather_icons.unknown,
             ["$city"]           = has_weather_api and state.city_name or weather_icons.unknown,
             ["$code"]           = has_weather_api and state.city_code or weather_icons.unknown,
             ["$weather_ic"]     = has_weather_api and state.weather_ic or weather_icons.unknown,
