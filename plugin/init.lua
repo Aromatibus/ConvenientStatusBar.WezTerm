@@ -532,7 +532,8 @@ function M.setup(opts)
         window:set_right_status(wezterm.format(res))
     end)
 
-    wezterm.on("right-status-bar-click", function(window, pane)
+    wezterm.on("status-right-click", function(window, pane)
+        wezterm.log_info("Right status bar clicked!")
         state.format_index = state.format_index + 1
         if state.format_index > #config.formats then
             state.format_index = 1
