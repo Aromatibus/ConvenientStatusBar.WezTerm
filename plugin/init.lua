@@ -3,6 +3,24 @@ local M       = {}
 
 
 --- ==========================================
+--- 天気用アイコン定義
+--- ==========================================
+local weather_icons = {
+    clear       = "󰖨 ",
+    clouds      = "󰅟 ",
+    rain        = " ",
+    wind        = " ",
+    thunder     = "󱐋 ",
+    snow        = " ",
+    thermometer = "",
+    celsius     = "󰔄",
+    fahrenheit  = "󰔅",
+    loading     = " ",
+    unknown     = " ",
+}
+
+
+--- ==========================================
 --- 状態管理用の変数
 --- ==========================================
 local state = {
@@ -48,21 +66,6 @@ end
 --- ==========================================
 --- 天気情報取得
 --- ==========================================
--- アイコン定義
-local weather_icons = {
-    clear       = "󰖨 ",
-    clouds      = "󰅟 ",
-    rain        = " ",
-    wind        = " ",
-    thunder     = "󱐋 ",
-    snow        = " ",
-    thermometer = "",
-    celsius     = "󰔄",
-    fahrenheit  = "󰔅",
-    loading     = " ",
-    unknown     = " ",
-}
-
 
 -- 予報データから指定インデックスの天気IDと温度を抽出
 local function parse_forecast(data, index)
