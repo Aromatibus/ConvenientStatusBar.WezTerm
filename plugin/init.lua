@@ -627,7 +627,7 @@ function M.setup(opts)
             else
                 table.insert(res, { Text = val })
             end
-
+--[[
             if token == "$mem_free_ic" then
                 table.insert(res, { Foreground = { Color = config.color_background } })
                 table.insert(res, { Text = val })
@@ -635,6 +635,7 @@ function M.setup(opts)
             else
                 table.insert(res, { Text = val })
             end
+]]
             current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
