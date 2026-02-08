@@ -25,22 +25,21 @@ local weather_icons = {
 --- ==========================================
 local state = {
     weather_ic         = weather_icons.loading,
-    temp_str           = string.format("%5s", weather_icons.loading),
     city_name          = weather_icons.loading,
     city_code          = "",
     last_weather_upd   = 0,
     is_weather_ready   = false,
+    temp_ic            = weather_icons.loading,
+    temp_str           = string.format("%5s", weather_icons.loading),
     weather_ic_3h      = "",
     temp_3h            = "",
     weather_ic_24h     = "",
     temp_24h           = "",
     proc_start         = os.time(),
-
     cpu_state = {
         last_total = 0,
         last_idle  = 0,
     },
-
     net_state = {
         last_rx_bytes = 0,
         last_chk_time = os.time(),
@@ -48,7 +47,6 @@ local state = {
         avg_str       = string.format("%9s", weather_icons.loading),
         samples       = {},
     },
-
     net_update_interval = 3,
     format_index        = 1,
 }
@@ -118,8 +116,13 @@ local function fetch_weather_data(config)
     end
     -- 都市名が取得できない場合の処理
     if not tgt_city or tgt_city == "" then
-        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
+        state.weather_ic,
+        state.temp_ic,
+        state.temp_str,
+        state.city_name,
+        state.is_weather_ready =
             weather_icons.unknown,
+            weather_icons.thermometer,
             string.format("%5s", weather_icons.unknown),
             weather_icons.unknown,
             false
@@ -140,12 +143,17 @@ local function fetch_weather_data(config)
     -- エラーチェック とメッセージフィールドでエラーの確認
     if not ok or not stdout then
         wezterm.log_info("OpenWeatherMap = " .. stdout) -- デバッグ用ログ
-        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
-            weather_icons.unknown,
-            string.format("%5s", weather_icons.unknown),
-            tgt_city,
-            false
-        state.last_weather_upd = os.time()
+            state.weather_ic,
+            state.temp_ic,
+            state.temp_str,
+            state.city_name,
+            state.is_weather_ready =
+                weather_icons.unknown,
+                weather_icons.thermometer,
+                string.format("%5s", weather_icons.unknown),
+                tgt_city,
+                false
+            state.last_weather_upd = os.time()
         return
     end
     -- 温度単位シンボル
@@ -158,6 +166,7 @@ local function fetch_weather_data(config)
     -- JSONパースエラーチェック
     if not ok_json or not data or not data.list then
         state.weather_ic       = weather_icons.unknown
+        state.temp_ic          = weather_icons.thermometer
         state.temp_str         = string.format("%5s", weather_icons.unknown)
         state.is_weather_ready = false
         state.last_weather_upd = os.time()
@@ -169,6 +178,7 @@ local function fetch_weather_data(config)
     local id24, temp24             = parse_forecast(data, 9)
     -- 現在
     state.weather_ic = get_icon(current_id)
+    state.temp_ic    = weather_icons.thermometer
     state.temp_str =
         current_temp and
         string.format("%4.1f%s", tonumber(current_temp), unit_sym)
@@ -475,13 +485,13 @@ function M.setup(opts)
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         " $loc_ic $city($code) " ..
-        "$weather_ic($temp) "  ..
+        "$weather_ic($temp_ic$temp) "  ..
         "$batt_ic$batt_num "
     -- フォーマット2
     local def_fmt2 =
-        " Now:$weather_ic($temp) "  ..
-        "+3h:$weather_ic_3h($temp_3h) " ..
-        "+24h:$weather_ic_24h($temp_24h) " ..
+        " Now:$weather_ic($temp_ic$temp) "  ..
+        "+3h:$weather_ic_3h($temp_ic$temp_3h) " ..
+        "+24h:$weather_ic_24h($temp_ic$temp_24h) " ..
         "$cpu_ic $cpu $mem_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) "
     -- 設定の初期化
@@ -593,11 +603,12 @@ function M.setup(opts)
             ["$week"]           = week_val,
             ["$clock_ic"]       = "",
             ["$time24"]         = wezterm.strftime("%H:%M"),
-            ["$loc_ic"]         = has_weather_api and "" or "", --weather_icons.unknown,
-            ["$city"]           = has_weather_api and state.city_name or "", --weather_icons.unknown,
-            ["$code"]           = has_weather_api and state.city_code or "", --weather_icons.unknown,
-            ["$weather_ic"]     = has_weather_api and state.weather_ic or "", --weather_icons.unknown,
-            ["$temp"]           = has_weather_api and state.temp_str or "", --weather_icons.unknown,
+            ["$loc_ic"]         = has_weather_api and "" or "",
+            ["$city"]           = has_weather_api and state.city_name or "",
+            ["$code"]           = has_weather_api and state.city_code or "",
+            ["$weather_ic"]     = has_weather_api and state.weather_ic or "",
+            ["$temp_ic"]        = has_weather_api and state.temp_ic or "",
+            ["$temp"]           = has_weather_api and state.temp_str or "",
             ["$weather_ic_3h"]  = state.weather_ic_3h,
             ["$temp_3h"]        = state.temp_3h,
             ["$weather_ic_24h"] = state.weather_ic_24h,
