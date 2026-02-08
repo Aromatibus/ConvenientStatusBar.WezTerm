@@ -543,11 +543,16 @@ function M.setup(opts)
 
 
 
+        local use_weather = (fmt_lower:find("%$weather") ~= nil)
+                        or (fmt_lower:find("%$temp") ~= nil)
+                        or (fmt_lower:find("%$city") ~= nil)
+                        or (fmt_lower:find("%$loc_ic") ~= nil)
 
-        local use_weather = fmt_lower:find("%$[<>]?(weather|temp|city|loc_ic)")
-        local use_sys     = fmt_lower:find("%$[<>]?(cpu|mem)")
-        local use_net     = fmt_lower:find("%$[<>]?net")
-        local use_batt    = fmt_lower:find("%$[<>]?batt")
+        local use_net  = (fmt_lower:find("%$net") ~= nil)
+        local use_sys  = (fmt_lower:find("%$cpu") ~= nil)
+                    or (fmt_lower:find("%$mem") ~= nil)
+
+        local use_batt = (fmt_lower:find("%$batt") ~= nil)
 
 
 
