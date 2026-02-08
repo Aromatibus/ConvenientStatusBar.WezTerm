@@ -477,35 +477,24 @@ end
 --- ==========================================
 function M.setup(opts)
     -- デフォルトのフォーマット文字列
---[[
-    local def_fmt =
-        " $user_ic $user " ..
-        "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) " ..
-        "$weather_ic($temp) "  ..
-        "+3h:$weather_ic_3h($temp_3h) " ..
-        "+24h:$weather_ic_24h($temp_24h) " ..
-        "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
-        "$net_ic $net_speed($net_avg) " ..
-        "$batt_ic$batt_num "
-]]
+
     -- フォーマット１
     local def_fmt1 =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) " ..
+        " $loc_ic $city($code) " ..
         "$weather_ic($temp) "  ..
         "$batt_ic$batt_num "
 
     -- フォーマット2
     local def_fmt2 =
-        "Now:$weather_ic($temp) "  ..
+        " Now:$weather_ic($temp) "  ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
-        "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
+        "$cpu_ic $cpu $mem_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) "
 
-    -- 設定の初期化
+        -- 設定の初期化
     local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
         weather_api_key         = opts and opts.weather_api_key,
