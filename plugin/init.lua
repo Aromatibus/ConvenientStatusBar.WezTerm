@@ -317,7 +317,6 @@ local function get_sys_resources()
             mem_f_val = f_kb / 1024 / 1024
             mem_u_val = (t_kb - f_kb) / 1024 / 1024
         end
-
     -- macOS
     elseif is_mac then
         -- CPU使用率
