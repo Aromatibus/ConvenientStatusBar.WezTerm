@@ -499,7 +499,7 @@ function M.setup(opts)
 
     -- フォーマット2
     local def_fmt2 =
-        " $weather_ic($temp) "  ..
+        "Now:$weather_ic($temp) "  ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
         "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
