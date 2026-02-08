@@ -24,18 +24,20 @@ local weather_icons = {
 --- 状態管理用の変数
 --- ==========================================
 local state = {
-    weather_ic         = weather_icons.loading,
-    city_name          = weather_icons.loading,
-    city_code          = "",
-    last_weather_upd   = 0,
-    is_weather_ready   = false,
-    temp_ic            = weather_icons.loading,
-    temp_str           = string.format("%5s", weather_icons.loading),
-    weather_ic_3h      = "",
-    temp_3h            = "",
-    weather_ic_24h     = "",
-    temp_24h           = "",
-    proc_start         = os.time(),
+    weather_ic           = weather_icons.loading,
+    city_name            = weather_icons.loading,
+    city_code            = "",
+    last_weather_upd     = 0,
+    is_weather_ready     = false,
+    temp_ic              = weather_icons.loading,
+    temp_str             = string.format("%5s", weather_icons.loading),
+    weather_ic_3h        = "",
+    temp_3h              = "",
+    weather_ic_24h       = "",
+    temp_24h             = "",
+    weather_nd_afty_ic   = "",
+    weather_nd_afty_time = "",
+    proc_start           = os.time(),
     cpu_state = {
         last_total = 0,
         last_idle  = 0,
@@ -98,6 +100,34 @@ local function get_icon(weather_id)
 end
 
 
+-- 翌日12時までの時間(h)を計算（現時刻は1時間単位で切り上げ）
+local function calc_nextday_noon_hours()
+    local now      = os.time()
+    local now_tm   = os.date("*t", now)
+    -- 現在時刻を1時間単位で切り上げ
+    if now_tm.min > 0 or now_tm.sec > 0 then
+        now_tm.hour = now_tm.hour + 1
+    end
+    now_tm.min = 0
+    now_tm.sec = 0
+    local rounded_now = os.time(now_tm)
+    -- 翌日12:00
+    local next_noon_tm = {
+        year  = now_tm.year,
+        month = now_tm.month,
+        day   = now_tm.day + 1,
+        hour  = 12,
+        min   = 0,
+        sec   = 0,
+        isdst = now_tm.isdst,
+    }
+    local next_noon = os.time(next_noon_tm)
+    local diff_sec = next_noon - rounded_now
+    local diff_h   = math.floor(diff_sec / 3600)
+    return diff_h
+end
+
+
 -- 天気データの取得
 local function fetch_weather_data(config)
     -- OS別のcurlコマンド設定
@@ -157,6 +187,10 @@ local function fetch_weather_data(config)
             state.last_weather_upd = os.time()
         return
     end
+    -- 翌日12時までの時間(h)
+    local nd_h = calc_nextday_noon_hours()
+    -- OpenWeatherMapは3時間刻みなのでインデックスに変換
+    local nd_idx = math.floor(nd_h / 3) + 1
     -- 温度単位シンボル
     local unit_sym =
         config.weather_units == "metric"
@@ -196,6 +230,10 @@ local function fetch_weather_data(config)
         temp24 and
         string.format("%4.1f%s", tonumber(temp24), unit_sym)
         or ""
+    -- 翌日12時の天気
+    local nd_id, _ = parse_forecast(data, nd_idx)
+    state.weather_nd_afty_ic = get_icon(nd_id)
+    state.weather_nd_afty_time = string.format("+%dh", nd_h)
     -- APIからの都市名と国コードの抽出
     local api_name = data.city and data.city.name
     local api_code = data.city and data.city.country
@@ -484,7 +522,7 @@ function M.setup(opts)
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         " $loc_ic $city($code) " ..
-        "$weather_ic($temp_ic$temp) "  ..
+        "$weather_ic($temp_ic$temp) ($weather_nd_afty_time:$weather_nd_afty_ic)"  ..
         "$batt_ic$batt_num "
     -- フォーマット2
     local def_fmt2 =
@@ -612,6 +650,8 @@ function M.setup(opts)
             ["$temp_3h"]        = state.temp_3h,
             ["$weather_ic_24h"] = state.weather_ic_24h,
             ["$temp_24h"]       = state.temp_24h,
+            ["$weather_nd_afty_ic"]   = state.weather_nd_afty_ic,
+            ["$weather_nd_afty_time"] = state.weather_nd_afty_time,
             ["$cpu_ic"]         = "",
             ["$cpu"]            = cpu_u,
             ["$mem_ic"]         = "",
