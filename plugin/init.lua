@@ -232,10 +232,138 @@ local function get_ssh_user(pane)
 end
 
 --- ==========================================
---- 天気取得ロジック（原本そのまま）
+--- 天気情報取得
 --- ==========================================
--- ここはあなたの原本の fetch_weather_data / get_icon / parse_forecast を
--- そのまま貼り付けて使ってください（長大なため割愛）
+
+
+-- 天気IDからアイコンを取得
+local function get_icon(weather_id)
+    if not weather_id then return weather_icons.unknown end
+    if     weather_id < 300  then return weather_icons.thunder
+    elseif weather_id < 600  then return weather_icons.rain
+    elseif weather_id < 700  then return weather_icons.snow
+    elseif weather_id < 800  then return weather_icons.wind
+    elseif weather_id == 800 then return weather_icons.clear
+    else                          return weather_icons.clouds end
+end
+
+
+-- 予報データから指定インデックスの天気IDと温度を抽出
+local function parse_forecast(data, index)
+    if not data or not data.list then
+        return nil, nil
+    end
+    local entry = data.list[index]
+    if not entry then
+        return nil, nil
+    end
+    local weather_id =
+        entry.weather
+        and entry.weather[1]
+        and entry.weather[1].id
+    local temp =
+        entry.main
+        and entry.main.temp
+
+    return weather_id, temp
+end
+
+
+-- 天気データの取得
+local function fetch_weather_data(config)
+    -- OS別のcurlコマンド設定
+    local is_win   = wezterm.target_triple:find("windows")
+    local curl_cmd = is_win and "curl.exe" or "curl"
+    -- 取得対象の都市名と国コードの設定
+    local tgt_city = config.weather_city
+    local tgt_code = config.weather_country
+    -- 都市名が設定されていない場合、IP情報から取得
+    if not tgt_city or tgt_city == "" then
+        local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
+        if ok and res then
+            tgt_city = res:match('"city":%s*"([^"]+)"')
+            tgt_code = res:match('"country_code":%s*"([^"]+)"')
+        end
+    end
+    -- 都市名が取得できない場合の処理
+    if not tgt_city or tgt_city == "" then
+        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
+            weather_icons.unknown,
+            string.format("%5s", weather_icons.unknown),
+            weather_icons.unknown,
+            false
+        return
+    end
+    -- クエリ文字列の作成
+    local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
+    -- APIリクエストURLの作成
+    local url = string.format(
+        "https://api.openweathermap.org/data/2.5/forecast?appid=%s&lang=%s&q=%s&units=%s",
+        config.weather_api_key,
+        config.weather_lang,
+        query,
+        config.weather_units
+    )
+    -- APIリクエストの実行
+    local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
+    -- エラーチェック とメッセージフィールドでエラーの確認
+    if not ok or not stdout then
+        state.weather_ic, state.temp_str, state.city_name, state.is_weather_ready =
+            weather_icons.unknown,
+            string.format("%5s", weather_icons.unknown),
+            tgt_city,
+            false
+        state.last_weather_upd = os.time()
+        return
+    end
+    -- 温度単位シンボル
+    local unit_sym =
+        config.weather_units == "metric"
+        and weather_icons.celsius
+        or weather_icons.fahrenheit
+    -- forecast取得
+    local ok_json, data = pcall(wezterm.json_parse, stdout)
+    -- JSONパースエラーチェック
+    if not ok_json or not data or not data.list then
+        state.weather_ic = weather_icons.unknown
+        state.temp_str = string.format("%5s", weather_icons.unknown)
+        state.is_weather_ready = false
+        state.last_weather_upd = os.time()
+        return
+    end
+    -- 各時点の天気IDと温度の抽出
+    local current_id, current_temp = parse_forecast(data, 1)
+    local id3, temp3   = parse_forecast(data, 2)
+    local id24, temp24 = parse_forecast(data, 9)
+    -- 現在
+    state.weather_ic = get_icon(current_id)
+    state.temp_str =
+        current_temp and
+        string.format("%4.1f%s", tonumber(current_temp), unit_sym)
+        or string.format("%5s", weather_icons.unknown)
+    -- 3h後
+    state.weather_ic_3h = get_icon(id3)
+    state.temp_3h =
+        temp3 and
+        string.format("%4.1f%s", tonumber(temp3), unit_sym)
+        or ""
+    -- 24h後
+    state.weather_ic_24h = get_icon(id24)
+    state.temp_24h =
+        temp24 and
+        string.format("%4.1f%s", tonumber(temp24), unit_sym)
+        or ""
+    -- APIからの都市名と国コードの抽出
+    local api_name = data.city and data.city.name
+    local api_code = data.city and data.city.country
+        -- 都市名と国コードの設定
+    state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
+        api_name or tgt_city,
+        api_code or tgt_code or "",
+        os.time(),
+        true
+end
+
 
 --- ==========================================
 --- バッテリー情報（原本そのまま）
