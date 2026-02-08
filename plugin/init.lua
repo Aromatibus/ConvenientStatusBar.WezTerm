@@ -540,10 +540,17 @@ function M.setup(opts)
         -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
         local current_format = config.formats[state.format_index] or config.formats[1]
         local fmt_lower = current_format:lower()
+
+
+
+
         local use_weather = fmt_lower:find("%$[<>]?(weather|temp|city|loc_ic)")
         local use_sys     = fmt_lower:find("%$[<>]?(cpu|mem)")
         local use_net     = fmt_lower:find("%$[<>]?net")
         local use_batt    = fmt_lower:find("%$[<>]?batt")
+
+
+
         -- 天気APIキーの有無チェック
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
         -- 天気情報の更新
@@ -566,6 +573,13 @@ function M.setup(opts)
         if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
 
 
+        wezterm.log_info(string.format(
+            "DEBUG values: cpu=%s mem_free=%s weather_ic=%s temp=%s",
+            tostring(cpu_u),
+            tostring(mem_f),
+            tostring(state.weather_ic),
+            tostring(state.temp_str)
+        ))
 
 
         wezterm.log_info("fmt_lower = " .. fmt_lower)
