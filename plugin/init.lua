@@ -1,6 +1,7 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
+
 --- ==========================================
 --- 定数・アイコン定義
 --- ==========================================
@@ -17,6 +18,7 @@ local weather_icons = {
     loading     = " ",
     unknown     = " ",
 }
+
 
 --- ==========================================
 --- 状態管理用の変数
@@ -45,10 +47,8 @@ local state = {
         samples       = {}
     },
     net_update_interval = 3,
-
-    -- ★ 追加: フォーマット切替用
-    format_index = 1,
 }
+
 
 --- ==========================================
 --- 子プロセス実行
@@ -58,18 +58,17 @@ local function run_child_cmd(args)
     return success, stdout
 end
 
+
 --- ==========================================
 --- バイト/秒のフォーマット
 --- ==========================================
 local function format_bps(bps)
-    if bps > 1024 * 1024 then
-        return string.format("%5.1fMB/s", bps / (1024 * 1024))
-    elseif bps > 1024 then
-        return string.format("%5.1fKB/s", bps / 1024)
-    else
-        return string.format("%6.1fB/s", bps)
-    end
+    if bps > 1024 * 1024
+        then return string.format("%5.1fMB/s", bps / (1024 * 1024))
+    elseif bps > 1024 then return string.format("%5.1fKB/s", bps / 1024)
+    else return string.format("%6.1fB/s", bps) end
 end
+
 
 --- ==========================================
 --- ネットワーク速度計算
@@ -77,27 +76,35 @@ end
 local function calc_net_speed()
     local now = os.time()
     local dt = now - state.net_state.last_chk_time
+    -- 更新間隔内であれば前回の値を返却
     if dt < (state.net_update_interval or 3) or dt <= 0 then
         return state.net_state.disp_str, state.net_state.avg_str
     end
+    -- 現在の受信バイト数を取得
     local curr_rx = 0
     local triple = wezterm.target_triple
     local is_win = triple:find("windows")
     local is_mac = triple:find("darwin")
+    -- 各OS別の受信バイト数取得コマンド
     if is_win then
+        -- Windows
         local ok, out = run_child_cmd({
             "powershell.exe", "-NoProfile", "-Command",
             "(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum"
         })
         curr_rx = ok and tonumber(out) or 0
     elseif is_mac then
+        -- macOS
         local ok, out = run_child_cmd({
             "sh", "-c",
             "netstat -ib | awk 'NR>1 && $1 != \"lo0\" {sum+=$7} END {print sum}'"
         })
         curr_rx = ok and tonumber(out) or 0
     else
-        local ok, out = run_child_cmd({ "sh","-c","cat /proc/net/dev" })
+        -- Linux
+        local ok, out = run_child_cmd({
+            "sh","-c","cat /proc/net/dev"
+        })
         if ok and out then
             local line_no = 0
             for line in out:gmatch("[^\r\n]+") do
@@ -112,124 +119,209 @@ local function calc_net_speed()
             end
         end
     end
+    -- 初回実行時は速度計算をスキップ
     if state.net_state.last_rx_bytes == 0 then
         state.net_state.last_rx_bytes = curr_rx
         state.net_state.last_chk_time = now
         return state.net_state.disp_str, state.net_state.avg_str
     end
+    -- 速度計算
     local diff = curr_rx - state.net_state.last_rx_bytes
     local speed = diff > 0 and diff / dt or 0
+    -- 状態変数の更新
     state.net_state.last_rx_bytes = curr_rx
     state.net_state.last_chk_time = now
+    -- 速度のフォーマット
     local speed_str = format_bps(speed)
+    -- 平均速度の計算
     table.insert(state.net_state.samples, speed)
     if #state.net_state.samples > (state.net_avg_samples or 20) then
         table.remove(state.net_state.samples, 1)
     end
+    -- サンプルの平均値計算
     local sum = 0
-    for _, v in ipairs(state.net_state.samples) do sum = sum + v end
-    local avg = (#state.net_state.samples > 0) and (sum / #state.net_state.samples) or 0
+    for _, v in ipairs(state.net_state.samples) do
+        sum = sum + v
+    end
+    -- 平均速度のフォーマット
+    local avg = (#state.net_state.samples > 0)
+        and (sum / #state.net_state.samples)
+        or 0
+    -- フォーマットして保存
     local avg_str = format_bps(avg)
+    -- 状態変数に保存
     state.net_state.disp_str = speed_str
     state.net_state.avg_str  = avg_str
+
     return speed_str, avg_str
 end
+
 
 --- ==========================================
 --- システムリソース取得
 --- ==========================================
 local function get_sys_resources()
-    local cpu_val, mem_u_val, mem_f_val = 0, 0, 0
+    local cpu_val = 0
+    local mem_u_val = 0
+    local mem_f_val = 0
+    -- OS判定
     local triple = wezterm.target_triple
     local is_win = triple:find("windows")
     local is_mac = triple:find("darwin")
-
+    -- Windows
     if is_win then
         local ok, out = run_child_cmd({
             "powershell.exe", "-NoProfile", "-Command",
-            "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average; " ..
-            "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; " ..
-            "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"
+            "Get-CimInstance Win32_Processor | "
+            .. "Measure-Object -Property LoadPercentage -Average | "
+            .. "Select-Object -ExpandProperty Average; "
+            .. "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory; "
+            .. "(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize"
         })
         if ok and out then
             local lines = {}
-            for line in out:gmatch("[^\r\n]+") do table.insert(lines, line) end
+            for line in out:gmatch("[^\r\n]+") do
+                table.insert(lines, line)
+            end
+            -- CPU
             cpu_val = tonumber(lines[1]) or 0
             local f_kb = tonumber(lines[2]) or 0
             local t_kb = tonumber(lines[3]) or 0
+            -- メモリ
             mem_f_val = f_kb / 1024 / 1024
             mem_u_val = (t_kb - f_kb) / 1024 / 1024
         end
+    -- macOS
     elseif is_mac then
-        local ok, out = run_child_cmd({ "sh", "-c", "top -l 1 | grep 'CPU usage'" })
+        -- CPU
+        local ok, out = run_child_cmd({
+            "sh", "-c",
+            "top -l 1 | grep 'CPU usage'"
+        })
         if ok and out then
-            local user, sys = out:match("(%d+%.?%d*)%% user.*(%d+%.?%d*)%% sys")
-            cpu_val = (tonumber(user) or 0) + (tonumber(sys) or 0)
+            local user, sys =
+                out:match("(%d+%.?%d*)%% user.*(%d+%.?%d*)%% sys")
+            cpu_val =
+                (tonumber(user) or 0) +
+                (tonumber(sys) or 0)
         end
-        local ok2, out2 = run_child_cmd({ "sh", "-c", "vm_stat" })
+        -- メモリ
+        local ok2, out2 = run_child_cmd({
+            "sh", "-c",
+            "vm_stat"
+        })
         if ok2 and out2 then
-            local page_size = tonumber(out2:match("page size of (%d+) bytes")) or 4096
-            local free = tonumber(out2:match("Pages free:%s+(%d+)")) or 0
-            local inactive = tonumber(out2:match("Pages inactive:%s+(%d+)")) or 0
-            local active = tonumber(out2:match("Pages active:%s+(%d+)")) or 0
-            local wired = tonumber(out2:match("Pages wired down:%s+(%d+)")) or 0
-            mem_f_val = (free + inactive) * page_size / 1024^3
-            mem_u_val = (active + wired) * page_size / 1024^3
+            local page_size =
+                out2:match("page size of (%d+) bytes")
+            page_size = tonumber(page_size) or 4096
+            local free =
+                out2:match("Pages free:%s+(%d+)")
+            local inactive =
+                out2:match("Pages inactive:%s+(%d+)")
+            local active =
+                out2:match("Pages active:%s+(%d+)")
+            local wired =
+                out2:match("Pages wired down:%s+(%d+)")
+            free = tonumber(free) or 0
+            inactive = tonumber(inactive) or 0
+            active = tonumber(active) or 0
+            wired = tonumber(wired) or 0
+            local free_bytes =
+                (free + inactive) * page_size
+            local used_bytes =
+                (active + wired) * page_size
+
+            mem_f_val = free_bytes / 1024^3
+            mem_u_val = used_bytes / 1024^3
         end
+    -- Linux
     else
-        local ok, out = run_child_cmd({ "sh", "-c", "cat /proc/stat | head -n1" })
+        -- CPU
+        local ok, out = run_child_cmd({
+            "sh", "-c",
+            "cat /proc/stat | head -n1"
+        })
         if ok and out then
-            local user, nice, system, idle, iowait, irq, softirq, steal =
-                out:match("cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s*(%d*)")
-            user, nice, system, idle, iowait, irq, softirq, steal =
-                tonumber(user) or 0, tonumber(nice) or 0, tonumber(system) or 0,
-                tonumber(idle) or 0, tonumber(iowait) or 0, tonumber(irq) or 0,
-                tonumber(softirq) or 0, tonumber(steal) or 0
-            local total = user + nice + system + idle + iowait + irq + softirq + steal
+            local user, nice, system, idle, iowait,
+                irq, softirq, steal =
+                    out:match("cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s*(%d*)")
+            user = tonumber(user) or 0
+            nice = tonumber(nice) or 0
+            system = tonumber(system) or 0
+            idle = tonumber(idle) or 0
+            iowait = tonumber(iowait) or 0
+            irq = tonumber(irq) or 0
+            softirq = tonumber(softirq) or 0
+            steal = tonumber(steal) or 0
+            local total =
+                user + nice + system + idle +
+                iowait + irq + softirq + steal
             local idle_all = idle + iowait
             if state.cpu_state.last_total ~= 0 then
                 local dt = total - state.cpu_state.last_total
                 local didle = idle_all - state.cpu_state.last_idle
-                if dt > 0 then cpu_val = (1 - didle / dt) * 100 end
+                if dt > 0 then
+                    cpu_val = (1 - didle / dt) * 100
+                end
             end
             state.cpu_state.last_total = total
             state.cpu_state.last_idle = idle_all
         end
+        -- メモリ
+        local ok2, out2 = run_child_cmd({
+            "sh", "-c",
+            "free -b | awk '/^Mem:/ {print $3, $4}'"
+        })
 
-        local ok2, out2 = run_child_cmd({ "sh", "-c", "free -b | awk '/^Mem:/ {print $3, $4}'" })
         if ok2 and out2 then
-            local used, free = out2:match("(%d+)%s+(%d+)")
-            mem_u_val = (tonumber(used) or 0) / 1024^3
-            mem_f_val = (tonumber(free) or 0) / 1024^3
+            local used, free =
+                out2:match("(%d+)%s+(%d+)")
+
+            mem_u_val =
+                (tonumber(used) or 0) / 1024^3
+            mem_f_val =
+                (tonumber(free) or 0) / 1024^3
         end
     end
 
+    -- フォーマットして返却
     return
         string.format("%2d%%", cpu_val),
         string.format("%4.1fGB", mem_u_val),
         string.format("%4.1fGB", mem_f_val)
 end
 
+
+
+
 --- ==========================================
---- SSHユーザー抽出（原本そのまま）
+--- SSHユーザー抽出
 --- ==========================================
 local function get_ssh_user(pane)
+    -- 作業ディレクトリからの抽出
     local uri = pane:get_current_working_dir()
+    -- URIにユーザー名が含まれている場合
     if uri and uri.username and uri.username ~= "" then
         return uri.username
     end
+    -- プロセス情報からの抽出
     local proc = pane:get_foreground_process_info()
+    -- SSHプロセスの場合
     if proc and proc.executable:find("ssh") then
         for _, arg in ipairs(proc.argv) do
             local u = arg:match("([^@]+)@[^@]+")
             if u then return u end
         end
     end
+    -- タイトルバーからの抽出
     local title = pane:get_title()
+    -- タイトルに"@"が含まれていない場合は終了
     local t_user = title:match("([^@]+)@[^@]+")
+    -- タイトルにユーザー名が含まれている場合
     if t_user then return t_user end
     return nil
 end
+
 
 --- ==========================================
 --- 天気情報取得
@@ -366,7 +458,7 @@ end
 
 
 --- ==========================================
---- バッテリー情報（原本そのまま）
+--- バッテリー情報取得
 --- ==========================================
 local function get_batt_disp()
     local batt_list = wezterm.battery_info()
@@ -378,17 +470,25 @@ local function get_batt_disp()
     return icon, string.format("%.0f%%", charge)
 end
 
+
 --- ==========================================
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    local def_formats = {
-        " $user_ic $user $clock_ic $time24 $loc_ic $city($code) $weather_ic($temp) +3h:$weather_ic_3h($temp_3h) +24h:$weather_ic_24h($temp_24h) $cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free $net_ic $net_speed($net_avg) $batt_ic$batt_num ",
-        " $clock_ic $time24 $weather_ic($temp) $cpu_ic $cpu $net_ic $net_speed ",
-        " $time24 $weather_ic $temp $batt_ic$batt_num ",
-    }
+    -- デフォルトのフォーマット文字列
+    local def_fmt =
+        " $user_ic $user " ..
+        "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
+        "$loc_ic $city($code) " ..
+        "$weather_ic($temp) "  ..
+        "+3h:$weather_ic_3h($temp_3h) " ..
+        "+24h:$weather_ic_24h($temp_24h) " ..
+        "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
+        "$net_ic $net_speed($net_avg) " ..
+        "$batt_ic$batt_num "
 
-    local config = {
+    -- 設定の初期化
+    local config              = {
         startup_delay           = (opts and opts.startup_delay) or 5,
         weather_api_key         = opts and opts.weather_api_key,
         weather_lang            = (opts and opts.weather_lang) or "en",
@@ -405,28 +505,30 @@ function M.setup(opts)
         color_text              = (opts and opts.color_text) or "#ffffff",
         color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
         color_background        = (opts and opts.color_background) or "#1a1b26",
-        formats                 = (opts and opts.formats) or def_formats,
+        format                  = (opts and opts.format) or def_fmt,
     }
-
+    -- ネットワーク速度計算用のサンプル数を状態変数に保存
     state.net_avg_samples = config.net_avg_samples
+    -- ネットワーク速度計算用の更新間隔を状態変数に保存
     state.net_update_interval = config.net_update_interval
-
+    -- ログに最終的に使用されたConfigの値をそのまま出力
+    wezterm.log_info("Final Config: " .. wezterm.to_string(config))
+    -- ステータスバー更新イベントの登録
     wezterm.on('update-right-status', function(window, pane)
         local now        = os.time()
+        -- スタートアップ待機中フラグ
         local is_waiting = (now - state.proc_start) < config.startup_delay
-
-        local current_format = config.formats[state.format_index] or config.formats[1]
-        local fmt_lower  = current_format:lower()
-
+        -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
+        local fmt_lower  = config.format:lower()
         local use_weather =
             fmt_lower:find("$weather") or fmt_lower:find("$temp") or
             fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
         local use_net  = fmt_lower:find("$net")
         local use_sys  = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
         local use_batt = fmt_lower:find("$batt")
-
+        -- 天気APIキーの有無チェック
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
-
+        -- 天気情報の更新
         if use_weather and has_weather_api and not is_waiting then
             local diff = now - state.last_weather_upd
             if state.last_weather_upd == 0
@@ -436,16 +538,18 @@ function M.setup(opts)
                 fetch_weather_data(config)
             end
         end
-
+        -- ネットワーク速度の計算
         local net_curr, net_avg = "", ""
-        if use_net then net_curr, net_avg = calc_net_speed() end
-
+        if use_net then
+            net_curr, net_avg = calc_net_speed()
+        end
+        -- システムリソースの取得
         local cpu_u, mem_u, mem_f = "", "", ""
         if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
-
+        -- バッテリー情報の取得
         local batt_ic, batt_num = "", ""
         if use_batt then batt_ic, batt_num = get_batt_disp() end
-
+        -- 指定された曜日文字列の取得
         local week_val = ""
         if fmt_lower:find("$week") then
             if config.week_str and type(config.week_str) == "table" then
@@ -455,7 +559,7 @@ function M.setup(opts)
                 week_val = wezterm.strftime('%a')
             end
         end
-
+        -- ユーザー名とアイコンの取得
         local user_name, user_icon = "", ""
         if fmt_lower:find("$user") then
             user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
@@ -466,7 +570,7 @@ function M.setup(opts)
                 user_name = ssh_user
             end
         end
-
+        -- ステータスバーの文字列作成
         local res = {
             { Background = { Color = config.color_background } },
             { Foreground = { Color = config.color_foreground } },
@@ -474,7 +578,7 @@ function M.setup(opts)
             { Background = { Color = config.color_foreground } },
             { Foreground = { Color = config.color_text } },
         }
-
+        -- 置換マップの作成
         local replace_map = {
             ["$user_ic"] = user_icon,
             ["$user"] = user_name,
@@ -506,8 +610,8 @@ function M.setup(opts)
             ["$batt_ic"] = batt_ic,
             ["$batt_num"] = batt_num,
         }
-
-        local current_str = current_format
+        -- フォーマット文字列の置換
+        local current_str = config.format
         while true do
             local start_idx, end_idx = current_str:find("%$[%a%d_]+")
             if not start_idx then break end
@@ -523,22 +627,14 @@ function M.setup(opts)
             end
             current_str = current_str:sub(end_idx + 1)
         end
-
         table.insert(res, { Text = current_str })
         table.insert(res, { Background = { Color = config.color_background } })
         table.insert(res, { Foreground = { Color = config.color_foreground } })
         table.insert(res, { Text       = config.separator_right })
-
+        -- ステータスバーの表示更新
         window:set_right_status(wezterm.format(res))
     end)
-
-    wezterm.on("toggle-status-format", function(window, pane)
-        state.format_index = state.format_index + 1
-        if state.format_index > #config.formats then
-            state.format_index = 1
-        end
-        window:invalidate()
-    end)
 end
+
 
 return M
