@@ -65,6 +65,7 @@ end
 --- 天気情報取得
 --- ==========================================
 
+
 -- 予報データから指定インデックスの天気IDと温度を抽出
 local function parse_forecast(data, index)
     if not data or not data.list then
@@ -266,21 +267,20 @@ local function get_sys_resources()
             "vm_stat",
         })
         if ok2 and out2 then
-            local page_size =
-                out2:match("page size of (%d+) bytes")
-            page_size = tonumber(page_size) or 4096
-            local free     = out2:match("Pages free:%s+(%d+)")
-            local inactive = out2:match("Pages inactive:%s+(%d+)")
-            local active   = out2:match("Pages active:%s+(%d+)")
-            local wired    = out2:match("Pages wired down:%s+(%d+)")
-            free     = tonumber(free) or 0
-            inactive = tonumber(inactive) or 0
-            active   = tonumber(active) or 0
-            wired    = tonumber(wired) or 0
+            local page_size  = out2:match("page size of (%d+) bytes")
+            page_size        = tonumber(page_size) or 4096
+            local free       = out2:match("Pages free:%s+(%d+)")
+            local inactive   = out2:match("Pages inactive:%s+(%d+)")
+            local active     = out2:match("Pages active:%s+(%d+)")
+            local wired      = out2:match("Pages wired down:%s+(%d+)")
+            free             = tonumber(free) or 0
+            inactive         = tonumber(inactive) or 0
+            active           = tonumber(active) or 0
+            wired            = tonumber(wired) or 0
             local free_bytes = (free + inactive) * page_size
             local used_bytes = (active + wired) * page_size
-            mem_f_val = free_bytes / 1024^3
-            mem_u_val = used_bytes / 1024^3
+            mem_f_val        = free_bytes / 1024^3
+            mem_u_val        = used_bytes / 1024^3
         end
     -- Linux
     else
@@ -302,8 +302,8 @@ local function get_sys_resources()
             irq     = tonumber(irq) or 0
             softirq = tonumber(softirq) or 0
             steal   = tonumber(steal) or 0
-            local total = user + nice + system + idle + iowait + irq + softirq + steal
-            local idle_all = idle + iowait
+            local total     = user + nice + system + idle + iowait + irq + softirq + steal
+            local idle_all  = idle + iowait
             if state.cpu_state.last_total ~= 0 then
                 local dt    = total - state.cpu_state.last_total
                 local didle = idle_all - state.cpu_state.last_idle
@@ -357,9 +357,9 @@ local function calc_net_speed()
     end
     -- 現在の受信バイト数を取得
     local curr_rx = 0
-    local triple = wezterm.target_triple
-    local is_win = triple:find("windows")
-    local is_mac = triple:find("darwin")
+    local triple  = wezterm.target_triple
+    local is_win  = triple:find("windows")
+    local is_mac  = triple:find("darwin")
     -- 各OS別の受信バイト数取得コマンド
     if is_win then
         -- Windows
@@ -427,7 +427,6 @@ local function calc_net_speed()
     -- 状態変数に保存
     state.net_state.disp_str = speed_str
     state.net_state.avg_str  = avg_str
-
     return speed_str, avg_str
 end
 
