@@ -686,7 +686,7 @@ function M.setup(opts)
             state.format_index = 1
         end
         wezterm.log_info("format switched to " .. state.format_index)
-        window:invalidate()
+        window:perform_action(wezterm.action.InvalidateCache, pane)
     end)
 
 
