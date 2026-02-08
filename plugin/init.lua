@@ -489,19 +489,20 @@ function M.setup(opts)
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
 ]]
+    -- フォーマット１
     local def_fmt1 =
         " $user_ic $user " ..
-        "$clock_ic $time24 " ..
-        "$cpu_ic $cpu $mem_ic $mem_used "
-
-    local def_fmt2 =
-        " $clock_ic $time24 " ..
-        "$weather_ic($temp) " ..
-        "$net_ic $net_speed($net_avg) " ..
+        "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
+        "$loc_ic $city($code) " ..
+        "$weather_ic($temp) "  ..
         "$batt_ic$batt_num "
-
-
-
+    -- フォーマット2
+    local def_fmt2 =
+        " $weather_ic($temp) "  ..
+        "+3h:$weather_ic_3h($temp_3h) " ..
+        "+24h:$weather_ic_24h($temp_24h) " ..
+        "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
+        "$net_ic $net_speed($net_avg) " ..
 
     -- 設定の初期化
     local config              = {
@@ -535,18 +536,9 @@ function M.setup(opts)
         local now        = os.time()
         -- スタートアップ待機中フラグ
         local is_waiting = (now - state.proc_start) < config.startup_delay
-
-
-
         -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
-        --local fmt_lower  = config.format:lower()
         local current_format = config.formats[state.format_index] or config.formats[1]
         local fmt_lower = current_format:lower()
-
-
-
-
-
         local use_weather =
             fmt_lower:find("$weather") or fmt_lower:find("$temp") or
             fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
@@ -636,14 +628,8 @@ function M.setup(opts)
             ["$batt_ic"] = batt_ic,
             ["$batt_num"] = batt_num,
         }
-        -- フォーマット文字列の置換
-
-
-        --local current_str = config.format
+        -- フォーマット文字列の解析と置換
         local current_str = current_format
-
-
-
         while true do
             local start_idx, end_idx = current_str:find("%$[<>]?[%a%d_]+")
             if not start_idx then break end
@@ -678,8 +664,7 @@ function M.setup(opts)
         -- ステータスバーの表示更新
         window:set_right_status(wezterm.format(res))
     end)
-
-
+    -- フォーマット切替用のキーイベント登録
     wezterm.on("toggle-status-format", function(window, pane)
         state.format_index = state.format_index + 1
         if state.format_index > #config.formats then
@@ -688,8 +673,6 @@ function M.setup(opts)
         wezterm.log_info("format switched to " .. state.format_index)
         window:perform_action(wezterm.action.InvalidateCache, pane)
     end)
-
-
 end
 
 
