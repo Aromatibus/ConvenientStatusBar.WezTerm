@@ -47,6 +47,7 @@ local state = {
         samples       = {}
     },
     net_update_interval = 3,
+    format_index = 1,
 }
 
 
@@ -476,6 +477,7 @@ end
 --- ==========================================
 function M.setup(opts)
     -- デフォルトのフォーマット文字列
+--[[
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
@@ -486,6 +488,20 @@ function M.setup(opts)
         "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
+]]
+    local def_fmt1 =
+        " $user_ic $user " ..
+        "$clock_ic $time24 " ..
+        "$cpu_ic $cpu $mem_ic $mem_used "
+
+    local def_fmt2 =
+        " $clock_ic $time24 " ..
+        "$weather_ic($temp) " ..
+        "$net_ic $net_speed($net_avg) " ..
+        "$batt_ic$batt_num "
+
+
+
 
     -- 設定の初期化
     local config              = {
@@ -505,7 +521,8 @@ function M.setup(opts)
         color_text              = (opts and opts.color_text) or "#ffffff",
         color_foreground        = (opts and opts.color_foreground) or "#7aa2f7",
         color_background        = (opts and opts.color_background) or "#1a1b26",
-        format                  = (opts and opts.format) or def_fmt,
+        --format                  = (opts and opts.format) or def_fmt,
+        formats = (opts and opts.formats) or { def_fmt1, def_fmt2 },
     }
     -- ネットワーク速度計算用のサンプル数を状態変数に保存
     state.net_avg_samples = config.net_avg_samples
@@ -518,8 +535,18 @@ function M.setup(opts)
         local now        = os.time()
         -- スタートアップ待機中フラグ
         local is_waiting = (now - state.proc_start) < config.startup_delay
+
+
+
         -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
-        local fmt_lower  = config.format:lower()
+        --local fmt_lower  = config.format:lower()
+        local current_format = config.formats[state.format_index] or config.formats[1]
+        local fmt_lower = current_format:lower()
+
+
+
+
+
         local use_weather =
             fmt_lower:find("$weather") or fmt_lower:find("$temp") or
             fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
@@ -610,47 +637,39 @@ function M.setup(opts)
             ["$batt_num"] = batt_num,
         }
         -- フォーマット文字列の置換
-        local current_str = config.format
+
+
+        --local current_str = config.format
+        local current_str = current_format
+
+
+
         while true do
             local start_idx, end_idx = current_str:find("%$[<>]?[%a%d_]+")
             if not start_idx then break end
+            -- トークン前の通常文字列
             table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
-            local token = current_str:sub(start_idx, end_idx):lower()
+            local raw_token = current_str:sub(start_idx, end_idx):lower()
+            -- デフォルトは通常表示（$token, $>token）
+            local mode = "normal"
+            local token = raw_token
+            if raw_token:sub(1, 2) == "$<" then
+                mode = "hide"
+                token = "$" .. raw_token:sub(3)   -- "$mem_ic" などに正規化
+            elseif raw_token:sub(1, 2) == "$>" then
+                mode = "normal"
+                token = "$" .. raw_token:sub(3)
+            end
             local val = replace_map[token] or token
-
-
-
-
-        local raw_token = current_str:sub(start_idx, end_idx):lower()
-
-        -- デフォルトは ">"（通常表示）
-        local mode = "normal"
-        local token = raw_token
-
-        if raw_token:sub(1, 2) == "$<" then
-            mode = "hide"
-            token = "$" .. raw_token:sub(3)
-        elseif raw_token:sub(1, 2) == "$>" then
-            mode = "normal"
-            token = "$" .. raw_token:sub(3)
-        end
-
-        local val = replace_map[token] or token
-
-        if mode == "hide" then
-            table.insert(res, { Foreground = { Color = config.color_background } })
-            table.insert(res, { Text = val })
-            table.insert(res, { Foreground = { Color = config.color_text } })
-        else
-            table.insert(res, { Text = val })
-        end
-
-
-
-
-
-
-        current_str = current_str:sub(end_idx + 1)
+            if mode == "hide" then
+                -- 文字色 = 背景色
+                table.insert(res, { Foreground = { Color = config.color_background } })
+                table.insert(res, { Text = val })
+                table.insert(res, { Foreground = { Color = config.color_text } })
+            else
+                table.insert(res, { Text = val })
+            end
+            current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
         table.insert(res, { Background = { Color = config.color_background } })
@@ -660,14 +679,16 @@ function M.setup(opts)
         window:set_right_status(wezterm.format(res))
     end)
 
+
     wezterm.on("toggle-status-format", function(window, pane)
-        wezterm.log_info("toggle-status-format fired")
         state.format_index = state.format_index + 1
         if state.format_index > #config.formats then
             state.format_index = 1
         end
+        wezterm.log_info("format switched to " .. state.format_index)
         window:invalidate()
     end)
+
 
 end
 
