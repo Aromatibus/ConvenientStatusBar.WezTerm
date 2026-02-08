@@ -564,6 +564,16 @@ function M.setup(opts)
         -- システムリソースの取得
         local cpu_u, mem_u, mem_f = "", "", ""
         if use_sys then cpu_u, mem_u, mem_f = get_sys_resources() end
+
+
+
+
+        wezterm.log_info("fmt_lower = " .. fmt_lower)
+        wezterm.log_info("use_sys = " .. tostring(use_sys))
+
+        wezterm.log_info("raw format = " .. current_format)
+
+
         -- バッテリー情報の取得
         local batt_ic, batt_num = "", ""
         if use_batt then batt_ic, batt_num = get_batt_disp() end
