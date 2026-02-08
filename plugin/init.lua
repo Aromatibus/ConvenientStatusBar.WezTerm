@@ -522,7 +522,7 @@ function M.setup(opts)
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         " $loc_ic $city($code) " ..
-        "$weather_ic($temp_ic$temp) ($weather_nd_afty_time:$weather_nd_afty_ic)"  ..
+        "($weather_ic/$temp_ic$temp) ($weather_nd_afty_time:$weather_nd_afty_ic) "  ..
         "$batt_ic$batt_num "
     -- フォーマット2
     local def_fmt2 =
