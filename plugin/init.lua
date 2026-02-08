@@ -540,12 +540,10 @@ function M.setup(opts)
         -- デフォルトまたは指定されたフォーマットで使用されていない処理は実行しない
         local current_format = config.formats[state.format_index] or config.formats[1]
         local fmt_lower = current_format:lower()
-        local use_weather =
-            fmt_lower:find("$weather") or fmt_lower:find("$temp") or
-            fmt_lower:find("$city") or fmt_lower:find("$loc_ic")
-        local use_net  = fmt_lower:find("$net")
-        local use_sys  = fmt_lower:find("$cpu") or fmt_lower:find("$mem")
-        local use_batt = fmt_lower:find("$batt")
+        local use_weather = fmt_lower:find("%$[<>]?(weather|temp|city|loc_ic)")
+        local use_sys     = fmt_lower:find("%$[<>]?(cpu|mem)")
+        local use_net     = fmt_lower:find("%$[<>]?net")
+        local use_batt    = fmt_lower:find("%$[<>]?batt")
         -- 天気APIキーの有無チェック
         local has_weather_api = config.weather_api_key and config.weather_api_key ~= ""
         -- 天気情報の更新
