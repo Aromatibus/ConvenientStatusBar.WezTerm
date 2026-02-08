@@ -15,7 +15,6 @@ local weather_icons = {
     thermometer = "",
     celsius     = "󰔄",
     fahrenheit  = "󰔅",
-    loading     = " ",
     unknown     = " ",
 }
 
@@ -23,14 +22,15 @@ local weather_icons = {
 --- ==========================================
 --- 状態管理用の変数
 --- ==========================================
+local loading_icon = " "
 local state = {
-    weather_ic           = weather_icons.loading,
-    city_name            = weather_icons.loading,
+    weather_ic           = loading_icon,
+    city_name            = loading_icon,
     city_code            = "",
     last_weather_upd     = 0,
     is_weather_ready     = false,
-    temp_ic              = weather_icons.loading,
-    temp_str             = string.format("%5s", weather_icons.loading),
+    temp_ic              = loading_icon,
+    temp_str             = string.format("%5s", loading_icon),
     weather_ic_3h        = "",
     temp_3h              = "",
     weather_ic_24h       = "",
@@ -45,8 +45,8 @@ local state = {
     net_state = {
         last_rx_bytes = 0,
         last_chk_time = os.time(),
-        disp_str      = string.format("%9s", weather_icons.loading),
-        avg_str       = string.format("%9s", weather_icons.loading),
+        disp_str      = string.format("%9s", loading_icon),
+        avg_str       = string.format("%9s", loading_icon),
         samples       = {},
     },
     net_update_interval = 3,
@@ -97,10 +97,10 @@ end
 -- 天気IDからアイコンを取得
 local function get_icon(weather_id)
     if not weather_id then return weather_icons.unknown end
-    if     weather_id < 300  then return weather_icons.thunder
-    elseif weather_id < 600  then return weather_icons.rain
-    elseif weather_id < 700  then return weather_icons.snow
-    elseif weather_id < 800  then return weather_icons.wind
+    if     weather_id <  300 then return weather_icons.thunder
+    elseif weather_id <  600 then return weather_icons.rain
+    elseif weather_id <  700 then return weather_icons.snow
+    elseif weather_id <  800 then return weather_icons.wind
     elseif weather_id == 800 then return weather_icons.clear
     else                          return weather_icons.clouds end
 end
@@ -251,6 +251,7 @@ local function fetch_weather_data(config)
     end
     -- 抽出結果の設定
     if nd_idx then
+        -- 天気IDとアイコンの取得
         local nd_id, _ = parse_forecast(data, nd_idx)
         state.weather_nd_afty_ic = get_icon(nd_id)
         -- 時間差計算
@@ -261,6 +262,7 @@ local function fetch_weather_data(config)
         state.weather_nd_afty_time =
             string.format("+%dh", diff_h)
     else
+        -- 該当データなし
         state.weather_nd_afty_ic   = weather_icons.unknown
         state.weather_nd_afty_time = ""
     end
@@ -548,15 +550,13 @@ end
 --- メイン
 --- ==========================================
 function M.setup(opts)
-    -- デフォルトのフォーマット文字列
-    -- フォーマット１
+    -- デフォルトのステータスバーフォーマット文字列
     local def_fmt1 =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
         " $loc_ic $city($code) " ..
-        "($weather_ic/$temp_ic$temp) ($weather_nd_afty_time:$weather_nd_afty_ic) "  ..
+        "($weather_ic/$temp_ic$temp) ($weather_nd_afty_time:$weather_nd_afty_ic) " ..
         "$batt_ic$batt_num "
-    -- フォーマット2
     local def_fmt2 =
         " Now:$weather_ic($temp_ic$temp) "  ..
         "+3h:$weather_ic_3h($temp_ic$temp_3h) " ..
@@ -661,7 +661,7 @@ function M.setup(opts)
             { Background = { Color = config.color_foreground } },
             { Foreground = { Color = config.color_text } },
         }
-        -- 置換マップ
+        -- フォーマット置換マップ
         local replace_map = {
             ["$user_ic"]        = user_icon,
             ["$user"]           = user_name,
