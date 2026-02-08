@@ -496,13 +496,14 @@ function M.setup(opts)
         "$loc_ic $city($code) " ..
         "$weather_ic($temp) "  ..
         "$batt_ic$batt_num "
+
     -- フォーマット2
     local def_fmt2 =
         " $weather_ic($temp) "  ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
         "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
-        "$net_ic $net_speed($net_avg) " ..
+        "$net_ic $net_speed($net_avg) "
 
     -- 設定の初期化
     local config              = {
