@@ -618,14 +618,42 @@ function M.setup(opts)
             table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
             local token = current_str:sub(start_idx, end_idx):lower()
             local val = replace_map[token] or token
-            if token == "$mem_free_ic" then
-                table.insert(res, { Foreground = { Color = config.color_background } })
-                table.insert(res, { Text = val })
-                table.insert(res, { Foreground = { Color = config.color_text } })
-            else
-                table.insert(res, { Text = val })
-            end
-            current_str = current_str:sub(end_idx + 1)
+
+
+
+        local raw_token = current_str:sub(start_idx, end_idx):lower()
+
+        -- デフォルトは ">"（通常表示）
+        local mode = "normal"
+        local token = raw_token
+
+        -- プレフィックス判定
+        if raw_token:sub(1, 2) == "$<" then
+            mode = "hide"
+            token = "$" .. raw_token:sub(3)   -- "$mem_free_ic" に正規化
+        elseif raw_token:sub(1, 2) == "$>" then
+            mode = "normal"
+            token = "$" .. raw_token:sub(3)   -- "$cpu" に正規化
+        end
+
+        local val = replace_map[token] or token
+
+        if mode == "hide" then
+            -- 文字色 = 背景色
+            table.insert(res, { Foreground = { Color = config.color_background } })
+            table.insert(res, { Text = val })
+            table.insert(res, { Foreground = { Color = config.color_text } })
+        else
+            -- "$token" / "$>token" は通常表示
+            table.insert(res, { Text = val })
+        end
+
+
+
+
+
+
+        current_str = current_str:sub(end_idx + 1)
         end
         table.insert(res, { Text = current_str })
         table.insert(res, { Background = { Color = config.color_background } })
