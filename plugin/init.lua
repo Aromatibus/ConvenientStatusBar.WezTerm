@@ -483,7 +483,7 @@ function M.setup(opts)
         "$weather_ic($temp) "  ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
-        "$cpu_ic $cpu $mem_used_ic $mem_used $mem_free_ic $mem_free " ..
+        "$cpu_ic $cpu $mem_ic $mem_used $<mem_ic $mem_free " ..
         "$net_ic $net_speed($net_avg) " ..
         "$batt_ic$batt_num "
 
@@ -600,9 +600,8 @@ function M.setup(opts)
             ["$temp_24h"] = state.temp_24h,
             ["$cpu_ic"] = "",
             ["$cpu"] = cpu_u,
-            ["$mem_used_ic"] = "",
+            ["$mem_ic"] = "",
             ["$mem_used"] = mem_u,
-            ["$mem_free_ic"] = "",
             ["$mem_free"] = mem_f,
             ["$net_ic"] = "󰓅",
             ["$net_speed"] = net_curr,
