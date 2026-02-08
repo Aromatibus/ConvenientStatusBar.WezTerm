@@ -479,7 +479,7 @@ function M.setup(opts)
     local def_fmt =
         " $user_ic $user " ..
         "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
-        "$loc_ic $city($code) " ..
+        "$loc_ic $<loc_ic $city($code) " ..
         "$weather_ic($temp) "  ..
         "+3h:$weather_ic_3h($temp_3h) " ..
         "+24h:$weather_ic_24h($temp_24h) " ..
@@ -618,6 +618,16 @@ function M.setup(opts)
             table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
             local token = current_str:sub(start_idx, end_idx):lower()
             local val = replace_map[token] or token
+
+
+            if string.sub(token, 1, 2) == "$<" then
+                table.insert(res, { Foreground = { Color = config.color_background } })
+                table.insert(res, { Text = val })
+                table.insert(res, { Foreground = { Color = config.color_text } })
+            else
+                table.insert(res, { Text = val })
+            end
+
             if token == "$mem_free_ic" then
                 table.insert(res, { Foreground = { Color = config.color_background } })
                 table.insert(res, { Text = val })
