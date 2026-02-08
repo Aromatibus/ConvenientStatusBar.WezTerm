@@ -68,23 +68,29 @@ end
 --- ==========================================
 
 
--- 予報データから指定インデックスの天気IDと温度を抽出
+-- forecastデータから天気ID、温度、日時を抽出
 local function parse_forecast(data, index)
+    -- データチェック
     if not data or not data.list then
-        return nil, nil
+        return nil, nil, nil
     end
+    -- 指定インデックスのエントリ取得
     local entry = data.list[index]
     if not entry then
-        return nil, nil
+        return nil, nil, nil
     end
+    -- 天気ID、温度、日時の抽出
     local weather_id =
             entry.weather
         and entry.weather[1]
         and entry.weather[1].id
+    -- 温度の抽出
     local temp =
         entry.main
         and entry.main.temp
-    return weather_id, temp
+    -- 日時の抽出
+    local dt = entry.dt
+    return weather_id, temp, dt
 end
 
 
@@ -100,31 +106,16 @@ local function get_icon(weather_id)
 end
 
 
--- 翌日12時までの時間(h)を計算（現時刻は1時間単位で切り上げ）
-local function calc_nextday_noon_hours()
-    local now      = os.time()
-    local now_tm   = os.date("*t", now)
-    -- 現在時刻を1時間単位で切り上げ
-    if now_tm.min > 0 or now_tm.sec > 0 then
-        now_tm.hour = now_tm.hour + 1
+-- 現在時刻を1時間単位で切り上げしたUNIX時刻を返す
+local function get_rounded_now()
+    local now = os.time()
+    -- いったん秒・分を切り捨て
+    local base = now - (now % 3600)
+    -- 1時間単位で切り上げ
+    if now % 3600 ~= 0 then
+        base = base + 3600
     end
-    now_tm.min = 0
-    now_tm.sec = 0
-    local rounded_now = os.time(now_tm)
-    -- 翌日12:00
-    local next_noon_tm = {
-        year  = now_tm.year,
-        month = now_tm.month,
-        day   = now_tm.day + 1,
-        hour  = 12,
-        min   = 0,
-        sec   = 0,
-        isdst = now_tm.isdst,
-    }
-    local next_noon = os.time(next_noon_tm)
-    local diff_sec = next_noon - rounded_now
-    local diff_h   = math.floor(diff_sec / 3600)
-    return diff_h
+    return base
 end
 
 
@@ -138,9 +129,12 @@ local function fetch_weather_data(config)
     local tgt_code = config.weather_country
     -- 都市名が設定されていない場合、IP情報から取得
     if not tgt_city or tgt_city == "" then
-        local ok, res = run_child_cmd({curl_cmd, "-s", "https://ipapi.co/json/"})
+        local ok, res = run_child_cmd({
+            curl_cmd, "-s", "https://ipapi.co/json/",
+        })
+        -- IP情報取得エラー
         if ok and res then
-            wezterm.log_info("ipapi = " .. res) -- デバッグ用ログ
+            wezterm.log_info("ipapi = " .. res)
             tgt_city = res:match('"city":%s*"([^"]+)"')
             tgt_code = res:match('"country_code":%s*"([^"]+)"')
         end
@@ -160,45 +154,38 @@ local function fetch_weather_data(config)
         return
     end
     -- クエリ文字列の作成
-    local query = tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
+    local query =
+        tgt_code ~= "" and (tgt_city .. "," .. tgt_code) or tgt_city
     -- APIリクエストURLの作成
     local url = string.format(
-        "https://api.openweathermap.org/data/2.5/forecast?appid=%s&lang=%s&q=%s&units=%s",
+        "https://api.openweathermap.org/data/2.5/forecast"
+            .. "?appid=%s&lang=%s&q=%s&units=%s",
         config.weather_api_key,
         config.weather_lang,
         query,
         config.weather_units
     )
     -- APIリクエストの実行
-    local ok, stdout = run_child_cmd({curl_cmd, "-s", url})
-    -- エラーチェック とメッセージフィールドでエラーの確認
+    local ok, stdout = run_child_cmd({ curl_cmd, "-s", url })
+    -- 通信エラー
     if not ok or not stdout then
-        wezterm.log_info("OpenWeatherMap = " .. stdout) -- デバッグ用ログ
-            state.weather_ic,
-            state.temp_ic,
-            state.temp_str,
-            state.city_name,
-            state.is_weather_ready =
-                weather_icons.unknown,
-                weather_icons.thermometer,
-                string.format("%5s", weather_icons.unknown),
-                tgt_city,
-                false
-            state.last_weather_upd = os.time()
+        wezterm.log_info("OpenWeatherMap = " .. tostring(stdout))
+        state.weather_ic,
+        state.temp_ic,
+        state.temp_str,
+        state.city_name,
+        state.is_weather_ready =
+            weather_icons.unknown,
+            weather_icons.thermometer,
+            string.format("%5s", weather_icons.unknown),
+            tgt_city,
+            false
+        state.last_weather_upd = os.time()
         return
     end
-    -- 翌日12時までの時間(h)
-    local nd_h = calc_nextday_noon_hours()
-    -- OpenWeatherMapは3時間刻みなのでインデックスに変換
-    local nd_idx = math.floor(nd_h / 3) + 1
-    -- 温度単位シンボル
-    local unit_sym =
-        config.weather_units == "metric"
-        and weather_icons.celsius
-        or weather_icons.fahrenheit
-    -- forecast取得
+    -- JSONパース
     local ok_json, data = pcall(wezterm.json_parse, stdout)
-    -- JSONパースエラーチェック
+    -- JSONパースエラー
     if not ok_json or not data or not data.list then
         state.weather_ic       = weather_icons.unknown
         state.temp_ic          = weather_icons.thermometer
@@ -207,6 +194,11 @@ local function fetch_weather_data(config)
         state.last_weather_upd = os.time()
         return
     end
+    -- 温度単位シンボル
+    local unit_sym =
+        config.weather_units == "metric"
+        and weather_icons.celsius
+        or weather_icons.fahrenheit
     -- 各時点の天気IDと温度の抽出
     local current_id, current_temp = parse_forecast(data, 1)
     local id3, temp3               = parse_forecast(data, 2)
@@ -215,30 +207,71 @@ local function fetch_weather_data(config)
     state.weather_ic = get_icon(current_id)
     state.temp_ic    = weather_icons.thermometer
     state.temp_str =
-        current_temp and
-        string.format("%4.1f%s", tonumber(current_temp), unit_sym)
+        current_temp
+        and string.format("%4.1f%s", tonumber(current_temp), unit_sym)
         or string.format("%5s", weather_icons.unknown)
     -- 3h後
     state.weather_ic_3h = get_icon(id3)
     state.temp_3h =
-        temp3 and
-        string.format("%4.1f%s", tonumber(temp3), unit_sym)
+        temp3
+        and string.format("%4.1f%s", tonumber(temp3), unit_sym)
         or ""
     -- 24h後
     state.weather_ic_24h = get_icon(id24)
     state.temp_24h =
-        temp24 and
-        string.format("%4.1f%s", tonumber(temp24), unit_sym)
+        temp24
+        and string.format("%4.1f%s", tonumber(temp24), unit_sym)
         or ""
-    -- 翌日12時の天気
-    local nd_id, _ = parse_forecast(data, nd_idx)
-    state.weather_nd_afty_ic = get_icon(nd_id)
-    state.weather_nd_afty_time = string.format("+%dh", nd_h)
+    -- 翌日12:00に最も近い予報を探索
+    local now_tm = os.date("*t", os.time())
+    local next_noon_tm = {
+        year  = now_tm.year,
+        month = now_tm.month,
+        day   = now_tm.day + 1,
+        hour  = 12,
+        min   = 0,
+        sec   = 0,
+        isdst = now_tm.isdst,
+    }
+    -- 翌月・翌年への繰り上げ処理
+    local next_noon = os.time(next_noon_tm)
+    local nd_idx   = nil
+    local nd_dt    = nil
+    local min_diff = math.huge
+    -- 予報リストから最も近いエントリを探索
+    for i, entry in ipairs(data.list) do
+        if entry.dt then
+            local diff = math.abs(entry.dt - next_noon)
+            if diff < min_diff then
+                min_diff = diff
+                nd_idx   = i
+                nd_dt    = entry.dt
+            end
+        end
+    end
+    -- 抽出結果の設定
+    if nd_idx then
+        local nd_id, _ = parse_forecast(data, nd_idx)
+        state.weather_nd_afty_ic = get_icon(nd_id)
+        -- 時間差計算
+        local rounded_now = get_rounded_now()
+        local diff_sec    = nd_dt - rounded_now
+        local diff_h      = math.floor(diff_sec / 3600)
+        -- 表示用文字列の作成
+        state.weather_nd_afty_time =
+            string.format("+%dh", diff_h)
+    else
+        state.weather_nd_afty_ic   = weather_icons.unknown
+        state.weather_nd_afty_time = ""
+    end
     -- APIからの都市名と国コードの抽出
     local api_name = data.city and data.city.name
     local api_code = data.city and data.city.country
     -- 都市名と国コードの設定
-    state.city_name, state.city_code, state.last_weather_upd, state.is_weather_ready =
+    state.city_name,
+    state.city_code,
+    state.last_weather_upd,
+    state.is_weather_ready =
         api_name or tgt_city,
         api_code or tgt_code or "",
         os.time(),
