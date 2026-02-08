@@ -659,6 +659,16 @@ function M.setup(opts)
         -- ステータスバーの表示更新
         window:set_right_status(wezterm.format(res))
     end)
+
+    wezterm.on("toggle-status-format", function(window, pane)
+        wezterm.log_info("toggle-status-format fired")
+        state.format_index = state.format_index + 1
+        if state.format_index > #config.formats then
+            state.format_index = 1
+        end
+        window:invalidate()
+    end)
+
 end
 
 
