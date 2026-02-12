@@ -19,6 +19,7 @@ function M.apply(config)
   -- ==========================================
   -- APIキー取得（環境変数）
   local OPEN_WEATHER_API_KEY = os.getenv("OPEN_WEATHER_API_KEY") or nil
+  wezterm.log_info("APIKey: " .. wezterm.to_string(OPEN_WEATHER_API_KEY))
 
   --local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
 
