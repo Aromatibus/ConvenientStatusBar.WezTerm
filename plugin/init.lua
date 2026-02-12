@@ -185,7 +185,7 @@ function M.setup(opts)
             alarm.start(window)
         end
         -- 現在時刻取得
-        local now        = os.time()
+        local now = os.time()
         -- 起動直後待機中フラグ
         local is_waiting =
             (now - state.proc_start) < config.startup_delay
@@ -201,12 +201,14 @@ function M.setup(opts)
         local use_sys     = fmt_lower:find("%$cpu")
                         or  fmt_lower:find("%$mem")
         local use_batt    = fmt_lower:find("%$batt")
-        -- 指定された曜日文字列を取得
+        -- 指定された曜日文字列（ローカル）
         local week_val = ""
         if fmt_lower:find("$week") then
             if config.week_str and type(config.week_str) == "table" then
                 local week_idx = tonumber(wezterm.strftime('%w'))
-                week_val = config.week_str[week_idx + 1] or wezterm.strftime('%a')
+                week_val =
+                    config.week_str[week_idx + 1]
+                    or wezterm.strftime('%a')
             else
                 week_val = wezterm.strftime('%a')
             end
@@ -235,6 +237,7 @@ function M.setup(opts)
             state.weather_nd_afty_ic   = ""
             state.weather_nd_afty_temp = ""
             state.is_weather_ready     = false
+            state.weather_timezone_sec = 0
         end
         -- 天気が表示されていて、起動直後でなく、更新条件を満たす場合のみ更新
         local diff = now - state.last_weather_upd
@@ -250,8 +253,7 @@ function M.setup(opts)
                     diff > config.weather_retry_interval
                 )
             )
-            -- 天気情報取得実行
-            if need_update then
+        if need_update then
             get_weather.get_weather(
                 config,
                 state,
@@ -266,7 +268,8 @@ function M.setup(opts)
         -- システムリソース取得
         local cpu_u, mem_u, mem_f = "", "", ""
         if use_sys then
-            cpu_u, mem_u, mem_f = get_sys.get_system_resource(state)
+            cpu_u, mem_u, mem_f =
+                get_sys.get_system_resource(state)
         end
         -- ネットワーク
         local net_curr, net_avg = "", ""
@@ -277,11 +280,12 @@ function M.setup(opts)
         -- バッテリー
         local batt_ic, batt_num = nil, nil
         if use_batt then
-            batt_ic, batt_num = get_power.get_power_supply()
+            batt_ic, batt_num =
+                get_power.get_power_supply()
         end
-        batt_ic = batt_ic or ""
+        batt_ic  = batt_ic  or ""
         batt_num = batt_num or ""
-        -- セパレータを設定
+        -- セパレータ
         local sep_left  = (config.separator and config.separator[1])
         local sep_right = (config.separator and config.separator[2])
         -- ステータスバーの左端文字列作成
@@ -292,7 +296,7 @@ function M.setup(opts)
             { Background = { Color = config.color_foreground } },
             { Foreground = { Color = config.color_text } },
         }
-        -- 現在時刻情報テーブル
+        -- 現在時刻情報テーブル（ローカル）
         local now_tm_str = {
             year     = wezterm.strftime("%Y"),
             month    = wezterm.strftime("%m"),
@@ -303,7 +307,7 @@ function M.setup(opts)
             hour12   = wezterm.strftime("%I"),
             minute   = wezterm.strftime("%M"),
         }
-        -- 天気地点の現地時刻情報テーブル
+        -- 天気地点の現地時刻情報テーブル（wx）
         local wx_tm_str = {
             year   = "",
             month  = "",
@@ -314,16 +318,17 @@ function M.setup(opts)
             hour12 = "",
             minute = "",
         }
-        -- 天気地点の現地時刻を取得できない場合は、UTCオフセット0の時刻を表示する
+        local wx_week_val = ""
         if state.weather_timezone_sec and state.weather_timezone_sec ~= 0 then
             ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
             local utc_param = "!*t"
+            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
             local utc_tbl  = os.date(utc_param)
             ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
             local now_utc  = os.time(utc_tbl)
             local wx_local_time =
                 now_utc + state.weather_timezone_sec
-                wx_tm_str = {
+            wx_tm_str = {
                 year   = os.date("%Y", wx_local_time),
                 month  = os.date("%m", wx_local_time),
                 day    = os.date("%d", wx_local_time),
@@ -333,17 +338,6 @@ function M.setup(opts)
                 hour12 = os.date("%I", wx_local_time),
                 minute = os.date("%M", wx_local_time),
             }
-        end
-        -- 天気地点の曜日文字列
-        local wx_week_val = ""
-        if state.weather_timezone_sec and state.weather_timezone_sec ~= 0 then
-            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
-            local utc_param = "!*t"
-            local utc_tbl  = os.date(utc_param)
-            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
-            local now_utc  = os.time(utc_tbl)
-            local wx_local_time =
-                now_utc + state.weather_timezone_sec
             local wx_week_idx =
                 tonumber(os.date("%w", wx_local_time))
             if config.week_str and type(config.week_str) == "table" then
@@ -372,8 +366,6 @@ function M.setup(opts)
             ["$hour24"]           = now_tm_str.hour24,
             ["$hour12"]           = now_tm_str.hour12,
             ["$minute"]           = now_tm_str.minute,
-            ["$next_alarm"]       = timer_enabled and alarm.get_next_alarm() or "",
-            ["$time_until_alarm"] = timer_enabled and alarm.get_minutes_until_next_alarm() or "",
             ["$wx_year"]          = wx_tm_str.year,
             ["$wx_month"]         = wx_tm_str.month,
             ["$wx_day"]           = wx_tm_str.day,
@@ -383,6 +375,8 @@ function M.setup(opts)
             ["$wx_hour24"]        = wx_tm_str.hour24,
             ["$wx_hour12"]        = wx_tm_str.hour12,
             ["$wx_minute"]        = wx_tm_str.minute,
+            ["$next_alarm"]       = timer_enabled and alarm.get_next_alarm() or "",
+            ["$time_until_alarm"] = timer_enabled and alarm.get_minutes_until_next_alarm() or "",
             ["$loc_ic"]           = has_weather_api and "" or "",
             ["$city"]             = has_weather_api and state.city_name or "",
             ["$code"]             = has_weather_api and state.city_code or "",
@@ -414,20 +408,29 @@ function M.setup(opts)
         -- トークン置換処理
         local current_str = current_format
         while true do
-            local start_idx, end_idx = current_str:find("%$[<>]?[%a%d_]+")
+            local start_idx, end_idx =
+                current_str:find("%$[<>]?[%a%d_]+")
             if not start_idx then break end
-            -- トークン前の通常文字列
-            table.insert(res, { Text = current_str:sub(1, start_idx - 1) })
-            local token = current_str:sub(start_idx, end_idx):lower()
+            table.insert(
+                res,
+                { Text = current_str:sub(1, start_idx - 1) }
+            )
+            local token =
+                current_str:sub(start_idx, end_idx):lower()
             local val = replace_map[token] or ""
             table.insert(res, { Text = val })
             current_str = current_str:sub(end_idx + 1)
         end
-        -- トークン後の通常文字列
         table.insert(res, { Text = current_str })
         -- ステータスバーの右端文字列作成
-        table.insert(res, { Background = { Color = config.color_background } })
-        table.insert(res, { Foreground = { Color = config.color_foreground } })
+        table.insert(
+            res,
+            { Background = { Color = config.color_background } }
+        )
+        table.insert(
+            res,
+            { Foreground = { Color = config.color_foreground } }
+        )
         table.insert(res, { Text = sep_right })
         -- ステータスバーを指定された位置に表示
         if config.status_position == "right" then
@@ -436,6 +439,7 @@ function M.setup(opts)
             window:set_left_status(wezterm.format(res))
         end
     end)
+
 
     --- ======================================
     --- フォーマット切替イベント
