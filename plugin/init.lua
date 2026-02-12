@@ -151,7 +151,7 @@ function M.setup(opts)
   --- ======================================
   -- DEBUG: Configの値を出力
   --- ======================================
-  -- wezterm.log_info("Config: " .. wezterm.to_string(config))
+  wezterm.log_info("Config: " .. wezterm.to_string(config))
 
   --- ======================================
   -- ステータス変数へ反映
