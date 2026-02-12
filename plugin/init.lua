@@ -309,32 +309,28 @@ function M.setup(opts)
         }
         -- 天気地点の現地時刻情報テーブル（wx）
         local wx_tm_str = {
-            year   = "",
-            month  = "",
-            day    = "",
-            time24 = "",
-            time12 = "",
-            hour24 = "",
-            hour12 = "",
-            minute = "",
+            year   = weather_icons.unknown,
+            month  = weather_icons.unknown,
+            day    = weather_icons.unknown,
+            time24 = weather_icons.unknown,
+            time12 = weather_icons.unknown,
+            hour24 = weather_icons.unknown,
+            hour12 = weather_icons.unknown,
+            minute = weather_icons.unknown,
         }
-
-        -- DEBUG: タイムゾーン取得状況出力
-        wezterm.log_info(
-            "timezone=" .. tostring(state.weather_timezone_sec)
-        )
-
-        -- 天気地点の曜日文字列（wx）
-        local wx_week_val = ""
-        if state.weather_timezone_sec ~= nil then
-            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+        local wx_week_val = weather_icons.unknown
+        -- 天気情報が正常に取得できている場合のみ wx を計算
+        if has_weather_api
+            and state.is_weather_ready
+            and state.weather_timezone_sec ~= nil then
+            ---@diagnostic disable-next-line: param-type-mismatch
             local utc_param = "!*t"
-            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            ---@diagnostic disable-next-line: param-type-mismatch
             local utc_tbl  = os.date(utc_param)
-            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            ---@diagnostic disable-next-line: param-type-mismatch
             local now_utc  = os.time(utc_tbl)
             local wx_local_time =
-                now_utc + state.weather_timezone_sec
+                now_utc + (state.weather_timezone_sec or 0)
             wx_tm_str = {
                 year   = os.date("%Y", wx_local_time),
                 month  = os.date("%m", wx_local_time),
@@ -348,15 +344,15 @@ function M.setup(opts)
             local wx_week_idx =
                 tonumber(os.date("%w", wx_local_time))
             if config.week_str and type(config.week_str) == "table" then
-                wx_week_val = tostring(
+                wx_week_val = tostring (
                     config.week_str[wx_week_idx + 1]
-                        or os.date("%a", wx_local_time)
+                    or os.date("%a", wx_local_time)
                 )
-            else
-                wx_week_val = tostring(
+                  else
+                wx_week_val = tostring (
                     os.date("%a", wx_local_time)
                 )
-            end
+              end
         end
         -- フォーマット文字列の置換
         local replace_map = {

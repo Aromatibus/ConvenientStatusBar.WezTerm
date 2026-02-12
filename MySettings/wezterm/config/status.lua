@@ -40,7 +40,7 @@ function M.apply(config)
     weather_api_key         = "88989d7e3460606958812933b3209599",
     weather_lang            = "",
     weather_country         = "",
-    weather_city            = "london",
+    weather_city            = "kyiv",
     color_text              = "#1A1B00",
     color_foreground        = "#70B0FF",
     color_background        = "#1A1B00",
