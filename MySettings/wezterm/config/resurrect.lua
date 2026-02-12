@@ -16,8 +16,8 @@ function M.apply(config)
   -- 起動時に自動復元
   wezterm.on("gui-startup", function(cmd)
     if resurrect
-      and resurrect.state_manager
-      and resurrect.state_manager.resurrect_on_gui_startup
+        and resurrect.state_manager
+        and resurrect.state_manager.resurrect_on_gui_startup
     then
       resurrect.state_manager.resurrect_on_gui_startup(cmd)
     end
@@ -31,11 +31,11 @@ function M.apply(config)
       return
     end
     if not (
-      resurrect
-      and resurrect.state_manager
-      and resurrect.workspace_state
-      and resurrect.workspace_state.get_workspace_state
-    ) then
+          resurrect
+          and resurrect.state_manager
+          and resurrect.workspace_state
+          and resurrect.workspace_state.get_workspace_state
+        ) then
       return
     end
     local ok, err = pcall(function()
@@ -53,11 +53,11 @@ function M.apply(config)
   -- GUI終了時に保存
   wezterm.on('gui-shutdown', function()
     if not (
-      resurrect
-      and resurrect.state_manager
-      and resurrect.workspace_state
-      and resurrect.workspace_state.get_workspace_state
-    ) then
+          resurrect
+          and resurrect.state_manager
+          and resurrect.workspace_state
+          and resurrect.workspace_state.get_workspace_state
+        ) then
       return
     end
     local ok, err = pcall(function()
@@ -70,6 +70,5 @@ function M.apply(config)
     end
   end)
 end
-
 
 return M

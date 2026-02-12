@@ -179,9 +179,9 @@ return {
   },
 
 
--- ==========================================================
--- キーバインド設定
--- ==========================================================
+  -- ==========================================================
+  -- キーバインド設定
+  -- ==========================================================
   key_tables = {
 
     -- ==========================================================
@@ -224,7 +224,7 @@ return {
         action = act.Multiple({ { CopyTo = "ClipboardAndPrimarySelection" }, { CopyMode = "Close" } }),
       },
       { key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
-      { key = "q", mods = "NONE", action = act.CopyMode("Close") },
+      { key = "q",      mods = "NONE", action = act.CopyMode("Close") },
     },
   },
 }

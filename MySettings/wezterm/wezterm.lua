@@ -73,7 +73,7 @@ local function get_default_prog()
   if wezterm.target_triple:find("windows") then
     local current_drive = wezterm.executable_dir:match("(%a:)") or "C:"
     local profile_path =
-      current_drive .. "\\DevTools\\PowerShell\\.pwsh\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+        current_drive .. "\\DevTools\\PowerShell\\.pwsh\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
     local pwsh_path = current_drive .. "\\DevTools\\PowerShell\\bin\\pwsh.exe"
     return {
       pwsh_path, "-ExecutionPolicy", "RemoteSigned",
@@ -118,20 +118,20 @@ local cp = colors.cp
 -- [Window / Display / Appearance]
 -- ==========================================================
 config.automatically_reload_config = true
-config.tab_bar_at_bottom = false
-config.window_decorations = "RESIZE" -- "TITLE | RESIZE"
-config.max_fps = 120
-config.use_ime = true
+config.tab_bar_at_bottom           = false
+config.window_decorations          = "RESIZE" -- "TITLE | RESIZE"
+config.max_fps                     = 120
+config.use_ime                     = true
 
 -- [Visual]
-config.window_background_opacity = 0.96
-local PAD_CELL = '0.5cell'
-config.window_padding = {
+config.window_background_opacity   = 0.96
+local PAD_CELL                     = '0.5cell'
+config.window_padding              = {
   left = PAD_CELL, right = PAD_CELL, top = PAD_CELL, bottom = PAD_CELL,
 }
-local FRAME_COLOR = cp.split
-local FRAME_SIZE  = '3px'
-config.window_frame = {
+local FRAME_COLOR                  = cp.split
+local FRAME_SIZE                   = '3px'
+config.window_frame                = {
   border_top_height    = FRAME_SIZE,
   border_bottom_height = FRAME_SIZE,
   border_left_width    = FRAME_SIZE,
@@ -143,33 +143,33 @@ config.window_frame = {
 }
 
 -- [Brightness inactive pane]
-config.inactive_pane_hsb = {
+config.inactive_pane_hsb           = {
   saturation = 0.3,
   brightness = 0.5,
   hue        = 1.8,
 }
 
 -- [Cursor]
-config.default_cursor_style = "BlinkingBar"
-config.cursor_thickness = '0.1cell'
+config.default_cursor_style        = "BlinkingBar"
+config.cursor_thickness            = '0.1cell'
 
 -- [Characters]
-config.initial_cols = 160
-config.initial_rows = 31
-config.line_height  = 1.1
+config.initial_cols                = 160
+config.initial_rows                = 31
+config.line_height                 = 1.1
 
 -- [Font]
-config.font_shaper = 'Harfbuzz'
-config.freetype_load_flags = 'NO_HINTING'
-config.font_size = 12.0
-config.font = wezterm.font_with_fallback({
+config.font_shaper                 = 'Harfbuzz'
+config.freetype_load_flags         = 'NO_HINTING'
+config.font_size                   = 12.0
+config.font                        = wezterm.font_with_fallback({
   { family = "HackGen Console NF", weight = "Regular" },
-  { family = "Consolas", weight = "Regular" },
+  { family = "Consolas",           weight = "Regular" },
   "monospace",
 })
 
 -- [Gradient background]
-config.window_background_gradient = {
+config.window_background_gradient  = {
   orientation = 'Vertical',
   --orientation = { Linear = { angle = -45.0 } },
   interpolation = 'Linear',
@@ -213,7 +213,7 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
   -- プロセス名（シェル名）を取得して.exeを削除
   local title = tab.active_pane.title:gsub("%.[eE][xX][eE]$", "")
 
-    -- 番号を付与
+  -- 番号を付与
   local index = tab.tab_index + 1
   local display_text = string.format("%d: %s", index, title)
 
@@ -223,12 +223,12 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
     display_text = display_text .. string.rep(" ", TAB_STYLE.size_min - #display_text)
   end
 
-    -- アクティブ、非アクティブで色を変える
+  -- アクティブ、非アクティブで色を変える
   local current_tab_color = tab.is_active
-    and config.colors.tab_bar.active_tab.bg_color
-    or  config.colors.tab_bar.inactive_tab.bg_color
+      and config.colors.tab_bar.active_tab.bg_color
+      or config.colors.tab_bar.inactive_tab.bg_color
 
-    -- タブの文字色をアクティブタブの文字色に合わせる
+  -- タブの文字色をアクティブタブの文字色に合わせる
   local current_fg_color = config.colors.tab_bar.active_tab.fg_color
 
   -- 描画
