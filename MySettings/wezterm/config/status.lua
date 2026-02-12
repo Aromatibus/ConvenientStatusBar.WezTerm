@@ -1,0 +1,229 @@
+local wezterm = require 'wezterm'
+local M = {}
+
+
+-- 設定リロード時の多重登録防止フラグ
+local registered = false
+
+
+function M.apply(config)
+  -- 多重登録防止
+  if registered then
+    return
+  end
+  registered = true
+
+  -- ==========================================================
+  -- [Right Status]
+  -- ==========================================================
+
+  -- ==========================================
+  -- ステータスバープラグイン読み込み
+  -- ==========================================
+  local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
+
+  -- ==========================================
+  -- シンプル
+  -- ==========================================
+  -- ConvenientStatusBar.setup({formats = {" $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $batt_ic$batt_num ",""}})
+
+  -- ==========================================
+  -- シンプル・アラーム付き
+  -- ==========================================
+  --[[
+  ConvenientStatusBar.setup({
+    formats = {" $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 (Alarm:$next_alarm) $batt_ic$batt_num ",""},
+    timer = {
+      alarm1                = "12:00",
+      alarm2                = "18:00",
+      hourly                = true,
+      beep                  = true,
+      flash                 = true,
+      flash_color          = "#FFFFFF",
+    },
+  })
+  ]]
+  -- ==========================================
+  -- 天気情報付き
+  -- ==========================================
+  --[[
+  ConvenientStatusBar.setup({
+    weather_api_key         = "88989d7e3460606958812933b3209599",
+    formats = {
+      -- フォーマット1
+      " $user_ic $user " ..
+      "$cal_ic $year.$month.$day($week) $clock_ic $time12 (alarm:$next_alarm) " ..
+      " $loc_ic $city($code) " ..
+      "($weather_ic/$temp_ic$temp) " ..
+      "$batt_ic$batt_num ",
+      " Now($weather_ic/$temp_ic$temp) "  ..
+      "+3h($weather_ic_3h/$temp_ic$temp_3h) " ..
+      "+6h($weather_ic_6h/$temp_ic$temp_6h) " ..
+      "+9h($weather_ic_9h/$temp_ic$temp_9h) " ..
+      "+12h($weather_ic_12h/$temp_ic$temp_12h) " ..
+      "NextAfty:$weather_nd_afty_time($weather_nd_afty_ic/$temp_ic$weather_nd_afty_temp) ",
+    }
+  })
+  ]]
+
+  -- ==========================================
+  -- だいたい全部入り
+  -- ==========================================
+  --[[
+  ConvenientStatusBar.setup({
+    formats = {
+      -- フォーマット1
+      " $user_ic $user " ..
+      "$cal_ic $year.$month.$day($week) $clock_ic $time12 Alarm:$next_alarm ($time_until_alarm min) " ..
+      " $loc_ic $city($code) " ..
+      "($weather_ic/$temp_ic$temp) " ..
+      "$cpu_ic $cpu $mem_ic $mem_free " ..
+      "$net_ic $net_speed($net_avg) " ..
+      "$batt_ic$batt_num ",
+      -- フォーマット2
+      " Now:($weather_ic/$temp_ic$temp) "  ..
+      "+3h:($weather_ic_3h/$temp_ic$temp_3h) " ..
+      "+6h:($weather_ic_6h/$temp_ic$temp_6h) " ..
+      "+9h:($weather_ic_9h/$temp_ic$temp_9h) " ..
+      "+12h:($weather_ic_12h/$temp_ic$temp_12h) " ..
+      "NextAfterNoon $weather_nd_afty_time:($weather_nd_afty_ic/$temp_ic$weather_nd_afty_temp) ",
+    },
+
+    timer = {
+      alarm1                = "12:00",
+      alarm2                = "18:00",
+      hourly                = true,
+      beep                  = true,
+      flash                 = true,
+      flash_color          = "#FFFFFF",
+    },
+    --weather_api_key         = "",
+    --weather_api_key         = "あなたのAPIキー",
+    weather_api_key         = "88989d7e3460606958812933b3209599",
+    weather_lang            = "",
+    weather_country         = "jp",
+    weather_city            = "Marunouchi",
+    weather_units           = "metric",
+    weather_update_interval = 600,
+    weather_retry_interval  = 30,
+    net_update_interval     = 3,
+    net_avg_samples         = 20,
+    startup_delay           = 5,
+
+    color_text              = "#1A1B00",
+    color_foreground        = "#70B0FF",
+    color_background        = "#1A1B00",
+    status_position         = "right", -- "right" or "left"
+    separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "|", "|"},
+    --separator = { "⟦", "⟧"},
+    --separator = { "[", "]"},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --week_str = {"日","一","二","三","四","五","六"}, -- Chinese
+    --week_str = {"Dom","Lun","Mar","Mié","Jue","Vie","Sáb"}, -- Spanish
+    --week_str = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"}, -- English
+    --week_str = {"रवि","सोम","मंगल","बुध","गुरु","शुक्र","शनि"}, -- Hindi
+    --week_str = {"রবি","সোম","मंगल","বুধ","বৃহ","শুক্র","শনি"}, -- Bengali
+    --week_str = {"Dom","2ª","3ª","4ª","5ª","6ª","Sáb"}, -- Portuguese
+    --week_str = {"ح","اث","ث","أر","خ","ج","س"}, -- Arabic
+    --week_str = {"Вс","Пн","Вт","Ср","Чт","Пт","Сб"}, -- Russian
+    week_str = {"日","月","火","水","木","金","土"}, -- Japanese
+    --week_str = {"ਐਤ","ਸੋਮ","ਮੰਗਲ","ਬੁੱਧ","ਵੀਰ","ਸ਼ੁੱਕਰ","ਸ਼ਨੀ"}, -- Punjabi
+    --week_str = {"रवि","सोम","मंग","बुध","गुरू","शुक्र","शनि"}, -- Marathi
+    --week_str = {"ఆది","సోమ","మంగళ","బుధ","గురు","శుక్ర","శని"}, -- Telugu
+    --week_str = {"Ngah","Sen","Sel","Reb","Kem","Jum","Set"}, -- Javanese
+    --week_str = {"CN","T2","T3","T4","T5","T6","T7"}, -- Vietnamese
+    --week_str = {"So","Mo","Di","Mi","Do","Fr","Sa"}, -- German
+    --week_str = {"일","월","화","수","목","금","토"}, -- Korean
+    --week_str = {"Dim","Lun","Mar","Mer","Jeu","Ven","Sam"}, -- French
+    --week_str = {"Dom","Lun","Mar","Mer","Gio","Ven","Sab"}, -- Italian
+    --week_str = {"อา.","จ.","อ.","พ.","พฤ.","ศ.","ส."}, -- Thai
+    --week_str = {"Jpili","Jtt","Jnn","Jta","Alham","Jma","Jmos"}, -- Swahili
+    --week_str = {"Min","Sen","Sel","Rab","Kam","Jum","Sab"}, -- Indonesian
+    --week_str = {"nd","pn","wt","śr","cz","pt","sb"}, -- Polish
+    --week_str = {"Нд","Пн","Вт","Ср","Чт","Пт","Сб"}, -- Ukrainian
+    --week_str = {"sön","mån","tis","ons","tors","fre","lör"}, -- Swedish
+    --week_str = {"su","ma","ti","ke","to","pe","la"}, -- Finnish
+  })
+  ]]
+
+
+  ConvenientStatusBar.setup({
+    formats = {
+      " $user_ic $user " ..
+      "$cal_ic $year.$month.$day($week) $clock_ic $time12 " ..
+      " $loc_ic $city($code) " ..
+      "($weather_ic/$temp_ic$temp) " ..
+      "$batt_ic$batt_num ",
+    ""},
+
+    weather_api_key         = "88989d7e3460606958812933b3209599",
+    weather_lang            = "",
+    weather_country         = "",
+    weather_city            = "London",
+    color_text              = "#1A1B00",
+    color_foreground        = "#70B0FF",
+    color_background        = "#1A1B00",
+    separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "|", "|"},
+    --separator = { "⟦", "⟧"},
+    --separator = { "[", "]"},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --week_str = {"一","二","三","四","五","六","日"},                     -- "China","CN","Beijing"
+    --week_str = {"lun.","mar.","mié.","jue.","vie.","sáb.","dom."},       -- "Spain","ES","Madrid"
+    --week_str = {"Mon","Tue","Wed","Thu","Fri","Sat","Sun"},              -- "United States","US","Washington D.C."
+    --week_str = {"सोम","मंगल","बुध","गुरु","शुక్ర","शनि","रवि"},              -- "India","IN","New Delhi"
+    --week_str = {"সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি","রবি"},        -- "Bangladesh","BD","Dhaka"
+    --week_str = {"seg.","ter.","qua.","qui.","sex.","sáb.","dom."},       -- "Brazil","BR","Brasilia"
+    --week_str = {"Пн","Вт","Ср","Чт","Пт","Сб","Вс"},                     -- "Russia","RU","Moscow"
+    --week_str = {"月","火","水","木","金","土","日"},                     -- "Japan","JP","Tokyo"
+    --week_str = {"T2","T3","T4","T5","T6","T7","CN"},                     -- "Vietnam","VN","Hanoi"
+    --week_str = {"सोम","मंगळ","बुध","गुरू","शुक्र","शनी","रवी"},              -- "India","IN","Mumbai"
+    --week_str = {"సోమ","మంగళ","బుధ","గురు","శుక్ర","శని","ఆది"},       -- "India","IN","Hyderabad"
+    --week_str = {"Pzt","Sal","Çar","Per","Cum","Cmt","Paz"},              -- "Turkey","TR","Ankara"
+    --week_str = {"திங்","செவ்","புத","வியா","வெள்","சனி","ஞாயி"}, -- "India","IN","Chennai"
+    --week_str = {"월","화","수","목","금","토","일"},                      -- "South Korea","KR","Seoul"
+    --week_str = {"lun.","mar.","mer.","jeu.","ven.","sam.","dim."},       -- "France","FR","Paris"
+    --week_str = {"Mo","Di","Mi","Do","Fr","Sa","So"},                     -- "Germany","DE","Berlin"
+    --week_str = {"پیر","منگل","بدھ","جمعرات","جمعہ","ہفتہ","اتوار"},         -- "Pakistan","PK","Islamabad"
+    --week_str = {"Sen","Sel","Rab","Kam","Jum","Sep","Aha"},              -- "Indonesia","ID","Jakarta"
+    --week_str = {"lun","mar","mer","gio","ven","sab","dom"},              -- "Italy","IT","Rome"
+    --week_str = {"સોમ","મંગળ","બુધ","ગુરુ","શુક્ર","શનિ","રવિ"},             -- "India","IN","Gandhinagar"
+  })
+
+end
+
+
+return M

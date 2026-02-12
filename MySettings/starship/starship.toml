@@ -1,0 +1,184 @@
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+[](red)\
+$os\
+[](bg:peach fg:red)\
+$directory\
+[](bg:yellow fg:peach)\
+$git_branch\
+$git_status\
+[](fg:yellow bg:green)\
+$c$cpp$dotnet$python$rust$java$golang$haskell$lua$kotlin$nodejs$php$perl\
+[](fg:green bg:sapphire)\
+$conda$docker_context\
+[](fg:sapphire bg:blue)\
+$time\
+[ ](fg:blue)\
+$cmd_duration\
+$line_break\
+$character"""
+
+palette = 'dark'
+
+[palettes.light]
+red          = "#FF8070"
+peach        = "#FfB090"
+yellow       = "#F0E0A0"
+green        = "#A6E3A0"
+sapphire     = "#80C8E0"
+blue         = "#70B0FF"
+text         = "#F0F0F0"
+tab_text     = "#606070"
+tab_inactive = "#E0E0E0"
+log_success  = "#787878"
+log_failure  = "#FF8800"
+base_bg      = "#FDFFCD"
+
+[palettes.dark]
+red         = "#FF8070"
+peach       = "#FFB090"
+yellow      = "#F0E0A0"
+green       = "#A6E3A0"
+sapphire    = "#80C8E0"
+blue        = "#70B0FF"
+text        = "#1A1B00"
+tab_text    = "#1A1B00"
+log_success = "#787878"
+log_failure = "#FF8800"
+base_bg     = "#1A1B30"
+
+[os]
+disabled = false
+style = "bg:red fg:text"
+format = "[$symbol]($style)"
+
+[os.symbols]
+Alpine  = " "
+Amazon  = " "
+Android = " "
+Arch    = "󰣇 "
+CentOS  = " "
+Debian  = "󰣚 "
+Fedora  = "󰣛 "
+Gentoo  = "󰣨 "
+Linux   = "󰌽 "
+Macos   = "  "
+Manjaro = " "
+Mint    = "󰣭 "
+Redhat  = "󱄛 "
+Ubuntu  = "󰕈 "
+Windows = " "
+
+[directory]
+style = "bg:peach fg:text"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncation_symbol = "…/"
+fish_style_pwd_dir_length = 1
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music" = "󰝚 "
+"Pictures" = " "
+"Developer" = "󰲋 "
+
+[git_branch]
+symbol = " "
+style = "bg:yellow fg:text"
+format = '[ $symbol $branch ]($style)'
+
+[git_status]
+style = "bg:yellow fg:text"
+format = '[$all_status$ahead_behind ]($style)'
+
+[c]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[cpp]
+symbol = " "
+style = "bg:green"
+format = '[ $symbol ($version) ]($style)'
+
+[dotnet]
+symbol = " "
+style = "bg:purple"
+format = '[ $symbol ($version) ]($style)'
+detect_extensions = ["cs", "csproj", "sln"]
+
+[python]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version)(\(#$virtualenv\)) ](fg:text bg:green)]($style)'
+
+[rust]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[java]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[golang]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[haskell]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[lua]
+symbol = " "
+format = '[  $symbol $version](blue)' # nf-pl-right_soft_divider
+
+[kotlin]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[nodejs]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[php]
+symbol = " "
+style = "bg:green"
+format = '[[ $symbol( $version) ](fg:text bg:green)]($style)'
+
+[perl]
+symbol = " "
+style = "bg:blue"
+format = '[[ $symbol( $version) ](fg:text bg:blue)]($style)'
+
+[conda]
+symbol = "  "
+style = "fg:text bg:sapphire"
+format = '[$symbol$environment ]($style)'
+ignore_base = false
+
+[docker_context]
+symbol = " "
+style = "bg:sapphire"
+format = '[[ $symbol( $context) ](fg:text bg:sapphire)]($style)'
+
+[time]
+disabled = false
+time_format = "%R"
+style = "bg:blue fg:text"
+format = '[  $time ]($style)'
+
+[cmd_duration]
+style = "fg:blue"
+format = "󱎫 $duration "
+
+[character]
+success_symbol = '[❯](bold sapphire)'
+error_symbol = '[❯](bold red)'

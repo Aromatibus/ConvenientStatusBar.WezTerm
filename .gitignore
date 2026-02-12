@@ -1,0 +1,9 @@
+.crossnote/
+.vscode/
+.editorconfig
+
+*.bat
+*.exe
+
+# MySettings/
+# docs/
