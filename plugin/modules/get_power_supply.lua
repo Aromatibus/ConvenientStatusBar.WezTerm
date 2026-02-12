@@ -1,5 +1,5 @@
-local M       = {}
 local wezterm = require 'wezterm'
+local M       = {}
 
 
 --- ==========================================
@@ -16,5 +16,6 @@ function M.get_power_supply()
       p >= 30 and "󱊤" or "󰢟"
   return icon, string.format("%.0f%%", p)
 end
+
 
 return M

@@ -1,31 +1,39 @@
+local wezterm = require "wezterm"
 local M       = {}
-local wezterm = require 'wezterm'
 
 
 --- ==========================================
 --- 外部モジュール読み込み用のパスを設定
 --- ==========================================
 local plugin_path =
-    wezterm.plugin.list()[1].plugin_dir .. "/plugin/?.lua"
+  wezterm.plugin.list()[1].plugin_dir .. "/plugin/?.lua"
 package.path = plugin_path .. ";" .. package.path
 
 
 --- ==========================================
 --- 外部モジュール読み込み
 --- ==========================================
-local get_weather = require('modules.get_weather')
-local get_sys     = require('modules.get_system_resource')
-local get_net     = require('modules.get_net_speed')
-local get_user    = require('modules.get_user')
-local get_power   = require('modules.get_power_supply')
-local alarm       = require('modules.alarm')
+local get_weather = require("modules.get_weather")
+local get_sys     = require("modules.get_system_resource")
+local get_net     = require("modules.get_net_speed")
+local get_user    = require("modules.get_user")
+local get_power   = require("modules.get_power_supply")
+local alarm       = require("modules.alarm")
+
+
+-- ==========================================
+-- カラーパレット
+-- ==========================================
+local color_palettes = require("modules.color_palettes")
+local palettes = color_palettes.palettes
+local cp = color_palettes.cp
 
 
 --- ==========================================
 --- 定数
 --- ==========================================
 local DEFAULT_WEATHER_API_KEY =
-"Please configure your API key (https://openweathermap.org/)"
+  "Please configure your API key (https://openweathermap.org/)"
 local weather_icons = {
   clear       = "󰖨 ",
   clouds      = "󰅟 ",
@@ -99,10 +107,11 @@ end
 --- メイン処理
 --- ==========================================
 function M.setup(opts)
+
   --- ======================================
   --- 初期化
   --- ======================================
-  local def_fmt1            =
+  local def_fmt1 =
       " $user_ic $user " ..
       "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
       "$cal_ic $year.$month.$day($week) $clock_ic $time12 Alarm:$next_alarm($time_until_alarm min) " ..
@@ -111,7 +120,7 @@ function M.setup(opts)
       "$cpu_ic $cpu $mem_ic $mem_free " ..
       "$net_ic $net_speed($net_avg) " ..
       "$batt_ic$batt_num "
-  local def_fmt2            =
+  local def_fmt2 =
       " Now:($weather_ic/$temp_ic$temp) " ..
       "+3h:($weather_ic_3h/$temp_ic$temp_3h) " ..
       "+6h:($weather_ic_6h/$temp_ic$temp_6h) " ..
@@ -122,7 +131,7 @@ function M.setup(opts)
   -- 設定値
   local config = {
     status_position         = lower_opt((opts and opts.status_position)) or "right",
-    startup_delay           = (opts and opts.startup_delay)              or 5,
+    startup_delay           = (opts and opts.startup_delay)              or 2,
     weather_api_key         = opts and opts.weather_api_key              or DEFAULT_WEATHER_API_KEY,
     weather_lang            = lower_opt((opts and opts.weather_lang))    or "en",
     weather_country         = lower_opt((opts and opts.weather_country)) or "",
@@ -131,11 +140,11 @@ function M.setup(opts)
     weather_update_interval = (opts and opts.weather_update_interval)    or (10 * 60),
     weather_retry_interval  = (opts and opts.weather_retry_interval)     or 30,
     net_update_interval     = (opts and opts.net_update_interval)        or 3,
-    net_avg_samples         = (opts and opts.net_avg_samples)            or 20,
+    net_avg_samples         = (opts and opts.net_avg_samples)            or 200,
     week_str                = opts and opts.week_str,
-    color_text              = (opts and opts.color_text)                 or "#1A1B26",
-    color_foreground        = (opts and opts.color_foreground)           or "#7AA2F7",
-    color_background        = (opts and opts.color_background)           or "#1A1B26",
+    color_text              = (opts and opts.color_text)                 or cp.onyx,
+    color_foreground        = (opts and opts.color_foreground)           or cp.horizon,
+    color_background        = (opts and opts.color_background)           or cp.onyx,
     separator               = (opts and opts.separator)                  or { "", "" },
     formats                 = (opts and opts.formats)                    or { def_fmt1, def_fmt2 },
     timer = {
@@ -144,14 +153,14 @@ function M.setup(opts)
       hourly      = opts and opts.timer and opts.timer.hourly == true,
       alarm1      = opts and opts.timer and opts.timer.alarm1            or "",
       alarm2      = opts and opts.timer and opts.timer.alarm2            or "",
-      flash_color = opts and opts.timer and opts.timer.flash_color       or "#FFFFFF",
+      flash_color = opts and opts.timer and opts.timer.flash_color       or cp.white,
     },
   }
 
   --- ======================================
   -- DEBUG: Configの値を出力
   --- ======================================
-  wezterm.log_info("Config: " .. wezterm.to_string(config))
+  -- wezterm.log_info("Config: " .. wezterm.to_string(config))
 
   --- ======================================
   -- ステータス変数へ反映
@@ -211,12 +220,12 @@ function M.setup(opts)
     local week_val       = ""
     if fmt_lower:find("$week") then
       if config.week_str and type(config.week_str) == "table" then
-        local week_idx = tonumber(wezterm.strftime('%w'))
+        local week_idx = tonumber(wezterm.strftime("%w"))
         week_val =
             config.week_str[week_idx + 1]
-            or wezterm.strftime('%a')
+            or wezterm.strftime("%a")
       else
-        week_val = wezterm.strftime('%a')
+        week_val = wezterm.strftime("%a")
       end
     end
     -- 天気APIキーの有無チェック
@@ -299,7 +308,7 @@ function M.setup(opts)
     local sep_left    = (config.separator and config.separator[1])
     local sep_right   = (config.separator and config.separator[2])
     -- ステータスバーの左端文字列作成
-    local res         = {
+    local res = {
       { Background = { Color = config.color_background } },
       { Foreground = { Color = config.color_foreground } },
       { Text = sep_left },
@@ -340,7 +349,7 @@ function M.setup(opts)
       ---@diagnostic disable-next-line: param-type-mismatch
       local now_utc       = os.time(utc_tbl)
       local wx_local_time =
-          now_utc + (state.weather_timezone_sec or 0)
+        now_utc + (state.weather_timezone_sec or 0)
       wx_tm_str           = {
         year   = os.date("%Y", wx_local_time),
         month  = os.date("%m", wx_local_time),
@@ -479,4 +488,13 @@ function M.setup(opts)
   end)
 end
 
+
+-- ==========================================
+-- カラーパレットを返す
+-- ==========================================
+M.palettes = palettes
+M.cp       = cp
+
+
 return M
+

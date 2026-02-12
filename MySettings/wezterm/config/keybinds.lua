@@ -1,3 +1,7 @@
+local wezterm = require("wezterm")
+local act = wezterm.action
+
+
 --- ==================================================================
 --- Keybindings configuration for WezTerm
 --- ==================================================================
@@ -16,10 +20,6 @@
 | `"SUPER"`  | Win / Cmd    | Windowsキー / macOSの⌘               |
 | `"LEADER"` | Leaderキー   | `config.leader` で定義した仮想修飾キー |
 ]]
-
-
-local wezterm = require("wezterm")
-local act = wezterm.action
 
 
 -- ==========================================================

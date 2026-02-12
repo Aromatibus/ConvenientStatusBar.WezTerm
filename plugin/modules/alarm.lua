@@ -1,5 +1,12 @@
-local M = {}
 local wezterm = require 'wezterm'
+local M       = {}
+
+
+-- ==========================================
+-- カラーパレット
+-- ==========================================
+local color_palettes = require("modules.color_palettes")
+local cp = color_palettes.cp
 
 
 --- ==========================================
@@ -9,7 +16,7 @@ local config = {
   beep        = false,     -- ビープ通知の有無
   flash       = true,      -- 画面フラッシュの有無
   hourly      = false,     -- 毎正時の時報の有無
-  flash_color = "#FFFFFF", -- フラッシュ時の文字色
+  flash_color = cp.white, -- フラッシュ時の文字色
   alarms      = {},        -- { "HH:MM", "HH:MM" } 形式のアラーム時刻リスト
 }
 
@@ -76,9 +83,9 @@ function M.start(window)
       tick()
     end)
   end
-
   tick()
 end
+
 
 --- ==========================================
 --- 毎分処理（時報・アラーム判定）
@@ -101,6 +108,7 @@ function M._on_minute_tick(window)
   cached_next_alarm = M._calc_next_alarm()
 end
 
+
 --- ==========================================
 --- アラーム
 --- ==========================================
@@ -114,6 +122,7 @@ function M._notify(window)
     M.flash_window(window)
   end
 end
+
 
 --- ==========================================
 --- ビープ処理
@@ -144,6 +153,7 @@ function M.beep(window)
     window:active_pane()
   )
 end
+
 
 --- ==========================================
 --- フラッシュ
@@ -183,6 +193,7 @@ function M.flash_window(window)
   end)
 end
 
+
 --- ==========================================
 --- 次のアラーム時刻を計算
 --- ==========================================
@@ -218,12 +229,14 @@ function M._calc_next_alarm()
   return next_alarm or ""
 end
 
+
 --- ==========================================
 --- 次のアラーム時刻を取得（外部公開）
 --- ==========================================
 function M.get_next_alarm()
   return cached_next_alarm or ""
 end
+
 
 --- ==========================================
 --- 次のアラームまでの残り分数を取得（外部公開）
@@ -252,6 +265,7 @@ function M.get_minutes_until_next_alarm()
   return tostring(diff)
 end
 
+
 --- ==========================================
 --- セットアップ
 --- ==========================================
@@ -278,5 +292,6 @@ function M.setup(opts)
   -- 初期化時にも next_alarm を計算
   cached_next_alarm = M._calc_next_alarm()
 end
+
 
 return M

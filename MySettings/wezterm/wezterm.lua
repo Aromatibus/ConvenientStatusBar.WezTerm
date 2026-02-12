@@ -6,6 +6,7 @@ local config = wezterm.config_builder()
 -- [Startup]
 -- ==========================================================
 wezterm.on('gui-startup', function(cmd)
+
   -- =========================================================
   -- ウィンドウを最大化、フォーカスする内部関数
   -- =========================================================
@@ -28,9 +29,8 @@ wezterm.on('gui-startup', function(cmd)
     gui:perform_action(wezterm.action.ToggleFullScreen, pane)
     gui:focus()
   end
-  -- =========================================================
+
   -- スタートアップ処理本体
-  -- =========================================================
   -- Resurrect の復元処理を待つため待機
   wezterm.sleep_ms(1000)
   -- 既存ウィンドウの検出
@@ -109,9 +109,16 @@ config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 2000 }
 -- ==========================================================
 -- [Colors]
 -- ==========================================================
-local colors = require("config/colors")
-colors.apply(config)
-local cp = colors.cp
+--local colors = require("config/colors")
+--colors.apply(config)
+--local cp = colors.cp
+
+-- プラグインからカラーパレット取得
+local ConvenientStatusBar = wezterm.plugin.require(
+  "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
+)
+local cp       = ConvenientStatusBar.cp
+--local palettes = ConvenientStatusBar.palettes
 
 
 -- ==========================================================
@@ -247,7 +254,7 @@ end)
 
 
 -- ==========================================================
--- [Status]
+-- [StatusBar]
 -- ==========================================================
 require("config/status").apply(config)
 

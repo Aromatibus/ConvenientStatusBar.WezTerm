@@ -1,5 +1,6 @@
 local wezterm = require 'wezterm'
-local M = {}
+local M       = {}
+
 
 -- 設定リロード時の多重登録防止フラグ
 local registered = false
@@ -70,5 +71,6 @@ function M.apply(config)
     end
   end)
 end
+
 
 return M

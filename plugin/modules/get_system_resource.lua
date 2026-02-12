@@ -1,5 +1,5 @@
-local M       = {}
 local wezterm = require 'wezterm'
+local M       = {}
 
 
 --- ==========================================
@@ -161,5 +161,6 @@ function M.get_system_resource(state)
       string.format("%4.1fGB", mem_u_val),
       string.format("%4.1fGB", mem_f_val)
 end
+
 
 return M

@@ -1,5 +1,5 @@
-local M       = {}
 local wezterm = require 'wezterm'
+local M       = {}
 
 
 --- ==========================================
@@ -127,5 +127,6 @@ function M.get_net_speed(state)
   state.net_state.avg_str  = avg_str
   return speed_str, avg_str
 end
+
 
 return M
