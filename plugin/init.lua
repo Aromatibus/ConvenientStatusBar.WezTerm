@@ -318,8 +318,15 @@ function M.setup(opts)
             hour12 = "",
             minute = "",
         }
+
+        -- DEBUG: タイムゾーン取得状況出力
+        wezterm.log_info(
+            "timezone=" .. tostring(state.weather_timezone_sec)
+        )
+
+        -- 天気地点の曜日文字列（wx）
         local wx_week_val = ""
-        if state.weather_timezone_sec and state.weather_timezone_sec ~= 0 then
+        if state.weather_timezone_sec ~= nil then
             ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
             local utc_param = "!*t"
             ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
