@@ -13,6 +13,8 @@ function M.apply(config)
   end
   registered = true
 
+
+
   -- ==========================================================
   -- [Right Status]
   -- ==========================================================
@@ -20,7 +22,104 @@ function M.apply(config)
   -- ==========================================
   -- ステータスバープラグイン読み込み
   -- ==========================================
-  local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
+  -- local ConvenientStatusBar = wezterm.plugin.require("https://github.com/aromatibus/ConvenientStatusBar.WezTerm")
+  local ConvenientStatusBar = wezterm.plugin.require(
+    "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
+  )
+
+
+
+
+  ConvenientStatusBar.setup({
+    formats = {
+      " $user_ic $user " ..
+      "$cal_ic $year.$month.$day($week) $clock_ic $time12 " ..
+      " $loc_ic $city($code) " ..
+      "($weather_ic/$temp_ic$temp) " ..
+      "$batt_ic$batt_num ",
+    ""},
+
+    weather_api_key         = "88989d7e3460606958812933b3209599",
+    weather_lang            = "",
+    weather_country         = "",
+    weather_city            = "tokyo",
+    color_text              = "#1A1B00",
+    color_foreground        = "#70B0FF",
+    color_background        = "#1A1B00",
+    separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "|", "|"},
+    --separator = { "⟦", "⟧"},
+    --separator = { "[", "]"},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { "", ""},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --separator = { " ", " "},
+    --week_str = {"一","二","三","四","五","六","日"},                     -- "China","CN","Beijing"
+    --week_str = {"lun.","mar.","mié.","jue.","vie.","sáb.","dom."},       -- "Spain","ES","Madrid"
+    --week_str = {"Mon","Tue","Wed","Thu","Fri","Sat","Sun"},              -- "United States","US","Washington D.C."
+    --week_str = {"सोम","मंगल","बुध","गुरु","शुక్ర","शनि","रवि"},              -- "India","IN","New Delhi"
+    --week_str = {"সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি","রবি"},        -- "Bangladesh","BD","Dhaka"
+    --week_str = {"seg.","ter.","qua.","qui.","sex.","sáb.","dom."},       -- "Brazil","BR","Brasilia"
+    --week_str = {"Пн","Вт","Ср","Чт","Пт","Сб","Вс"},                     -- "Russia","RU","Moscow"
+    --week_str = {"月","火","水","木","金","土","日"},                     -- "Japan","JP","Tokyo"
+    --week_str = {"T2","T3","T4","T5","T6","T7","CN"},                     -- "Vietnam","VN","Hanoi"
+    --week_str = {"सोम","मंगळ","बुध","गुरू","शुक्र","शनी","रवी"},              -- "India","IN","Mumbai"
+    --week_str = {"సోమ","మంగళ","బుధ","గురు","శుక్ర","శని","ఆది"},       -- "India","IN","Hyderabad"
+    --week_str = {"Pzt","Sal","Çar","Per","Cum","Cmt","Paz"},              -- "Turkey","TR","Ankara"
+    --week_str = {"திங்","செவ்","புத","வியா","வெள்","சனி","ஞாயி"}, -- "India","IN","Chennai"
+    --week_str = {"월","화","수","목","금","토","일"},                      -- "South Korea","KR","Seoul"
+    --week_str = {"lun.","mar.","mer.","jeu.","ven.","sam.","dim."},       -- "France","FR","Paris"
+    --week_str = {"Mo","Di","Mi","Do","Fr","Sa","So"},                     -- "Germany","DE","Berlin"
+    --week_str = {"پیر","منگل","بدھ","جمعرات","جمعہ","ہفتہ","اتوار"},         -- "Pakistan","PK","Islamabad"
+    --week_str = {"Sen","Sel","Rab","Kam","Jum","Sep","Aha"},              -- "Indonesia","ID","Jakarta"
+    --week_str = {"lun","mar","mer","gio","ven","sab","dom"},              -- "Italy","IT","Rome"
+    --week_str = {"સોમ","મંગળ","બુધ","ગુરુ","શુક્ર","શનિ","રવિ"},             -- "India","IN","Gandhinagar"
+  })
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   -- ==========================================
   -- シンプル
@@ -162,68 +261,6 @@ function M.apply(config)
     --week_str = {"su","ma","ti","ke","to","pe","la"}, -- Finnish
   })
   ]]
-
-
-  ConvenientStatusBar.setup({
-    formats = {
-      " $user_ic $user " ..
-      "$cal_ic $year.$month.$day($week) $clock_ic $time12 " ..
-      " $loc_ic $city($code) " ..
-      "($weather_ic/$temp_ic$temp) " ..
-      "$batt_ic$batt_num ",
-    ""},
-
-    weather_api_key         = "88989d7e3460606958812933b3209599",
-    weather_lang            = "",
-    weather_country         = "",
-    weather_city            = "London",
-    color_text              = "#1A1B00",
-    color_foreground        = "#70B0FF",
-    color_background        = "#1A1B00",
-    separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "|", "|"},
-    --separator = { "⟦", "⟧"},
-    --separator = { "[", "]"},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { "", ""},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --separator = { " ", " "},
-    --week_str = {"一","二","三","四","五","六","日"},                     -- "China","CN","Beijing"
-    --week_str = {"lun.","mar.","mié.","jue.","vie.","sáb.","dom."},       -- "Spain","ES","Madrid"
-    --week_str = {"Mon","Tue","Wed","Thu","Fri","Sat","Sun"},              -- "United States","US","Washington D.C."
-    --week_str = {"सोम","मंगल","बुध","गुरु","शुక్ర","शनि","रवि"},              -- "India","IN","New Delhi"
-    --week_str = {"সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি","রবি"},        -- "Bangladesh","BD","Dhaka"
-    --week_str = {"seg.","ter.","qua.","qui.","sex.","sáb.","dom."},       -- "Brazil","BR","Brasilia"
-    --week_str = {"Пн","Вт","Ср","Чт","Пт","Сб","Вс"},                     -- "Russia","RU","Moscow"
-    --week_str = {"月","火","水","木","金","土","日"},                     -- "Japan","JP","Tokyo"
-    --week_str = {"T2","T3","T4","T5","T6","T7","CN"},                     -- "Vietnam","VN","Hanoi"
-    --week_str = {"सोम","मंगळ","बुध","गुरू","शुक्र","शनी","रवी"},              -- "India","IN","Mumbai"
-    --week_str = {"సోమ","మంగళ","బుధ","గురు","శుక్ర","శని","ఆది"},       -- "India","IN","Hyderabad"
-    --week_str = {"Pzt","Sal","Çar","Per","Cum","Cmt","Paz"},              -- "Turkey","TR","Ankara"
-    --week_str = {"திங்","செவ்","புத","வியா","வெள்","சனி","ஞாயி"}, -- "India","IN","Chennai"
-    --week_str = {"월","화","수","목","금","토","일"},                      -- "South Korea","KR","Seoul"
-    --week_str = {"lun.","mar.","mer.","jeu.","ven.","sam.","dim."},       -- "France","FR","Paris"
-    --week_str = {"Mo","Di","Mi","Do","Fr","Sa","So"},                     -- "Germany","DE","Berlin"
-    --week_str = {"پیر","منگل","بدھ","جمعرات","جمعہ","ہفتہ","اتوار"},         -- "Pakistan","PK","Islamabad"
-    --week_str = {"Sen","Sel","Rab","Kam","Jum","Sep","Aha"},              -- "Indonesia","ID","Jakarta"
-    --week_str = {"lun","mar","mer","gio","ven","sab","dom"},              -- "Italy","IT","Rome"
-    --week_str = {"સોમ","મંગળ","બુધ","ગુરુ","શુક્ર","શનિ","રવિ"},             -- "India","IN","Gandhinagar"
-  })
-
-end
 
 
 return M

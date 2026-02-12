@@ -157,10 +157,18 @@ function M.get_weather(config, state, weather_icons)
         state.last_weather_upd = os.time()
         return
     end
+
+
+
+    -- DEBUG: Configの値を出力
+    wezterm.log_info("forecast stdout: " .. wezterm.to_string(stdout))
+
+
+
     -- JSONパース
     local ok_json, data =
         pcall(wezterm.json_parse, stdout)
-    if not ok_json or not data or not data.list then
+        if not ok_json or not data or not data.list then
         state.weather_ic       = weather_icons.unknown
         state.temp_ic          = weather_icons.thermometer
         state.temp_str         =
@@ -169,6 +177,14 @@ function M.get_weather(config, state, weather_icons)
         state.last_weather_upd = os.time()
         return
     end
+
+
+
+    -- DEBUG: Configの値を出力
+    wezterm.log_info("forecast stdout: " .. wezterm.to_string(data))
+
+
+
     -- 温度単位
     local unit_sym =
         config.weather_units == "metric" and
