@@ -157,14 +157,8 @@ function M.get_weather(config, state, weather_icons)
         state.last_weather_upd = os.time()
         return
     end
-
-
-
     -- DEBUG: Configの値を出力
     -- wezterm.log_info("forecast stdout: " .. wezterm.to_string(stdout))
-
-
-
     -- JSONパース
     local ok_json, data =
         pcall(wezterm.json_parse, stdout)
@@ -177,54 +171,11 @@ function M.get_weather(config, state, weather_icons)
         state.last_weather_upd = os.time()
         return
     end
-
-
-
-    -- DEBUG: Configの値を出力
-    -- wezterm.log_info("forecast stdout: " .. wezterm.to_string(data))
-    -- ==========================================
-    -- タイムゾーンから現地時刻を算出してログ出力
-    -- ==========================================
-    local timezone_sec =
+    -- タイムゾーン（UTCオフセット）取得
+    state.weather_timezone_sec =
         data.city
         and data.city.timezone
-
-    if timezone_sec then
-        -- UTC現在時刻
-        ---@diagnostic disable-next-line: param-type-mismatch
-        local now_utc = os.time(os.date("!*t"))
-
-        -- 現地時刻（UTC + タイムゾーン）
-        local local_time = now_utc + timezone_sec
-
-        -- 表示用フォーマット
-        local local_time_str =
-            os.date("%Y-%m-%d %H:%M:%S", local_time)
-
-        wezterm.log_info(
-            string.format(
-                "Weather Local Time (%s): %s (timezone: %+d sec)",
-                tostring(data.city.name),
-                local_time_str,
-                timezone_sec
-            )
-        )
-    else
-        wezterm.log_info("Weather timezone: not found in API response")
-    end
-
-
-
-
-
-
-
-
-
-
-
-
-
+        or 0
     -- 温度単位
     local unit_sym =
         config.weather_units == "metric" and

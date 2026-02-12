@@ -47,6 +47,7 @@ local state = {
     weather_ic           = loading_icon,
     city_name            = loading_icon,
     city_code            = "",
+    weather_timezone_sec = 0,
     last_weather_upd     = 0,
     is_weather_ready     = false,
     temp_ic              = loading_icon,
@@ -302,6 +303,60 @@ function M.setup(opts)
             hour12   = wezterm.strftime("%I"),
             minute   = wezterm.strftime("%M"),
         }
+        -- 天気地点の現地時刻情報テーブル
+        local wx_tm_str = {
+            year   = "",
+            month  = "",
+            day    = "",
+            time24 = "",
+            time12 = "",
+            hour24 = "",
+            hour12 = "",
+            minute = "",
+        }
+        -- 天気地点の現地時刻を取得できない場合は、UTCオフセット0の時刻を表示する
+        if state.weather_timezone_sec and state.weather_timezone_sec ~= 0 then
+            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            local utc_param = "!*t"
+            local utc_tbl  = os.date(utc_param)
+            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            local now_utc  = os.time(utc_tbl)
+            local wx_local_time =
+                now_utc + state.weather_timezone_sec
+                wx_tm_str = {
+                year   = os.date("%Y", wx_local_time),
+                month  = os.date("%m", wx_local_time),
+                day    = os.date("%d", wx_local_time),
+                time24 = os.date("%H:%M", wx_local_time),
+                time12 = os.date("%I:%M %p", wx_local_time),
+                hour24 = os.date("%H", wx_local_time),
+                hour12 = os.date("%I", wx_local_time),
+                minute = os.date("%M", wx_local_time),
+            }
+        end
+        -- 天気地点の曜日文字列
+        local wx_week_val = ""
+        if state.weather_timezone_sec and state.weather_timezone_sec ~= 0 then
+            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            local utc_param = "!*t"
+            local utc_tbl  = os.date(utc_param)
+            ---@diagnostic disable-next-line: param-type-mismatch -- DEBUG
+            local now_utc  = os.time(utc_tbl)
+            local wx_local_time =
+                now_utc + state.weather_timezone_sec
+            local wx_week_idx =
+                tonumber(os.date("%w", wx_local_time))
+            if config.week_str and type(config.week_str) == "table" then
+                wx_week_val = tostring(
+                    config.week_str[wx_week_idx + 1]
+                        or os.date("%a", wx_local_time)
+                )
+            else
+                wx_week_val = tostring(
+                    os.date("%a", wx_local_time)
+                )
+            end
+        end
         -- フォーマット文字列の置換
         local replace_map = {
             ["$user_ic"]          = user_icon,
@@ -319,6 +374,15 @@ function M.setup(opts)
             ["$minute"]           = now_tm_str.minute,
             ["$next_alarm"]       = timer_enabled and alarm.get_next_alarm() or "",
             ["$time_until_alarm"] = timer_enabled and alarm.get_minutes_until_next_alarm() or "",
+            ["$wx_year"]          = wx_tm_str.year,
+            ["$wx_month"]         = wx_tm_str.month,
+            ["$wx_day"]           = wx_tm_str.day,
+            ["$wx_week"]          = wx_week_val,
+            ["$wx_time24"]        = wx_tm_str.time24,
+            ["$wx_time12"]        = wx_tm_str.time12,
+            ["$wx_hour24"]        = wx_tm_str.hour24,
+            ["$wx_hour12"]        = wx_tm_str.hour12,
+            ["$wx_minute"]        = wx_tm_str.minute,
             ["$loc_ic"]           = has_weather_api and "" or "",
             ["$city"]             = has_weather_api and state.city_name or "",
             ["$code"]             = has_weather_api and state.city_code or "",

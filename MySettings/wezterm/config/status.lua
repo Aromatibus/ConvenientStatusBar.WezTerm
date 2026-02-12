@@ -33,7 +33,8 @@ function M.apply(config)
   ConvenientStatusBar.setup({
     formats = {
       " $user_ic $user " ..
-      "$cal_ic $year.$month.$day($week) $clock_ic $time12 " ..
+      "$cal_ic $year.$month.$day($week) $clock_ic $time24 " ..
+      "$cal_ic $wx_year.$wx_month.$wx_day($wx_week) $clock_ic $wx_time24 " ..
       " $loc_ic $city($code) " ..
       "($weather_ic/$temp_ic$temp) " ..
       "$batt_ic$batt_num ",
@@ -42,7 +43,7 @@ function M.apply(config)
     weather_api_key         = "88989d7e3460606958812933b3209599",
     weather_lang            = "",
     weather_country         = "",
-    weather_city            = "tokyo",
+    weather_city            = "london",
     color_text              = "#1A1B00",
     color_foreground        = "#70B0FF",
     color_background        = "#1A1B00",
