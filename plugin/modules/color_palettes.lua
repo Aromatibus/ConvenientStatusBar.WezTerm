@@ -5,9 +5,7 @@ local wezterm = require 'wezterm'
 --- カラーパレット定義（hex）
 --- ==========================================
 local palettes = {
-  --- ==========================================
   --- Gradation
-  --- ==========================================
   ocean        = "#3B82F6",
   horizon      = "#4F9CFF",
   cerulean     = "#5AA7FF",
@@ -64,9 +62,7 @@ local palettes = {
   deep_sea     = "#2F2888",
   abyss        = "#252060",
 
-  --- ==========================================
   --- Neon
-  --- ==========================================
   neon_blue    = "#0050FF",
   neon_cyan    = "#7FFFFF",
   neon_green   = "#A0FF00",
@@ -75,9 +71,7 @@ local palettes = {
   neon_red     = "#FF2040",
   neon_magenta = "#FF00FF",
 
-  --- ==========================================
   --- Dark Neon
-  --- ==========================================
   dark_blue    = "#1F3A8A",
   dark_cyan    = "#2FB7B7",
   dark_green   = "#5FA800",
@@ -86,9 +80,7 @@ local palettes = {
   dark_red     = "#B02035",
   dark_magenta = "#B000B0",
 
-  --- ==========================================
   --- Monochrome
-  --- ==========================================
   black        = "#000000",
   onyx         = "#1B1A2C",
   charcoal     = "#222222",
@@ -102,20 +94,94 @@ local palettes = {
 }
 
 
---- ==========================================
---- wezterm 用カラーパレット（parse 済み）
---- ==========================================
-local cp = {}
+-- ===============================
+-- ANSI Colors
+-- ===============================
+local ansi = {
+  base = {
+    black   = "#000000",
+    red     = "#CD0000",
+    green   = "#00CD00",
+    yellow  = "#CDCD00",
+    blue    = "#0000EE",
+    magenta = "#CD00CD",
+    cyan    = "#00CDCD",
+    white   = "#E5E5E5",
+  },
+  brights = {
+    black   = "#7F7F7F",
+    red     = "#FF0000",
+    green   = "#00FF00",
+    yellow  = "#FFFF00",
+    blue    = "#5C5CFF",
+    magenta = "#FF00FF",
+    cyan    = "#00FFFF",
+    white   = "#FFFFFF",
+  }
+}
 
+
+--- ==========================================
+--- wezterm 用カラーパレット（parse処理）
+--- ==========================================
+-- wezterm.color.parse 用テーブル
+local cp = {}
+cp.ansi = {
+  base    = {},
+  brights = {},
+}
+
+-- 通常パレット処理
 for name, hex in pairs(palettes) do
   cp[name] = wezterm.color.parse(hex)
+end
+-- ANSI base パレット処理
+for name, hex in pairs(ansi.base) do
+  cp.ansi.base[name] = wezterm.color.parse(hex)
+end
+-- ANSI brights パレット処理
+for name, hex in pairs(ansi.brights) do
+  cp.ansi.brights[name] = wezterm.color.parse(hex)
 end
 
 
 --- ==========================================
---- モジュール返却
+--- Color Palettes モジュール返却
 --- ==========================================
 return {
-  palettes = palettes, -- hex 生値が欲しい場合用
-  cp       = cp,       -- wezterm.color.parse 済み
+  palettes = palettes, -- hex データ
+  ansi     = ansi,     -- ANSI hex データ
+  cp       = cp,       -- wezterm.color.parse 済みデータ
 }
+
+--[[
+こんな感じで使える
+local colors = require("modules.color_palettes")
+
+-- 通常カラー
+local cp = colors.cp
+
+-- ANSI 16色
+config.colors = {
+  ansi    = {
+    colors.ansi.base.black,
+    colors.ansi.base.red,
+    colors.ansi.base.green,
+    colors.ansi.base.yellow,
+    colors.ansi.base.blue,
+    colors.ansi.base.magenta,
+    colors.ansi.base.cyan,
+    colors.ansi.base.white,
+  },
+  brights = {
+    colors.ansi.brights.black,
+    colors.ansi.brights.red,
+    colors.ansi.brights.green,
+    colors.ansi.brights.yellow,
+    colors.ansi.brights.blue,
+    colors.ansi.brights.magenta,
+    colors.ansi.brights.cyan,
+    colors.ansi.brights.white,
+  },
+}
+]]

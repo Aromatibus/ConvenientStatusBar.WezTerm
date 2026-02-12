@@ -136,7 +136,7 @@ local PAD_CELL                     = '0.5cell'
 config.window_padding              = {
   left = PAD_CELL, right = PAD_CELL, top = PAD_CELL, bottom = PAD_CELL,
 }
-local FRAME_COLOR                  = cp.split
+local FRAME_COLOR                  = cp.blue
 local FRAME_SIZE                   = '3px'
 config.window_frame                = {
   border_top_height    = FRAME_SIZE,

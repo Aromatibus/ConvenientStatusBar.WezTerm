@@ -15,7 +15,7 @@ function M.apply(config)
   registered = true
 
   -- ==========================================
-  -- ステータスバープラグイン読み込み
+  -- [ConvenientStatusBar]
   -- ==========================================
   -- APIキー取得（環境変数）
   local OPEN_WEATHER_API_KEY = os.getenv("OPEN_WEATHER_API_KEY") or nil
@@ -26,6 +26,9 @@ function M.apply(config)
   local ConvenientStatusBar = wezterm.plugin.require(
     "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
   )
+  -- プラグインからカラーパレット取得
+  local cp       = ConvenientStatusBar.cp
+
 
   -- ==========================================
   -- テスト用
@@ -43,9 +46,9 @@ function M.apply(config)
     weather_lang     = "",
     weather_country  = "",
     weather_city     = "",
-    color_text       = "#1A1B00",
-    color_foreground = "#70B0FF",
-    color_background = "#1A1B00",
+    color_text       = cp.onyx,
+    color_foreground = cp.blue,
+    color_background = cp.onyx,
     separator        = { "", "" },
   })
 
@@ -54,10 +57,11 @@ function M.apply(config)
 
 --[[
 
--- ==========================================
+  -- ==========================================
   -- シンプル
   -- ==========================================
   ConvenientStatusBar.setup({ formats = { " $user_ic $user $cal_ic $year.$month.$day($week) $clock_ic $time24 $batt_ic$batt_num ", "" } })
+
   -- ==========================================
   -- シンプル・アラーム付き
   -- ==========================================
@@ -69,7 +73,7 @@ function M.apply(config)
       hourly      = true,
       beep        = true,
       flash       = true,
-      flash_color = "#FFFFFF",
+      flash_color = cp.white,
     },
   })
 
@@ -126,7 +130,7 @@ function M.apply(config)
       hourly      = true,
       beep        = true,
       flash       = true,
-      flash_color = "#FFFFFF",
+      flash_color = cp.neon_blue,
     },
     --weather_api_key         = "",
     --weather_api_key         = "あなたのAPIキー",
@@ -140,9 +144,9 @@ function M.apply(config)
     net_update_interval     = 3,
     net_avg_samples         = 20,
     startup_delay           = 5,
-    color_text              = "#1A1B00",
-    color_foreground        = "#70B0FF",
-    color_background        = "#1A1B00",
+    color_text              = cp.onyx,
+    color_foreground        = cp.blue,
+    color_background        = cp.onyx,
     status_position         = "right",     -- "right" or "left"
     separator               = { "", "" },
     --separator = { "", ""},
