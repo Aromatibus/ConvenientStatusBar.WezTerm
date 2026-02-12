@@ -147,7 +147,7 @@ function M.setup(opts)
         },
     }
     -- DEBUG: Configの値を出力
-    wezterm.log_info("Config: " .. wezterm.to_string(config))
+    -- wezterm.log_info("Config: " .. wezterm.to_string(config))
     -- ステータス変数へ反映
     state.net_update_interval = config.net_update_interval
     state.net_avg_samples    = config.net_avg_samples
