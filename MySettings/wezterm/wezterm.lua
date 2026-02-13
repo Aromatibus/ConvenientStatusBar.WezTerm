@@ -1,5 +1,5 @@
 local wezterm = require 'wezterm'
-local config = wezterm.config_builder()
+local config  = wezterm.config_builder()
 
 
 -- ==========================================================
@@ -109,16 +109,14 @@ config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 2000 }
 -- ==========================================================
 -- [Colors]
 -- ==========================================================
---local colors = require("config/colors")
---colors.apply(config)
---local cp = colors.cp
-
+-- カラーパレット適用
+local colors = require("config/colors")
+colors.apply(config)
 -- プラグインからカラーパレット取得
 local ConvenientStatusBar = wezterm.plugin.require(
   "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
 )
 local cp       = ConvenientStatusBar.cp
---local palettes = ConvenientStatusBar.palettes
 
 
 -- ==========================================================
@@ -237,6 +235,7 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 
   -- タブの文字色をアクティブタブの文字色に合わせる
   local current_fg_color = config.colors.tab_bar.active_tab.fg_color
+
 
   -- 描画
   return {

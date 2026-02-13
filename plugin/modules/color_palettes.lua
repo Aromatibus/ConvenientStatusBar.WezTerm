@@ -156,32 +156,32 @@ return {
 
 --[[
 こんな感じで使える
-local colors = require("modules.color_palettes")
+local color_palettes = require("color_palettes")
 
 -- 通常カラー
-local cp = colors.cp
+local cp = color_palettes.cp
 
 -- ANSI 16色
 config.colors = {
   ansi    = {
-    colors.ansi.base.black,
-    colors.ansi.base.red,
-    colors.ansi.base.green,
-    colors.ansi.base.yellow,
-    colors.ansi.base.blue,
-    colors.ansi.base.magenta,
-    colors.ansi.base.cyan,
-    colors.ansi.base.white,
+    cp.ansi.base.black,
+    cp.ansi.base.red,
+    cp.ansi.base.green,
+    cp.ansi.base.yellow,
+    cp.ansi.base.blue,
+    cp.ansi.base.magenta,
+    cp.ansi.base.cyan,
+    cp.ansi.base.white,
   },
   brights = {
-    colors.ansi.brights.black,
-    colors.ansi.brights.red,
-    colors.ansi.brights.green,
-    colors.ansi.brights.yellow,
-    colors.ansi.brights.blue,
-    colors.ansi.brights.magenta,
-    colors.ansi.brights.cyan,
-    colors.ansi.brights.white,
+    cp.ansi.brights.black,
+    cp.ansi.brights.red,
+    cp.ansi.brights.green,
+    cp.ansi.brights.yellow,
+    cp.ansi.brights.blue,
+    cp.ansi.brights.magenta,
+    cp.ansi.brights.cyan,
+    cp.ansi.brights.white,
   },
 }
 ]]

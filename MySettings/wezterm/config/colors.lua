@@ -1,5 +1,5 @@
 local wezterm = require 'wezterm'
-local M = {}
+local M       = {}
 
 
 function M.apply(config)
@@ -50,7 +50,7 @@ function M.apply(config)
       -- タブバー（上部のタブUI）
       -- ===============================
       tab_bar         = {
-        background = cp.onyx, -- タブバー全体の背景色
+        background = cp.charcoal, -- タブバー全体の背景色
         -- アクティブなタブ
         active_tab = {
           bg_color = cp.peach,   -- 選択中タブの背景色
@@ -110,11 +110,6 @@ function M.apply(config)
   }
   config.colors = display_palettes[palette]
 
-
-  --- ==========================================================
-  --- cpテーブルを返すための設定
-  --- ==========================================================
-  M.cp = cp
 end
 
 
