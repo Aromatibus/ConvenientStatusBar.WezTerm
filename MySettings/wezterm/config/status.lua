@@ -28,7 +28,8 @@ function M.apply(config)
   )
 
   -- 取得したカラーパレットをログ出力で可視化
-  ConvenientStatusBar.print_log_palettes()
+  ConvenientStatusBar.display_palettes()
+
   -- プラグインからカラーパレット取得
   local cp      = ConvenientStatusBar.cp
   local cp_ansi = ConvenientStatusBar.ansi
