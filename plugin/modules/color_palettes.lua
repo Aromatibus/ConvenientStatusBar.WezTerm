@@ -146,7 +146,7 @@ end
 --- ==========================================
 --- パレット可視化関数
 --- ==========================================
-local function display_palettes()
+local function display_palettes(window, pane)
     local line_blocks = {}
     local lines_named = {}
 
@@ -161,14 +161,17 @@ local function display_palettes()
     end
 
     local message =
-        table.concat(line_blocks, " ")
+        table.concat(line_blocks, "")
         .. "\n"
         .. table.concat(lines_named, "\n")
+        .. "\n"
 
-    wezterm.log_info(message)
+    -- 現在のペインにテキストを送る
+    window:perform_action(
+        wezterm.action.SendString(message),
+        pane
+    )
 end
-
-
 --- ==========================================
 --- Color Palettes モジュール返却
 --- ==========================================
