@@ -116,7 +116,7 @@ local cp       = ConvenientStatusBar.cp
 config.keys = config.keys or {}
 table.insert(config.keys, {
     key = "P",
-    mods = "CTRL|ALT",
+    mods = "CTRL",
     action = wezterm.action_callback(function(window, pane)
         ConvenientStatusBar.display_palettes(window, pane)
     end),
