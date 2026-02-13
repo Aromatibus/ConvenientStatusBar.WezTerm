@@ -482,7 +482,7 @@ end
 -- ==========================================
 M.palettes = palettes
 M.cp       = cp
-
+M.display_palettes = color_palettes.display_palettes
 
 return M
 
