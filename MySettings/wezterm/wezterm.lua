@@ -113,6 +113,15 @@ local ConvenientStatusBar = wezterm.plugin.require(
 )
 local cp       = ConvenientStatusBar.cp
 
+config.keys = config.keys or {}
+table.insert(config.keys, {
+    key = "P",
+    mods = "CTRL|ALT",
+    action = wezterm.action_callback(function(window, pane)
+        ConvenientStatusBar.display_palettes(window, pane)
+    end),
+})
+
 
 -- ==========================================================
 -- [Window / Display / Appearance]

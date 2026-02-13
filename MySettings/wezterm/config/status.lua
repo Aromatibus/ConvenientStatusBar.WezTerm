@@ -27,12 +27,8 @@ function M.apply(config)
     "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
   )
 
-  -- 取得したカラーパレットをログ出力で可視化
-  ConvenientStatusBar.display_palettes()
-
   -- プラグインからカラーパレット取得
   local cp      = ConvenientStatusBar.cp
-  local cp_ansi = ConvenientStatusBar.ansi
 
 
   -- ==========================================
