@@ -34,18 +34,7 @@ local cp = color_palettes.cp
 --- ==========================================
 local DEFAULT_WEATHER_API_KEY =
   "Please configure your API key (https://openweathermap.org/)"
-local weather_icons = {
-  clear       = "󰖨 ",
-  clouds      = "󰅟 ",
-  rain        = " ",
-  wind        = " ",
-  thunder     = "󱐋 ",
-  snow        = " ",
-  thermometer = "",
-  celsius     = "󰔄",
-  fahrenheit  = "󰔅",
-  unknown     = " ",
-}
+local unknown_icon = " "
 local loading_icon = " "
 
 
@@ -271,11 +260,10 @@ function M.setup(opts)
     if need_update then
       get_weather.get_weather(
         config,
-        state,
-        weather_icons
+        state
       )
       if not state.is_weather_ready then
-        state.city_name = weather_icons.unknown
+        state.city_name = unknown_icon
         state.city_code = ""
       end
     end
@@ -375,16 +363,16 @@ function M.setup(opts)
     -- 取得失敗
     elseif has_weather_api and not state.is_weather_ready then
       wx_tm_str = {
-        year   = weather_icons.unknown,
-        month  = weather_icons.unknown,
-        day    = weather_icons.unknown,
-        time24 = weather_icons.unknown,
-        time12 = weather_icons.unknown,
-        hour24 = weather_icons.unknown,
-        hour12 = weather_icons.unknown,
-        minute = weather_icons.unknown,
+        year   = unknown_icon,
+        month  = unknown_icon,
+        day    = unknown_icon,
+        time24 = unknown_icon,
+        time12 = unknown_icon,
+        hour24 = unknown_icon,
+        hour12 = unknown_icon,
+        minute = unknown_icon,
       }
-      wx_week_val = weather_icons.unknown
+      wx_week_val = unknown_icon
     end
     -- フォーマット文字列の置換
     local replace_map = {
