@@ -26,6 +26,9 @@ function M.apply(config)
   local ConvenientStatusBar = wezterm.plugin.require(
     "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
   )
+
+  -- 取得したカラーパレットをログ出力で可視化
+  ConvenientStatusBar.print_log_palette()
   -- プラグインからカラーパレット取得
   local cp       = ConvenientStatusBar.cp
 
@@ -45,7 +48,7 @@ function M.apply(config)
     weather_api_key  = OPEN_WEATHER_API_KEY,
     weather_lang     = "",
     weather_country  = "",
-    weather_city     = "",
+    weather_city     = "london",
     color_text       = cp.onyx,
     color_foreground = cp.blue,
     color_background = cp.onyx,

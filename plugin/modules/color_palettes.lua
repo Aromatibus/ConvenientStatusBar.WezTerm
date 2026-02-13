@@ -71,7 +71,7 @@ local palettes = {
   neon_red     = "#FF2040",
   neon_magenta = "#FF00FF",
 
-  --- Dark Neon
+  --- Dark
   dark_blue    = "#1F3A8A",
   dark_cyan    = "#2FB7B7",
   dark_green   = "#5FA800",
@@ -131,17 +131,41 @@ cp.ansi = {
   brights = {},
 }
 
--- 通常パレット処理
+-- Parse 処理
 for name, hex in pairs(palettes) do
   cp[name] = wezterm.color.parse(hex)
 end
--- ANSI base パレット処理
 for name, hex in pairs(ansi.base) do
   cp.ansi.base[name] = wezterm.color.parse(hex)
 end
--- ANSI brights パレット処理
 for name, hex in pairs(ansi.brights) do
   cp.ansi.brights[name] = wezterm.color.parse(hex)
+end
+
+
+--- ==========================================
+--- パレット可視化関数
+--- ==========================================
+local function print_log_palette()
+    local line_blocks = {}
+    local lines_named = {}
+
+    -- 1行目: ■だけを横並び
+    for _, _ in pairs(palettes) do
+        table.insert(line_blocks, "■")
+    end
+
+    -- 2行目以降: ■:カラー名 を1色ずつ縦に表示
+    for name, _ in pairs(palettes) do
+        table.insert(lines_named, "■:" .. name)
+    end
+
+    local message =
+        table.concat(line_blocks, " ")
+        .. "\n"
+        .. table.concat(lines_named, "\n")
+
+    wezterm.log_info(message)
 end
 
 
@@ -149,17 +173,26 @@ end
 --- Color Palettes モジュール返却
 --- ==========================================
 return {
-  palettes = palettes, -- hex データ
-  ansi     = ansi,     -- ANSI hex データ
-  cp       = cp,       -- wezterm.color.parse 済みデータ
+  cp       = cp,
+  ansi     = ansi,
+  print_log_palette = print_log_palette,
 }
+
 
 --[[
 こんな感じで使える
-local color_palettes = require("color_palettes")
 
--- 通常カラー
+-- ==========================================
+-- カラーパレット
+-- ==========================================
+-- カラーパレットモジュールからカラーデータ取得
+local color_palettes = require("color_palettes")
+-- パレットデータ
 local cp = color_palettes.cp
+local ansi = color_palettes.ansi
+
+-- パレット可視化（ログ出力）
+color_palettes.print_log_palette()
 
 -- ANSI 16色
 config.colors = {
