@@ -156,7 +156,7 @@ end
 --- ==========================================
 --- パレット可視化（順序保証・色付き表示）
 --- ==========================================
-local function display_palettes_in_pane(window, pane)
+local function display_palettes(window, pane)
     local esc   = string.char(27)
     local reset = esc .. "[0m"
 
@@ -204,5 +204,5 @@ return {
     ansi                     = ansi,
     palettes                 = palettes,
     palette_list             = palette_list,
-    display_palettes_in_pane = display_palettes_in_pane,
+    display_palettes         = display_palettes,
 }
