@@ -156,43 +156,26 @@ end
 --- ==========================================
 --- パレット可視化（順序保証・色付き表示）
 --- ==========================================
-local function display_palettes(window, pane)
-    local esc   = string.char(27)
-    local reset = esc .. "[0m"
+local function display_palettes()
+    local line_blocks = {}
+    local lines_named = {}
 
-    local function hex_to_ansi(hex)
-        local r = tonumber(hex:sub(2, 3), 16)
-        local g = tonumber(hex:sub(4, 5), 16)
-        local b = tonumber(hex:sub(6, 7), 16)
-        return string.format("%s[38;2;%d;%d;%dm", esc, r, g, b)
-    end
-
-    -- 1行目: ■■■■■（順序保証）
-    local blocks = {}
+    -- 1行目: ■■■■■（順序保証・スペースなし）
     for _, p in ipairs(palette_list) do
-        table.insert(blocks, hex_to_ansi(p.hex) .. "■" .. reset)
+        table.insert(line_blocks, "■")
     end
-
-    window:perform_action(
-        wezterm.action.SendString(table.concat(blocks, "") .. "\n"),
-        pane
-    )
 
     -- 2行目以降: ■:name（順序保証）
     for _, p in ipairs(palette_list) do
-        local s =
-            hex_to_ansi(p.hex)
-            .. "■"
-            .. reset
-            .. ":"
-            .. p.name
-            .. "\n"
-
-        window:perform_action(
-            wezterm.action.SendString(s),
-            pane
-        )
+        table.insert(lines_named, "■:" .. p.name)
     end
+
+    local message =
+        table.concat(line_blocks, "")
+        .. "\n"
+        .. table.concat(lines_named, "\n")
+
+    wezterm.log_info(message)
 end
 
 
