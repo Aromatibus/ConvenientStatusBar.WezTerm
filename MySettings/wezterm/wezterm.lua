@@ -112,12 +112,24 @@ local ConvenientStatusBar = wezterm.plugin.require(
 local cp       = ConvenientStatusBar.cp
 
 config.keys = config.keys or {}
+
 table.insert(config.keys, {
-    key = "p",
-    mods = "CTRL",
-    action = wezterm.action_callback(function(window, pane)
-        ConvenientStatusBar.display_palettes(window, pane)
-    end),
+  key = "P",
+  mods = "CTRL",
+  action = wezterm.action_callback(function(window, pane)
+    window:perform_action(
+      wezterm.action.SplitPane({
+                direction = "Down",
+                command = {
+                    args = { "wsl", "bash", "-lc", "cat" },
+                },
+      }),
+      pane
+    )
+    wezterm.sleep_ms(100)
+    local new_pane = window:active_pane()
+    ConvenientStatusBar.display_palettes(window, new_pane)
+  end),
 })
 
 
