@@ -148,38 +148,46 @@ end
 --- ==========================================
 --- hex -> ANSI 24bit color 文字列
 local function hex_to_ansi_fg(hex)
-    -- "#RRGGBB" -> r, g, b
     local r = tonumber(hex:sub(2, 3), 16)
     local g = tonumber(hex:sub(4, 5), 16)
     local b = tonumber(hex:sub(6, 7), 16)
 
-    -- 前景色設定: \x1b[38;2;<r>;<g>;<b>m
-    return string.format("\x1b[38;2;%d;%d;%dm", r, g, b)
+    local esc = string.char(27)  -- \x1b
+    return string.format("%s[38;2;%d;%d;%dm", esc, r, g, b)
+end
+local function ansi_reset()
+    return string.char(27) .. "[0m"
 end
 -- パレット可視化表示
 local function display_palettes(window, pane)
     local line_blocks = {}
     local lines_named = {}
-    local reset = "\x1b[0m"
+
+    local reset = ansi_reset()
+
+    -- 1行目: 色付き■■■■■（スペースなし）
     for _, hex in pairs(palettes) do
         local ansi = hex_to_ansi_fg(hex)
         table.insert(line_blocks, ansi .. "■" .. reset)
     end
+
+    -- 2行目以降: 色付き ■:name
     for name, hex in pairs(palettes) do
         local ansi = hex_to_ansi_fg(hex)
         table.insert(lines_named, ansi .. "■" .. reset .. ":" .. name)
     end
+
     local message =
         table.concat(line_blocks, "")
         .. "\n"
         .. table.concat(lines_named, "\n")
         .. "\n"
+
     window:perform_action(
         wezterm.action.SendString(message),
         pane
     )
 end
-
 
   --- ==========================================
 --- Color Palettes モジュール返却
