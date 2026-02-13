@@ -6,7 +6,6 @@ local config  = wezterm.config_builder()
 -- [Startup]
 -- ==========================================================
 wezterm.on('gui-startup', function(cmd)
-
   -- =========================================================
   -- ウィンドウを最大化、フォーカスする内部関数
   -- =========================================================
@@ -29,10 +28,9 @@ wezterm.on('gui-startup', function(cmd)
     gui:perform_action(wezterm.action.ToggleFullScreen, pane)
     gui:focus()
   end
-
+  -- =========================================================
   -- スタートアップ処理本体
-  -- Resurrect の復元処理を待つため待機
-  wezterm.sleep_ms(1000)
+  -- =========================================================
   -- 既存ウィンドウの検出
   local mux = wezterm.mux
   local windows = mux.all_windows()
@@ -41,7 +39,6 @@ wezterm.on('gui-startup', function(cmd)
     -- 既存する全ウィンドウに対して最大化とフォーカスを適用する
     for _, window in ipairs(windows) do
       local gui = window:gui_window()
-      -- wezterm.log_info('existing window gui: ', gui ~= nil)
       maximize_and_focus(gui)
     end
     return
@@ -49,8 +46,6 @@ wezterm.on('gui-startup', function(cmd)
   -- 通常起動時（既存ウィンドウが無い場合）の新規ウィンドウ生成
   local _, _, window = mux.spawn_window(cmd or {})
   local gui = window and window:gui_window()
-  -- wezterm.log_info('spawned window: ', window ~= nil)
-  -- wezterm.log_info('spawned gui: ', gui ~= nil)
   maximize_and_focus(gui)
 end)
 
@@ -256,12 +251,6 @@ end)
 -- [StatusBar]
 -- ==========================================================
 require("config/status").apply(config)
-
-
--- ==========================================================
--- [Resurrect Session]
--- ==========================================================
-require("config/resurrect").apply(config)
 
 
 return config
