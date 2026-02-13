@@ -146,7 +146,7 @@ end
 --- ==========================================
 --- パレット可視化関数
 --- ==========================================
-local function print_log_palette()
+local function print_log_palettes()
     local line_blocks = {}
     local lines_named = {}
 
@@ -175,7 +175,7 @@ end
 return {
   cp       = cp,
   ansi     = ansi,
-  print_log_palette = print_log_palette,
+  print_log_palettes = print_log_palettes,
 }
 
 
@@ -192,7 +192,7 @@ local cp = color_palettes.cp
 local ansi = color_palettes.ansi
 
 -- パレット可視化（ログ出力）
-color_palettes.print_log_palette()
+color_palettes.print_log_palettes()
 
 -- ANSI 16色
 config.colors = {
