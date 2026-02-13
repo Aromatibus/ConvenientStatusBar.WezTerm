@@ -146,33 +146,42 @@ end
 --- ==========================================
 --- パレット可視化関数
 --- ==========================================
+--- hex -> ANSI 24bit color 文字列
+local function hex_to_ansi_fg(hex)
+    -- "#RRGGBB" -> r, g, b
+    local r = tonumber(hex:sub(2, 3), 16)
+    local g = tonumber(hex:sub(4, 5), 16)
+    local b = tonumber(hex:sub(6, 7), 16)
+
+    -- 前景色設定: \x1b[38;2;<r>;<g>;<b>m
+    return string.format("\x1b[38;2;%d;%d;%dm", r, g, b)
+end
+-- パレット可視化表示
 local function display_palettes(window, pane)
     local line_blocks = {}
     local lines_named = {}
-
-    -- 1行目: ■だけを横並び
-    for _, _ in pairs(palettes) do
-        table.insert(line_blocks, "■")
+    local reset = "\x1b[0m"
+    for _, hex in pairs(palettes) do
+        local ansi = hex_to_ansi_fg(hex)
+        table.insert(line_blocks, ansi .. "■" .. reset)
     end
-
-    -- 2行目以降: ■:カラー名 を1色ずつ縦に表示
-    for name, _ in pairs(palettes) do
-        table.insert(lines_named, "■:" .. name)
+    for name, hex in pairs(palettes) do
+        local ansi = hex_to_ansi_fg(hex)
+        table.insert(lines_named, ansi .. "■" .. reset .. ":" .. name)
     end
-
     local message =
         table.concat(line_blocks, "")
         .. "\n"
         .. table.concat(lines_named, "\n")
         .. "\n"
-
-    -- 現在のペインにテキストを送る
     window:perform_action(
         wezterm.action.SendString(message),
         pane
     )
 end
---- ==========================================
+
+
+  --- ==========================================
 --- Color Palettes モジュール返却
 --- ==========================================
 return {
