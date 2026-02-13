@@ -160,34 +160,53 @@ local function ansi_reset()
 end
 -- パレット可視化表示
 local function display_palettes(window, pane)
+    local esc = string.char(27)
+    local reset = esc .. "[0m"
+
+    local function hex_to_ansi(hex)
+        local r = tonumber(hex:sub(2, 3), 16)
+        local g = tonumber(hex:sub(4, 5), 16)
+        local b = tonumber(hex:sub(6, 7), 16)
+        return string.format("%s[38;2;%d;%d;%dm", esc, r, g, b)
+    end
+
     local line_blocks = {}
     local lines_named = {}
 
-    local reset = ansi_reset()
-
-    -- 1行目: 色付き■■■■■（スペースなし）
     for _, hex in pairs(palettes) do
-        local ansi = hex_to_ansi_fg(hex)
-        table.insert(line_blocks, ansi .. "■" .. reset)
+        table.insert(line_blocks, hex_to_ansi(hex) .. "■" .. reset)
     end
 
-    -- 2行目以降: 色付き ■:name
     for name, hex in pairs(palettes) do
-        local ansi = hex_to_ansi_fg(hex)
-        table.insert(lines_named, ansi .. "■" .. reset .. ":" .. name)
+        table.insert(lines_named, hex_to_ansi(hex) .. "■" .. reset .. ":" .. name)
     end
 
-    local message =
+    local text =
         table.concat(line_blocks, "")
         .. "\n"
         .. table.concat(lines_named, "\n")
-        .. "\n"
 
+    -- 新しいペインを開いて cat で表示
     window:perform_action(
-        wezterm.action.SendString(message),
+        wezterm.action.SplitPane({
+            direction = "Down",
+            command = {
+                args = { "bash", "-lc", "cat" },
+            },
+        }),
         pane
     )
+
+    -- 少し待ってから送信（ペイン準備待ち）
+    wezterm.sleep_ms(50)
+
+    local new_pane = window:active_pane()
+    window:perform_action(
+        wezterm.action.SendString(text .. "\n"),
+        new_pane
+    )
 end
+
 
   --- ==========================================
 --- Color Palettes モジュール返却
