@@ -146,19 +146,6 @@ end
 --- ==========================================
 --- パレット可視化関数
 --- ==========================================
---- hex -> ANSI 24bit color 文字列
-local function hex_to_ansi_fg(hex)
-    local r = tonumber(hex:sub(2, 3), 16)
-    local g = tonumber(hex:sub(4, 5), 16)
-    local b = tonumber(hex:sub(6, 7), 16)
-
-    local esc = string.char(27)  -- \x1b
-    return string.format("%s[38;2;%d;%d;%dm", esc, r, g, b)
-end
-local function ansi_reset()
-    return string.char(27) .. "[0m"
-end
--- パレット可視化表示
 local function display_palettes(window, pane)
     local esc = string.char(27)
     local reset = esc .. "[0m"
