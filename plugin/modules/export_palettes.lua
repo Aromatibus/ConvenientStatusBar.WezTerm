@@ -1,97 +1,107 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
-
 --- ==========================================
 --- 定数（デフォルト出力先）
 --- ==========================================
-local DEFAULT_OUTPUT_DIR  = wezterm.home_dir .. "/Documents"
-local DEFAULT_HTML_NAME  = "ConvenientStatusBarPalettes.html"
-local DEFAULT_TEXT_NAME  = "ConvenientStatusBarPalettes.txt"
+local DEFAULT_OUTPUT_DIR = wezterm.home_dir .. "/Documents"
+local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
 
 
 -- ==========================================
 -- カラーパレット読み込み
 -- ==========================================
 local color_palettes = require('modules.color_palettes')
-local palette_list = color_palettes.palette_list
+local palette_list   = color_palettes.palette_list
+
+
+--- ==========================================
+--- HEX → RGB
+--- ==========================================
+local function hex_to_rgb(hex)
+    local r = tonumber(hex:sub(2, 3), 16)
+    local g = tonumber(hex:sub(4, 5), 16)
+    local b = tonumber(hex:sub(6, 7), 16)
+    return r, g, b
+end
+
+
+--- ==========================================
+--- モノクロ判定（RGB近似）
+--- ==========================================
+local function is_monochrome(hex)
+  -- RGBのそれぞれの値がthresholdで指定した範囲内であればモノクロと判断
+  local threshold = 6
+    local r, g, b = hex_to_rgb(hex)
+    return math.abs(r - g) <= threshold
+        and math.abs(r - b) <= threshold
+        and math.abs(g - b) <= threshold
+end
 
 
 --- ==========================================
 --- パレットをHTMLに書き出す
 --- ==========================================
 function M.export_palettes_to_html(path)
-  -- 出力先パスの決定
-  local out_path = path
-  if not out_path then
-    out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
-  end
-  -- カラーとモノクロを分割
-  local colors = {}
-  local monos  = {}
-  -- RGBの値を分解する関数
-  local function hex_to_rgb(hex)
-      local r = tonumber(hex:sub(2, 3), 16)
-      local g = tonumber(hex:sub(4, 5), 16)
-      local b = tonumber(hex:sub(6, 7), 16)
-      return r, g, b
-  end
-  -- モノクロ判定関数
-  local function is_monochrome(hex)
-    -- RGBの閾値で判定
-    -- RGBの差が小さいほどモノクロに近いとみなす
-    -- 0で完全一致
-    local threshold = 6
-    local r, g, b = hex_to_rgb(hex)
-    return math.abs(r - g) <= threshold
-      and math.abs(r - b) <= threshold
-      and math.abs(g - b) <= threshold
-  end
-  -- カラーとモノクロを分割
-  for _, p in ipairs(palette_list) do
-      if is_monochrome(p.hex) then
-          table.insert(monos, p)
-      else
-          table.insert(colors, p)
-      end
-  end
-  -- HTML内容の生成
-  local total_count = #colors + #monos
-  local color_count = #colors
-  local mono_count  = #monos
-  local function grad_bar(rows)
-    local t = {}
-    for _, r in ipairs(rows) do
-      table.insert(
-        t,
-        string.format(
-          '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
-          r.hex,
-          r.hex
-        )
-      )
+    local out_path = path
+    if not out_path then
+        out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
     end
-    return table.concat(t, "")
-  end
-  local function list_block(rows)
-    local t = {}
-    for _, r in ipairs(rows) do
-      table.insert(
-        t,
-        string.format([[
+
+    local colors = {}
+    local monos  = {}
+    -- パレットをカラーとモノクロに分類
+    for _, p in ipairs(palette_list) do
+        if is_monochrome(p.hex) then
+            table.insert(monos, p)
+        else
+            table.insert(colors, p)
+        end
+    end
+    -- カラーとモノクロをそれぞれ色数順にソート
+    table.sort(colors, function(a, b) return a.hex < b.hex end)
+    table.sort(monos, function(a, b) return a.hex < b.hex end)
+    -- 全色数、カラー数、モノクロ数を取得
+    local total_count = #colors + #monos
+    local color_count = #colors
+    local mono_count  = #monos
+    -- HTMLのスタイルとスクリプトを定義
+    local function grad_bar(rows)
+        local t = {}
+        for _, r in ipairs(rows) do
+            table.insert(
+                t,
+                string.format(
+                    '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
+                    r.hex,
+                    r.hex
+                )
+            )
+        end
+        return table.concat(t, "")
+    end
+    -- カラーとモノクロのブロックを生成
+    local function list_block(rows)
+        local t = {}
+        for _, r in ipairs(rows) do
+            table.insert(
+                t,
+                string.format([[
 <div class="copy-row">
     <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
     <span class="hex" onclick="copyHex('%s')">(%s)</span>
     <span class="sep"> ・・・ </span>
     <span class="name" onclick="copyName('%s')">%s</span>
+    <span class="src"> (lua)</span>
 </div>
 ]],
-            r.hex, r.hex, r.hex, r.hex, r.name, r.name
-          )
-        )
-      end
-      return table.concat(t, "")
+                    r.hex, r.hex, r.hex, r.hex, r.name, r.name
+                )
+            )
+        end
+        return table.concat(t, "")
     end
+    -- HTMLテンプレートにデータを埋め込む
     local html = string.format([[
 <!doctype html>
 <html>
@@ -102,7 +112,7 @@ function M.export_palettes_to_html(path)
 body { background:#111111; color:#EEEEEE; font-family: sans-serif; }
 h1, h2 { margin-top:24px; }
 .note { font-size: 12px; color: #AAAAAA; margin: 4px 0 12px 0; }
-.grad { display:inline-block; width:6px; height:24px; }
+.grad { display:inline-block; width:6px; height:24px; cursor:pointer; }
 .copy-row { margin:4px 0; }
 .dot {
     width:12px; height:12px; display:inline-block;
@@ -158,6 +168,7 @@ function copyName(name) {
 <body>
 
 <h1>◆カラースペクトラム（全%d色）</h1>
+<div class="note">※カラー見本、カラー名をクリックするとカラーコードまたはカラー名をコピーできます</div>
 
 <h2>■ カラー（%d色）</h2>
 <div>%s</div>
@@ -166,7 +177,6 @@ function copyName(name) {
 <div>%s</div>
 
 <h1>◆カラーパレット</h1>
-<div class="note">※カラー見本、カラー名をクリックするとカラーコードまたはカラー名をコピーできます</div>
 
 <h2>■ カラー（%d色）</h2>
 %s
@@ -177,25 +187,25 @@ function copyName(name) {
 </body>
 </html>
 ]],
-    total_count,
-    color_count,
-    grad_bar(colors),
-    mono_count,
-    grad_bar(monos),
-    color_count,
-    list_block(colors),
-    mono_count,
-    list_block(monos)
-  )
-
-  local file, err = io.open(out_path, "w")
-  if not file then
-      wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
-      return
-  end
-  file:write(html)
-  file:close()
-  wezterm.log_info("Palette HTML exported to: " .. out_path)
+        total_count,
+        color_count,
+        grad_bar(colors),
+        mono_count,
+        grad_bar(monos),
+        color_count,
+        list_block(colors),
+        mono_count,
+        list_block(monos)
+    )
+    -- ファイルに書き出し
+    local file, err = io.open(out_path, "w")
+    if not file then
+        wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
+        return
+    end
+    file:write(html)
+    file:close()
+    wezterm.log_info("Palette HTML exported to: " .. out_path)
 end
 
 
