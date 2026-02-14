@@ -154,28 +154,35 @@ end
 
 
 --- ==========================================
---- パレット可視化（順序保証・色付き表示）
+--- パレットをテキストファイルに書き出す
 --- ==========================================
-local function display_palettes()
-    local line_blocks = {}
-    local lines_named = {}
+local function export_palettes_to_file(path)
+    local lines = {}
 
-    -- 1行目: ■■■■■（順序保証・スペースなし）
+    -- 1行目: ■■■■■（スペースなし）
+    local blocks = {}
     for _, p in ipairs(palette_list) do
-        table.insert(line_blocks, "■")
+        table.insert(blocks, "■")
+    end
+    table.insert(lines, table.concat(blocks, ""))
+
+    -- 2行目以降: ■:name = #HEX
+    for _, p in ipairs(palette_list) do
+        table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
     end
 
-    -- 2行目以降: ■:name（順序保証）
-    for _, p in ipairs(palette_list) do
-        table.insert(lines_named, "■:" .. p.name)
+    local content = table.concat(lines, "\n") .. "\n"
+
+    local file, err = io.open(path, "w")
+    if not file then
+        wezterm.log_error("Failed to write palette file: " .. tostring(err))
+        return
     end
 
-    local message =
-        table.concat(line_blocks, "")
-        .. "\n"
-        .. table.concat(lines_named, "\n")
+    file:write(content)
+    file:close()
 
-    wezterm.log_info(message)
+    wezterm.log_info("Palette exported to: " .. path)
 end
 
 
@@ -187,5 +194,5 @@ return {
     ansi                     = ansi,
     palettes                 = palettes,
     palette_list             = palette_list,
-    display_palettes         = display_palettes,
+    export_palettes_to_file  = export_palettes_to_file,
 }
