@@ -131,7 +131,6 @@ function M.export_palettes_to_html(path)
     <span class="hex" onclick="copyHex('%s')">(%s)</span>
     <span class="sep"> ・・・ </span>
     <span class="name" onclick="copyName('%s')">%s</span>
-    <span class="src"> (lua)</span>
 </div>
 ]],
             r.hex, r.hex, r.hex, r.hex, r.name, r.name
