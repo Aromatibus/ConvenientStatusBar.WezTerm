@@ -65,7 +65,10 @@ function M.export_palettes_to_html(path)
     local total_count = #colors + #monos
     local color_count = #colors
     local mono_count  = #monos
-    -- HTMLのスタイルとスクリプトを定義
+    -- グラデーションバーのサイズ設定
+    local GRAD_WIDTH  = 12    -- 1色あたりの横幅(px)
+    local GRAD_HEIGHT = 12   -- 高さ(px)
+    -- グラデーションバーを生成
     local function grad_bar(rows)
         local t = {}
         for _, r in ipairs(rows) do
@@ -82,7 +85,7 @@ function M.export_palettes_to_html(path)
     end
     -- カラーとモノクロのブロックを生成
     local function list_block(rows)
-        local t = {}
+      local t = {}
         for _, r in ipairs(rows) do
             table.insert(
                 t,
@@ -112,7 +115,7 @@ local html = string.format([[
 body { background:#111111; color:#EEEEEE; font-family: sans-serif; }
 h1, h2 { margin-top:24px; }
 .note { font-size: 12px; color: #AAAAAA; margin: 4px 0 12px 0; }
-.grad { display:inline-block; width:6px; height:24px; cursor:pointer; }
+.grad { display:inline-block; width:%dpx; height:%dpx; cursor:pointer; }
 .copy-row { margin:4px 0; }
 .dot {
     width:12px; height:12px; display:inline-block;
@@ -187,6 +190,7 @@ function copyName(name) {
 </body>
 </html>
 ]],
+    GRAD_WIDTH, GRAD_HEIGHT,
     total_count,
     color_count,
     grad_bar(colors),
