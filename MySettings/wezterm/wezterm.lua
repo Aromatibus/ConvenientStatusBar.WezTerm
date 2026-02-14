@@ -196,7 +196,7 @@ config.window_background_gradient  = {
     cp.abyss,
     cp.abyss,
     cp.abyss,
-    cp.deep_sea,
+    cp.deepsea,
   },
   blend = 'Rgb',
   noise = 40,

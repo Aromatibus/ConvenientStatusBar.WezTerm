@@ -44,8 +44,8 @@ function M.apply(config)
       -- ===============================
       -- UIパーツ（スクロールバー・分割線）
       -- ===============================
-      scrollbar_thumb = cp.deepsea, -- スクロールバーの「つまみ」の色
-      split           = cp.blue,     --cp.persimmon, -- 画面分割時の境界線の色
+      scrollbar_thumb = cp.deepsea,  -- スクロールバーの「つまみ」の色
+      split           = cp.blue,     -- 画面分割時の境界線の色
       -- ===============================
       -- タブバー（上部のタブUI）
       -- ===============================
@@ -62,7 +62,7 @@ function M.apply(config)
         },
         -- 非アクティブなタブ
         inactive_tab = {
-          bg_color = cp.grey,   -- 非選択タブの背景色
+          bg_color = cp.gray,   -- 非選択タブの背景色
           fg_color = cp.silver, -- 非選択タブの文字色
         },
         -- 非アクティブタブにマウスオーバーした時
