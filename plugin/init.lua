@@ -37,7 +37,6 @@ local cp = color_palettes.cp
 
 -- 引数に出力先パスを指定、デフォルトでホームディレクトリに出力
 exporter.export_palettes_to_html()
-exporter.export_palettes_to_file()
 
 
 --- ==========================================
