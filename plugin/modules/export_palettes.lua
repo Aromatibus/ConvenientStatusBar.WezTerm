@@ -46,13 +46,13 @@ function M.export_palettes_to_file(path)
   end
 
 
-
-
-
   table.insert(lines, table.concat(blocks, ""))
+
   for _, p in ipairs(palette_list) do
-    table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
+    local color_block = ansi_bg(p.hex)
+    table.insert(lines, string.format("%s : %-12s %s", color_block, p.name, p.hex))
   end
+
   local content = table.concat(lines, "\n") .. "\n"
   local file, err = io.open(out_path, "w")
   if not file then
