@@ -158,30 +158,48 @@ end
 --- パレットをテキストファイルに書き出す
 --- ==========================================
 local function export_palettes_to_file(path)
+    local ESC = "\x1b"
     local lines = {}
 
+    -- 1行目: カラーブロック横並び（色付き）
     local blocks = {}
-    for _ in ipairs(palette_list) do
-        table.insert(blocks, "■")
+    for _, p in ipairs(palette_list) do
+        local r = tonumber(p.hex:sub(2, 3), 16)
+        local g = tonumber(p.hex:sub(4, 5), 16)
+        local b = tonumber(p.hex:sub(6, 7), 16)
+        table.insert(
+            blocks,
+            string.format("%s[38;2;%d;%d;%dm■%s[0m", ESC, r, g, b, ESC)
+        )
     end
     table.insert(lines, table.concat(blocks, ""))
 
+    -- 2行目以降: ■:name（色付き）
     for _, p in ipairs(palette_list) do
-        table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
+        local r = tonumber(p.hex:sub(2, 3), 16)
+        local g = tonumber(p.hex:sub(4, 5), 16)
+        local b = tonumber(p.hex:sub(6, 7), 16)
+        table.insert(
+            lines,
+            string.format(
+                "%s[38;2;%d;%d;%dm■%s[0m:%-12s %s",
+                ESC, r, g, b, ESC, p.name, p.hex
+            )
+        )
     end
 
     local content = table.concat(lines, "\n") .. "\n"
 
     local file, err = io.open(path, "w")
     if not file then
-        wezterm.log_error("Failed to write palette file: " .. tostring(err))
+        wezterm.log_error("Failed to write palette file (ANSI): " .. tostring(err))
         return
     end
 
     file:write(content)
     file:close()
 
-    wezterm.log_info("Palette exported to: " .. path)
+    wezterm.log_info("Palette (ANSI) exported to: " .. path)
 end
 
 
