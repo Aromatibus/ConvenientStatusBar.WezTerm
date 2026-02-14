@@ -5,221 +5,222 @@ local wezterm = require 'wezterm'
 --- パレット定義
 --- ==========================================
 local palette_list = {
-    { name = "palevioletred",               hex = "#DB7093" }, -- css
-    { name = "ayame_iro",                   hex = "#CC7EB1" }, -- japanese
-    { name = "plum",                        hex = "#DDA0DD" }, -- css
-    { name = "violet",                      hex = "#EE82EE" }, -- css
-    { name = "orchid",                      hex = "#DA70D6" }, -- css
-    { name = "magenta",                     hex = "#FF00FF" }, -- base16
-    { name = "mediumorchid",                hex = "#BA55D3" }, -- css
-    { name = "darkorchid",                  hex = "#9932CC" }, -- css
-    { name = "darkviolet",                  hex = "#9400D3" }, -- css
-    { name = "blueviolet",                  hex = "#8A2BE2" }, -- css
-    { name = "blue",                        hex = "#0000FF" }, -- base16
-    { name = "mediumblue",                  hex = "#0000CD" }, -- css
-    { name = "indigo",                      hex = "#4B0082" }, -- css
-    { name = "darkblue",                    hex = "#00008B" }, -- css
-    { name = "navy",                        hex = "#000080" }, -- base16
-    { name = "midnightblue",                hex = "#191970" }, -- css
-    { name = "abyss",                       hex = "#252060" }, -- complement
-    { name = "shikkoku_iro",                hex = "#0D0015" }, -- japanese
-    { name = "purple",                      hex = "#800080" }, -- base16
-    { name = "darkmagenta",                 hex = "#8B008B" }, -- css
-    { name = "mediumvioletred",             hex = "#C71585" }, -- css
-    { name = "kyomurasaki_iro",             hex = "#9D5B8B" }, -- japanese
-    { name = "rindo_iro",                   hex = "#9079AD" }, -- japanese
-    { name = "shion_iro",                   hex = "#867BA9" }, -- japanese
-    { name = "mediumpurple",                hex = "#9370DB" }, -- css
-    { name = "mediumslateblue",             hex = "#7B68EE" }, -- css
-    { name = "slateblue",                   hex = "#6A5ACD" }, -- css
-    { name = "kikyo_iro",                   hex = "#5654A2" }, -- japanese
-    { name = "sumire_iro",                  hex = "#7058A3" }, -- japanese
-    { name = "shobu_iro",                   hex = "#674196" }, -- japanese
-    { name = "rebeccapurple",               hex = "#663399" }, -- css
-    { name = "darkslateblue",               hex = "#483D8B" }, -- css
-    { name = "deepsea",                     hex = "#2F2888" }, -- complement
-    { name = "kon_iro",                     hex = "#223A70" }, -- japanese
-    { name = "ruri_iro",                    hex = "#1E50A2" }, -- japanese
-    { name = "kakitsubata_iro",             hex = "#3E62AD" }, -- japanese
-    { name = "gunjo_iro",                   hex = "#4C6CB3" }, -- japanese
-    { name = "royalblue",                   hex = "#4169E1" }, -- css
-    { name = "slategray",                   hex = "#708090" }, -- css
-    { name = "lightslategray",              hex = "#778899" }, -- css
-    { name = "steelblue",                   hex = "#4682B4" }, -- css
-    { name = "dodgerblue",                  hex = "#1E90FF" }, -- css
-    { name = "cornflowerblue",              hex = "#6495ED" }, -- css
-    { name = "tsuyukusa_iro",               hex = "#38A1DB" }, -- japanese
-    { name = "deepskyblue",                 hex = "#00BFFF" }, -- css
-    { name = "lightskyblue",                hex = "#87CEFA" }, -- css
-    { name = "skyblue",                     hex = "#87CEEB" }, -- css
-    { name = "sora_iro",                    hex = "#A0D8EF" }, -- japanese
-    { name = "lightblue",                   hex = "#ADD8E6" }, -- css
-    { name = "powderblue",                  hex = "#B0E0E6" }, -- css
-    { name = "mizu_iro",                    hex = "#BCE2E8" }, -- japanese
-    { name = "lightcyan",                   hex = "#E0FFFF" }, -- css
-    { name = "paleturquoise",               hex = "#AFEEEE" }, -- css
-    { name = "cyan",                        hex = "#00FFFF" }, -- base16
-    { name = "turquoise",                   hex = "#40E0D0" }, -- css
-    { name = "mediumturquoise",             hex = "#48D1CC" }, -- css
-    { name = "darkturquoise",               hex = "#00CED1" }, -- css
-    { name = "lightseagreen",               hex = "#20B2AA" }, -- css
-    { name = "cadetblue",                   hex = "#5F9EA0" }, -- css
-    { name = "suzu_iro",                    hex = "#9EA1A3" }, -- japanese
-    { name = "lightsteelblue",              hex = "#B0C4DE" }, -- css
-    { name = "fuji_iro",                    hex = "#BBBCDE" }, -- japanese
-    { name = "lavender",                    hex = "#E6E6FA" }, -- css
-    { name = "lavenderblush",               hex = "#FFF0F5" }, -- css
-    { name = "mistyrose",                   hex = "#FFE4E1" }, -- css
-    { name = "niji_iro",                    hex = "#F6BFBC" }, -- japanese
-    { name = "sango_iro",                   hex = "#F5B1AA" }, -- japanese
-    { name = "lightpink",                   hex = "#FFB6C1" }, -- css
-    { name = "pink",                        hex = "#FFC0CB" }, -- css
-    { name = "thistle",                     hex = "#D8BFD8" }, -- css
-    { name = "rosybrown",                   hex = "#BC8F8F" }, -- css
-    { name = "susu_iro",                    hex = "#887F7A" }, -- japanese
-    { name = "dobunezumi_iro",              hex = "#595455" }, -- japanese
-    { name = "kuri_iro",                    hex = "#554738" }, -- japanese
-    { name = "darkslategray",               hex = "#2F4F4F" }, -- css
-    { name = "tetsu_iro",                   hex = "#005243" }, -- japanese
-    { name = "teal",                        hex = "#008080" }, -- base16
-    { name = "darkcyan",                    hex = "#008B8B" }, -- css
-    { name = "rokusho_iro",                 hex = "#47885E" }, -- japanese
-    { name = "seagreen",                    hex = "#2E8B57" }, -- css
-    { name = "tokiwa_iro",                  hex = "#007B43" }, -- japanese
-    { name = "forestgreen",                 hex = "#228B22" }, -- css
-    { name = "green",                       hex = "#008000" }, -- base16
-    { name = "darkgreen",                   hex = "#006400" }, -- css
-    { name = "darkolivegreen",              hex = "#556B2F" }, -- css
-    { name = "koke_iro",                    hex = "#69821B" }, -- japanese
-    { name = "olivedrab",                   hex = "#6B8E23" }, -- css
-    { name = "kusa_iro",                    hex = "#7B8D42" }, -- japanese
-    { name = "olive",                       hex = "#808000" }, -- base16
-    { name = "uguisu_iro",                  hex = "#928C36" }, -- japanese
-    { name = "darkkhaki",                   hex = "#BDB76B" }, -- css
-    { name = "maccha_iro",                  hex = "#C5C56A" }, -- japanese
-    { name = "karashi_iro",                 hex = "#D0AF4C" }, -- japanese
-    { name = "kogane_iro",                  hex = "#E6B422" }, -- japanese
-    { name = "goldenrod",                   hex = "#DAA520" }, -- css
-    { name = "darkgoldenrod",               hex = "#B8860B" }, -- css
-    { name = "oudo_iro",                    hex = "#C39143" }, -- japanese
-    { name = "kitsune_iro",                 hex = "#C38743" }, -- japanese
-    { name = "peru",                        hex = "#CD853F" }, -- css
-    { name = "mikan_iro",                   hex = "#F08300" }, -- japanese
-    { name = "darkorange",                  hex = "#FF8C00" }, -- css
-    { name = "orange",                      hex = "#FFA500" }, -- css
-    { name = "yamabuki_iro",                hex = "#F8B500" }, -- japanese
-    { name = "gold",                        hex = "#FFD700" }, -- css
-    { name = "tanpopo_iro",                 hex = "#FFD900" }, -- japanese
-    { name = "yellow",                      hex = "#FFFF00" }, -- base16
-    { name = "wakakusa_iro",                hex = "#C3D825" }, -- japanese
-    { name = "moegi_iro",                   hex = "#AACF53" }, -- japanese
-    { name = "yellowgreen",                 hex = "#9ACD32" }, -- css
-    { name = "greenyellow",                 hex = "#ADFF2F" }, -- css
-    { name = "chartreuse",                  hex = "#7FFF00" }, -- css
-    { name = "lawngreen",                   hex = "#7CFC00" }, -- css
-    { name = "lime",                        hex = "#00FF00" }, -- base16
-    { name = "springgreen",                 hex = "#00FF7F" }, -- css
-    { name = "mediumspringgreen",           hex = "#00FA9A" }, -- css
-    { name = "lightgreen",                  hex = "#90EE90" }, -- css
-    { name = "palegreen",                   hex = "#98FB98" }, -- css
-    { name = "aquamarine",                  hex = "#7FFFD4" }, -- css
-    { name = "mediumaquamarine",            hex = "#66CDAA" }, -- css
-    { name = "wakatake_iro",                hex = "#68BE8D" }, -- japanese
-    { name = "hisui_iro",                   hex = "#38B48B" }, -- japanese
-    { name = "mediumseagreen",              hex = "#3CB371" }, -- css
-    { name = "limegreen",                   hex = "#32CD32" }, -- css
-    { name = "darkseagreen",                hex = "#8FBC8F" }, -- css
-    { name = "wasabi_iro",                  hex = "#A8BF93" }, -- japanese
-    { name = "yanagi_iro",                  hex = "#A8C97F" }, -- japanese
-    { name = "wakaba_iro",                  hex = "#B9D08B" }, -- japanese
-    { name = "wakame_iro",                  hex = "#E0EBAF" }, -- japanese
-    { name = "palegoldenrod",               hex = "#EEE8AA" }, -- css
-    { name = "khaki",                       hex = "#F0E68C" }, -- css
-    { name = "tamago_iro",                  hex = "#FCD575" }, -- japanese
-    { name = "lemonchiffon",                hex = "#FFFACD" }, -- css
-    { name = "lightgoldenrodyellow",        hex = "#FAFAD2" }, -- css
-    { name = "lightyellow",                 hex = "#FFFFE0" }, -- css
-    { name = "cornsilk",                    hex = "#FFF8DC" }, -- css
-    { name = "beige",                       hex = "#F5F5DC" }, -- css
-    { name = "ivory",                       hex = "#FFFFF0" }, -- css
-    { name = "honeydew",                    hex = "#F0FFF0" }, -- css
-    { name = "mintcream",                   hex = "#F5FFFA" }, -- css
-    { name = "azure",                       hex = "#F0FFFF" }, -- css
-    { name = "aliceblue",                   hex = "#F0F8FF" }, -- css
-    { name = "ghostwhite",                  hex = "#F8F8FF" }, -- css
-    { name = "snow",                        hex = "#FFFAFA" }, -- css
-    { name = "seashell",                    hex = "#FFF5EE" }, -- css
-    { name = "floralwhite",                 hex = "#FFFAF0" }, -- css
-    { name = "oldlace",                     hex = "#FDF5E6" }, -- css
-    { name = "linen",                       hex = "#FAF0E6" }, -- css
-    { name = "antiquewhite",                hex = "#FAEBD7" }, -- css
-    { name = "papayawhip",                  hex = "#FFEFD5" }, -- css
-    { name = "blanchedalmond",              hex = "#FFEBCD" }, -- css
-    { name = "bisque",                      hex = "#FFE4C4" }, -- css
-    { name = "peachpuff",                   hex = "#FFDAB9" }, -- css
-    { name = "navajowhite",                 hex = "#FFDEAD" }, -- css
-    { name = "moccasin",                    hex = "#FFE4B5" }, -- css
-    { name = "wheat",                       hex = "#F5DEB3" }, -- css
-    { name = "ama_iro",                     hex = "#D6C6AF" }, -- japanese
-    { name = "tan",                         hex = "#D2B48C" }, -- css
-    { name = "burlywood",                   hex = "#DEB887" }, -- css
-    { name = "hashibami_iro",               hex = "#BFA46F" }, -- japanese
-    { name = "ame_iro",                     hex = "#DEB068" }, -- japanese
-    { name = "anzu_iro",                    hex = "#F7B977" }, -- japanese
-    { name = "sandybrown",                  hex = "#F4A460" }, -- css
-    { name = "lightsalmon",                 hex = "#FFA07A" }, -- css
-    { name = "darksalmon",                  hex = "#E9967A" }, -- css
-    { name = "akebono_iro",                 hex = "#F19072" }, -- japanese
-    { name = "coral",                       hex = "#FF7F50" }, -- css
-    { name = "kaki_iro",                    hex = "#ED6D3D" }, -- japanese
-    { name = "tomato",                      hex = "#FF6347" }, -- css
-    { name = "salmon",                      hex = "#FA8072" }, -- css
-    { name = "lightcoral",                  hex = "#F08080" }, -- css
-    { name = "usubeni_iro",                 hex = "#F0908D" }, -- japanese
-    { name = "peach",                       hex = "#FF9E9E" }, -- complement
-    { name = "momo_iro",                    hex = "#F09199" }, -- japanese
-    { name = "bara_iro",                    hex = "#E9546B" }, -- japanese
-    { name = "indianred",                   hex = "#CD5C5C" }, -- css
-    { name = "hi_iro",                      hex = "#D3381C" }, -- japanese
-    { name = "red",                         hex = "#FF0000" }, -- base16
-    { name = "orangered",                   hex = "#FF4500" }, -- css
-    { name = "shu_iro",                     hex = "#EB6101" }, -- japanese
-    { name = "chocolate",                   hex = "#D2691E" }, -- css
-    { name = "kohaku_iro",                  hex = "#BF783A" }, -- japanese
-    { name = "tsuchi_iro",                  hex = "#BC763C" }, -- japanese
-    { name = "kurumi_iro",                  hex = "#A86F4C" }, -- japanese
-    { name = "sienna",                      hex = "#A0522D" }, -- css
-    { name = "saddlebrown",                 hex = "#8B4513" }, -- css
-    { name = "tobi_iro",                    hex = "#95483F" }, -- japanese
-    { name = "azuki_iro",                   hex = "#96514D" }, -- japanese
-    { name = "sabi_iro",                    hex = "#6C3524" }, -- japanese
-    { name = "maroon",                      hex = "#800000" }, -- base16
-    { name = "darkred",                     hex = "#8B0000" }, -- css
-    { name = "firebrick",                   hex = "#B22222" }, -- css
-    { name = "akane_iro",                   hex = "#B7282E" }, -- japanese
-    { name = "brown",                       hex = "#A52A2A" }, -- css
-    { name = "shinku_iro",                  hex = "#A22041" }, -- japanese
-    { name = "kurenai_iro",                 hex = "#D7003A" }, -- japanese
-    { name = "crimson",                     hex = "#DC143C" }, -- css
-    { name = "deeppink",                    hex = "#FF1493" }, -- css
-    { name = "tsutsuji_iro",                hex = "#E95295" }, -- japanese
-    { name = "botan_iro",                   hex = "#E7609E" }, -- japanese
-    { name = "hotpink",                     hex = "#FF69B4" }, -- css
-    { name = "white",                       hex = "#FFFFFF" }, -- base16
-    { name = "whitesmoke",                  hex = "#F5F5F5" }, -- css
-    { name = "gainsboro",                   hex = "#DCDCDC" }, -- css
-    { name = "lightgray",                   hex = "#D3D3D3" }, -- css
-    { name = "silver",                      hex = "#C0C0C0" }, -- base16
-    { name = "darkgray",                    hex = "#A9A9A9" }, -- css
-    { name = "nezumi_iro",                  hex = "#949495" }, -- japanese
-    { name = "gray",                        hex = "#808080" }, -- base16
-    { name = "dimgray",                     hex = "#696969" }, -- css
-    { name = "sumi_iro",                    hex = "#595857" }, -- japanese
-    { name = "slate",                       hex = "#3A3A3A" }, -- complement
-    { name = "charcoal",                    hex = "#222222" }, -- complement
-    { name = "onyx",                        hex = "#1B1B1B" }, -- complement
-    { name = "black",                       hex = "#000000" }, -- css
+    { name = "palevioletred",         source = "css",         hex = "#DB7093" },
+    { name = "ayame_iro",             source = "japanese",    hex = "#CC7EB1" },
+    { name = "plum",                  source = "css",         hex = "#DDA0DD" },
+    { name = "violet",                source = "css",         hex = "#EE82EE" },
+    { name = "orchid",                source = "css",         hex = "#DA70D6" },
+    { name = "magenta",               source = "base16",      hex = "#FF00FF" },
+    { name = "mediumorchid",          source = "css",         hex = "#BA55D3" },
+    { name = "darkorchid",            source = "css",         hex = "#9932CC" },
+    { name = "darkviolet",            source = "css",         hex = "#9400D3" },
+    { name = "blueviolet",            source = "css",         hex = "#8A2BE2" },
+    { name = "blue",                  source = "base16",      hex = "#0000FF" },
+    { name = "mediumblue",            source = "css",         hex = "#0000CD" },
+    { name = "indigo",                source = "css",         hex = "#4B0082" },
+    { name = "darkblue",              source = "css",         hex = "#00008B" },
+    { name = "navy",                  source = "base16",      hex = "#000080" },
+    { name = "midnightblue",          source = "css",         hex = "#191970" },
+    { name = "abyss",                 source = "complement",  hex = "#252060" },
+    { name = "shikkoku_iro",          source = "japanese",    hex = "#0D0015" },
+    { name = "purple",                source = "base16",      hex = "#800080" },
+    { name = "darkmagenta",           source = "css",         hex = "#8B008B" },
+    { name = "mediumvioletred",       source = "css",         hex = "#C71585" },
+    { name = "kyomurasaki_iro",       source = "japanese",    hex = "#9D5B8B" },
+    { name = "rindo_iro",             source = "japanese",    hex = "#9079AD" },
+    { name = "shion_iro",             source = "japanese",    hex = "#867BA9" },
+    { name = "mediumpurple",          source = "css",         hex = "#9370DB" },
+    { name = "mediumslateblue",       source = "css",         hex = "#7B68EE" },
+    { name = "slateblue",             source = "css",         hex = "#6A5ACD" },
+    { name = "kikyo_iro",             source = "japanese",    hex = "#5654A2" },
+    { name = "sumire_iro",            source = "japanese",    hex = "#7058A3" },
+    { name = "shobu_iro",             source = "japanese",    hex = "#674196" },
+    { name = "rebeccapurple",         source = "css",         hex = "#663399" },
+    { name = "darkslateblue",         source = "css",         hex = "#483D8B" },
+    { name = "deepsea",               source = "complement",  hex = "#2F2888" },
+    { name = "kon_iro",               source = "japanese",    hex = "#223A70" },
+    { name = "ruri_iro",              source = "japanese",    hex = "#1E50A2" },
+    { name = "kakitsubata_iro",       source = "japanese",    hex = "#3E62AD" },
+    { name = "gunjo_iro",             source = "japanese",    hex = "#4C6CB3" },
+    { name = "royalblue",             source = "css",         hex = "#4169E1" },
+    { name = "slategray",             source = "css",         hex = "#708090" },
+    { name = "lightslategray",        source = "css",         hex = "#778899" },
+    { name = "steelblue",             source = "css",         hex = "#4682B4" },
+    { name = "dodgerblue",            source = "css",         hex = "#1E90FF" },
+    { name = "cornflowerblue",        source = "css",         hex = "#6495ED" },
+    { name = "tsuyukusa_iro",         source = "japanese",    hex = "#38A1DB" },
+    { name = "deepskyblue",           source = "css",         hex = "#00BFFF" },
+    { name = "lightskyblue",          source = "css",         hex = "#87CEFA" },
+    { name = "skyblue",               source = "css",         hex = "#87CEEB" },
+    { name = "sora_iro",              source = "japanese",    hex = "#A0D8EF" },
+    { name = "lightblue",             source = "css",         hex = "#ADD8E6" },
+    { name = "powderblue",            source = "css",         hex = "#B0E0E6" },
+    { name = "mizu_iro",              source = "japanese",    hex = "#BCE2E8" },
+    { name = "lightcyan",             source = "css",         hex = "#E0FFFF" },
+    { name = "paleturquoise",         source = "css",         hex = "#AFEEEE" },
+    { name = "cyan",                  source = "base16",      hex = "#00FFFF" },
+    { name = "turquoise",             source = "css",         hex = "#40E0D0" },
+    { name = "mediumturquoise",       source = "css",         hex = "#48D1CC" },
+    { name = "darkturquoise",         source = "css",         hex = "#00CED1" },
+    { name = "lightseagreen",         source = "css",         hex = "#20B2AA" },
+    { name = "cadetblue",             source = "css",         hex = "#5F9EA0" },
+    { name = "suzu_iro",              source = "japanese",    hex = "#9EA1A3" },
+    { name = "lightsteelblue",        source = "css",         hex = "#B0C4DE" },
+    { name = "fuji_iro",              source = "japanese",    hex = "#BBBCDE" },
+    { name = "lavender",              source = "css",         hex = "#E6E6FA" },
+    { name = "lavenderblush",         source = "css",         hex = "#FFF0F5" },
+    { name = "mistyrose",             source = "css",         hex = "#FFE4E1" },
+    { name = "niji_iro",              source = "japanese",    hex = "#F6BFBC" },
+    { name = "sango_iro",             source = "japanese",    hex = "#F5B1AA" },
+    { name = "lightpink",             source = "css",         hex = "#FFB6C1" },
+    { name = "pink",                  source = "css",         hex = "#FFC0CB" },
+    { name = "thistle",               source = "css",         hex = "#D8BFD8" },
+    { name = "rosybrown",             source = "css",         hex = "#BC8F8F" },
+    { name = "susu_iro",              source = "japanese",    hex = "#887F7A" },
+    { name = "dobunezumi_iro",        source = "japanese",    hex = "#595455" },
+    { name = "kuri_iro",              source = "japanese",    hex = "#554738" },
+    { name = "darkslategray",         source = "css",         hex = "#2F4F4F" },
+    { name = "tetsu_iro",             source = "japanese",    hex = "#005243" },
+    { name = "teal",                  source = "base16",      hex = "#008080" },
+    { name = "darkcyan",              source = "css",         hex = "#008B8B" },
+    { name = "rokusho_iro",           source = "japanese",    hex = "#47885E" },
+    { name = "seagreen",              source = "css",         hex = "#2E8B57" },
+    { name = "tokiwa_iro",            source = "japanese",    hex = "#007B43" },
+    { name = "forestgreen",           source = "css",         hex = "#228B22" },
+    { name = "green",                 source = "base16",      hex = "#008000" },
+    { name = "darkgreen",             source = "css",         hex = "#006400" },
+    { name = "darkolivegreen",        source = "css",         hex = "#556B2F" },
+    { name = "koke_iro",              source = "japanese",    hex = "#69821B" },
+    { name = "olivedrab",             source = "css",         hex = "#6B8E23" },
+    { name = "kusa_iro",              source = "japanese",    hex = "#7B8D42" },
+    { name = "olive",                 source = "base16",      hex = "#808000" },
+    { name = "uguisu_iro",            source = "japanese",    hex = "#928C36" },
+    { name = "darkkhaki",             source = "css",         hex = "#BDB76B" },
+    { name = "maccha_iro",            source = "japanese",    hex = "#C5C56A" },
+    { name = "karashi_iro",           source = "japanese",    hex = "#D0AF4C" },
+    { name = "kogane_iro",            source = "japanese",    hex = "#E6B422" },
+    { name = "goldenrod",             source = "css",         hex = "#DAA520" },
+    { name = "darkgoldenrod",         source = "css",         hex = "#B8860B" },
+    { name = "oudo_iro",              source = "japanese",    hex = "#C39143" },
+    { name = "kitsune_iro",           source = "japanese",    hex = "#C38743" },
+    { name = "peru",                  source = "css",         hex = "#CD853F" },
+    { name = "mikan_iro",             source = "japanese",    hex = "#F08300" },
+    { name = "darkorange",            source = "css",         hex = "#FF8C00" },
+    { name = "orange",                source = "css",         hex = "#FFA500" },
+    { name = "yamabuki_iro",          source = "japanese",    hex = "#F8B500" },
+    { name = "gold",                  source = "css",         hex = "#FFD700" },
+    { name = "tanpopo_iro",           source = "japanese",    hex = "#FFD900" },
+    { name = "yellow",                source = "base16",      hex = "#FFFF00" },
+    { name = "wakakusa_iro",          source = "japanese",    hex = "#C3D825" },
+    { name = "moegi_iro",             source = "japanese",    hex = "#AACF53" },
+    { name = "yellowgreen",           source = "css",         hex = "#9ACD32" },
+    { name = "greenyellow",           source = "css",         hex = "#ADFF2F" },
+    { name = "chartreuse",            source = "css",         hex = "#7FFF00" },
+    { name = "lawngreen",             source = "css",         hex = "#7CFC00" },
+    { name = "lime",                  source = "base16",      hex = "#00FF00" },
+    { name = "springgreen",           source = "css",         hex = "#00FF7F" },
+    { name = "mediumspringgreen",     source = "css",         hex = "#00FA9A" },
+    { name = "lightgreen",            source = "css",         hex = "#90EE90" },
+    { name = "palegreen",             source = "css",         hex = "#98FB98" },
+    { name = "aquamarine",            source = "css",         hex = "#7FFFD4" },
+    { name = "mediumaquamarine",      source = "css",         hex = "#66CDAA" },
+    { name = "wakatake_iro",          source = "japanese",    hex = "#68BE8D" },
+    { name = "hisui_iro",             source = "japanese",    hex = "#38B48B" },
+    { name = "mediumseagreen",        source = "css",         hex = "#3CB371" },
+    { name = "limegreen",             source = "css",         hex = "#32CD32" },
+    { name = "darkseagreen",          source = "css",         hex = "#8FBC8F" },
+    { name = "wasabi_iro",            source = "japanese",    hex = "#A8BF93" },
+    { name = "yanagi_iro",            source = "japanese",    hex = "#A8C97F" },
+    { name = "wakaba_iro",            source = "japanese",    hex = "#B9D08B" },
+    { name = "wakame_iro",            source = "japanese",    hex = "#E0EBAF" },
+    { name = "palegoldenrod",         source = "css",         hex = "#EEE8AA" },
+    { name = "khaki",                 source = "css",         hex = "#F0E68C" },
+    { name = "tamago_iro",            source = "japanese",    hex = "#FCD575" },
+    { name = "lemonchiffon",          source = "css",         hex = "#FFFACD" },
+    { name = "lightgoldenrodyellow",  source = "css",         hex = "#FAFAD2" },
+    { name = "lightyellow",           source = "css",         hex = "#FFFFE0" },
+    { name = "cornsilk",              source = "css",         hex = "#FFF8DC" },
+    { name = "beige",                 source = "css",         hex = "#F5F5DC" },
+    { name = "ivory",                 source = "css",         hex = "#FFFFF0" },
+    { name = "honeydew",              source = "css",         hex = "#F0FFF0" },
+    { name = "mintcream",             source = "css",         hex = "#F5FFFA" },
+    { name = "azure",                 source = "css",         hex = "#F0FFFF" },
+    { name = "aliceblue",             source = "css",         hex = "#F0F8FF" },
+    { name = "ghostwhite",            source = "css",         hex = "#F8F8FF" },
+    { name = "snow",                  source = "css",         hex = "#FFFAFA" },
+    { name = "seashell",              source = "css",         hex = "#FFF5EE" },
+    { name = "floralwhite",           source = "css",         hex = "#FFFAF0" },
+    { name = "oldlace",               source = "css",         hex = "#FDF5E6" },
+    { name = "linen",                 source = "css",         hex = "#FAF0E6" },
+    { name = "antiquewhite",          source = "css",         hex = "#FAEBD7" },
+    { name = "papayawhip",            source = "css",         hex = "#FFEFD5" },
+    { name = "blanchedalmond",        source = "css",         hex = "#FFEBCD" },
+    { name = "bisque",                source = "css",         hex = "#FFE4C4" },
+    { name = "peachpuff",             source = "css",         hex = "#FFDAB9" },
+    { name = "navajowhite",           source = "css",         hex = "#FFDEAD" },
+    { name = "moccasin",              source = "css",         hex = "#FFE4B5" },
+    { name = "wheat",                 source = "css",         hex = "#F5DEB3" },
+    { name = "ama_iro",               source = "japanese",    hex = "#D6C6AF" },
+    { name = "tan",                   source = "css",         hex = "#D2B48C" },
+    { name = "burlywood",             source = "css",         hex = "#DEB887" },
+    { name = "hashibami_iro",         source = "japanese",    hex = "#BFA46F" },
+    { name = "ame_iro",               source = "japanese",    hex = "#DEB068" },
+    { name = "anzu_iro",              source = "japanese",    hex = "#F7B977" },
+    { name = "sandybrown",            source = "css",         hex = "#F4A460" },
+    { name = "lightsalmon",           source = "css",         hex = "#FFA07A" },
+    { name = "darksalmon",            source = "css",         hex = "#E9967A" },
+    { name = "akebono_iro",           source = "japanese",    hex = "#F19072" },
+    { name = "coral",                 source = "css",         hex = "#FF7F50" },
+    { name = "kaki_iro",              source = "japanese",    hex = "#ED6D3D" },
+    { name = "tomato",                source = "css",         hex = "#FF6347" },
+    { name = "salmon",                source = "css",         hex = "#FA8072" },
+    { name = "lightcoral",            source = "css",         hex = "#F08080" },
+    { name = "usubeni_iro",           source = "japanese",    hex = "#F0908D" },
+    { name = "peach",                 source = "complement",  hex = "#FF9E9E" },
+    { name = "momo_iro",              source = "japanese",    hex = "#F09199" },
+    { name = "bara_iro",              source = "japanese",    hex = "#E9546B" },
+    { name = "indianred",             source = "css",         hex = "#CD5C5C" },
+    { name = "hi_iro",                source = "japanese",    hex = "#D3381C" },
+    { name = "red",                   source = "base16",      hex = "#FF0000" },
+    { name = "orangered",             source = "css",         hex = "#FF4500" },
+    { name = "shu_iro",               source = "japanese",    hex = "#EB6101" },
+    { name = "chocolate",             source = "css",         hex = "#D2691E" },
+    { name = "kohaku_iro",            source = "japanese",    hex = "#BF783A" },
+    { name = "tsuchi_iro",            source = "japanese",    hex = "#BC763C" },
+    { name = "kurumi_iro",            source = "japanese",    hex = "#A86F4C" },
+    { name = "sienna",                source = "css",         hex = "#A0522D" },
+    { name = "saddlebrown",           source = "css",         hex = "#8B4513" },
+    { name = "tobi_iro",              source = "japanese",    hex = "#95483F" },
+    { name = "azuki_iro",             source = "japanese",    hex = "#96514D" },
+    { name = "sabi_iro",              source = "japanese",    hex = "#6C3524" },
+    { name = "maroon",                source = "base16",      hex = "#800000" },
+    { name = "darkred",               source = "css",         hex = "#8B0000" },
+    { name = "firebrick",             source = "css",         hex = "#B22222" },
+    { name = "akane_iro",             source = "japanese",    hex = "#B7282E" },
+    { name = "brown",                 source = "css",         hex = "#A52A2A" },
+    { name = "shinku_iro",            source = "japanese",    hex = "#A22041" },
+    { name = "kurenai_iro",           source = "japanese",    hex = "#D7003A" },
+    { name = "crimson",               source = "css",         hex = "#DC143C" },
+    { name = "deeppink",              source = "css",         hex = "#FF1493" },
+    { name = "tsutsuji_iro",          source = "japanese",    hex = "#E95295" },
+    { name = "botan_iro",             source = "japanese",    hex = "#E7609E" },
+    { name = "hotpink",               source = "css",         hex = "#FF69B4" },
+    { name = "white",                 source = "base16",      hex = "#FFFFFF" },
+    { name = "whitesmoke",            source = "css",         hex = "#F5F5F5" },
+    { name = "gainsboro",             source = "css",         hex = "#DCDCDC" },
+    { name = "lightgray",             source = "css",         hex = "#D3D3D3" },
+    { name = "silver",                source = "base16",      hex = "#C0C0C0" },
+    { name = "darkgray",              source = "css",         hex = "#A9A9A9" },
+    { name = "nezumi_iro",            source = "japanese",    hex = "#949495" },
+    { name = "gray",                  source = "base16",      hex = "#808080" },
+    { name = "dimgray",               source = "css",         hex = "#696969" },
+    { name = "sumi_iro",              source = "japanese",    hex = "#595857" },
+    { name = "slate",                 source = "complement",  hex = "#3A3A3A" },
+    { name = "charcoal",              source = "complement",  hex = "#222222" },
+    { name = "onyx",                  source = "complement",  hex = "#1B1B1B" },
+    { name = "black",                 source = "css",         hex = "#000000" },
 }
+
 
 --- ==========================================
 --- palettes（互換用マップ）
