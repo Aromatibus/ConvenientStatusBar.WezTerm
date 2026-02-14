@@ -3,8 +3,16 @@ local M       = {}
 
 
 --- ==========================================
--- color_palettes.lua から palette_list を直接読み込む
+--- 定数（デフォルト出力先）
 --- ==========================================
+local DEFAULT_OUTPUT_DIR  = wezterm.home_dir .. "/Documents"
+local DEFAULT_HTML_NAME  = "ConvenientStatusBarPalettes.html"
+local DEFAULT_TEXT_NAME  = "ConvenientStatusBarPalettes.txt"
+
+
+-- ==========================================
+-- カラーパレット読み込み
+-- ==========================================
 local color_palettes = require('modules.color_palettes')
 local palette_list = color_palettes.palette_list
 
@@ -13,35 +21,30 @@ local palette_list = color_palettes.palette_list
 --- パレットをテキストファイルに書き出す
 --- ==========================================
 function M.export_palettes_to_file(path)
-    local out_path = path
-    if not out_path then
-        out_path = wezterm.home_dir .. "/ConvenientStatusBarPalettes.txt"
-    end
-
-    local lines = {}
-
-    local blocks = {}
-    for _ in ipairs(palette_list) do
-        table.insert(blocks, "■")
-    end
-    table.insert(lines, table.concat(blocks, ""))
-
-    for _, p in ipairs(palette_list) do
-        table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
-    end
-
-    local content = table.concat(lines, "\n") .. "\n"
-
-    local file, err = io.open(out_path, "w")
-    if not file then
-        wezterm.log_error("Failed to write palette file: " .. tostring(err))
-        return
-    end
-
-    file:write(content)
-    file:close()
-
-    wezterm.log_info("Palette text exported to: " .. out_path)
+  -- 出力先パスの決定
+  local out_path = path
+  if not out_path then
+    out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TEXT_NAME
+  end
+  -- ファイル内容の生成
+  local lines = {}
+  local blocks = {}
+  for _ in ipairs(palette_list) do
+    table.insert(blocks, "■")
+  end
+  table.insert(lines, table.concat(blocks, ""))
+  for _, p in ipairs(palette_list) do
+    table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
+  end
+  local content = table.concat(lines, "\n") .. "\n"
+  local file, err = io.open(out_path, "w")
+  if not file then
+    wezterm.log_error("Failed to write palette file: " .. tostring(err))
+    return
+  end
+  file:write(content)
+  file:close()
+  wezterm.log_info("Palette text exported to: " .. out_path)
 end
 
 
@@ -49,59 +52,63 @@ end
 --- パレットをHTMLに書き出す
 --- ==========================================
 function M.export_palettes_to_html(path)
-    local out_path = path
-    if not out_path then
-        out_path = wezterm.home_dir .. "/ConvenientStatusBarPalettes.html"
+  -- 出力先パスの決定
+  local out_path = path
+  if not out_path then
+    out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
+  end
+  -- カラーとモノクロを分割
+  local colors = {}
+  local monos  = {}
+  -- RGBの値を分解する関数
+  local function hex_to_rgb(hex)
+      local r = tonumber(hex:sub(2, 3), 16)
+      local g = tonumber(hex:sub(4, 5), 16)
+      local b = tonumber(hex:sub(6, 7), 16)
+      return r, g, b
+  end
+  -- モノクロ判定関数
+  local function is_monochrome(hex)
+    -- RGBの閾値で判定
+    -- RGBの差が小さいほどモノクロに近いとみなす
+    -- 0で完全一致
+    local threshold = 6
+    local r, g, b = hex_to_rgb(hex)
+    return math.abs(r - g) <= threshold
+      and math.abs(r - b) <= threshold
+      and math.abs(g - b) <= threshold
+  end
+  -- カラーとモノクロを分割
+  for _, p in ipairs(palette_list) do
+      if is_monochrome(p.hex) then
+          table.insert(monos, p)
+      else
+          table.insert(colors, p)
+      end
+  end
+  -- HTML内容の生成
+  local total_count = #colors + #monos
+  local color_count = #colors
+  local mono_count  = #monos
+  local function grad_bar(rows)
+    local t = {}
+    for _, r in ipairs(rows) do
+      table.insert(
+        t,
+        string.format(
+          '<span class="grad" style="background:%s"></span>',
+          r.hex
+        )
+      )
     end
-
-    local colors = {}
-    local monos  = {}
-
-    local mono_names = {
-        black = true,
-        onyx = true,
-        charcoal = true,
-        slate = true,
-        ash = true,
-        smoke = true,
-        fog = true,
-        silver = true,
-        grey = true,
-        white = true,
-    }
-
-    for _, p in ipairs(palette_list) do
-        if mono_names[p.name] then
-            table.insert(monos, p)
-        else
-            table.insert(colors, p)
-        end
-    end
-
-    local total_count = #colors + #monos
-    local color_count = #colors
-    local mono_count  = #monos
-
-    local function grad_bar(rows)
-        local t = {}
-        for _, r in ipairs(rows) do
-            table.insert(
-                t,
-                string.format(
-                    '<span class="grad" style="background:%s"></span>',
-                    r.hex
-                )
-            )
-        end
-        return table.concat(t, "")
-    end
-
-    local function list_block(rows)
-        local t = {}
-        for _, r in ipairs(rows) do
-            table.insert(
-                t,
-                string.format([[
+    return table.concat(t, "")
+  end
+  local function list_block(rows)
+    local t = {}
+    for _, r in ipairs(rows) do
+      table.insert(
+        t,
+        string.format([[
 <div class="copy-row">
     <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
     <span class="hex" onclick="copyHex('%s')">(%s)</span>
@@ -110,13 +117,12 @@ function M.export_palettes_to_html(path)
     <span class="src"> (lua)</span>
 </div>
 ]],
-                    r.hex, r.hex, r.hex, r.hex, r.name, r.name
-                )
-            )
-        end
-        return table.concat(t, "")
+            r.hex, r.hex, r.hex, r.hex, r.name, r.name
+          )
+        )
+      end
+      return table.concat(t, "")
     end
-
     local html = string.format([[
 <!doctype html>
 <html>
@@ -173,27 +179,25 @@ function copyName(name) {
 </body>
 </html>
 ]],
-        total_count,
-        color_count,
-        grad_bar(colors),
-        mono_count,
-        grad_bar(monos),
-        color_count,
-        list_block(colors),
-        mono_count,
-        list_block(monos)
-    )
+    total_count,
+    color_count,
+    grad_bar(colors),
+    mono_count,
+    grad_bar(monos),
+    color_count,
+    list_block(colors),
+    mono_count,
+    list_block(monos)
+  )
 
-    local file, err = io.open(out_path, "w")
-    if not file then
-        wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
-        return
-    end
-
-    file:write(html)
-    file:close()
-
-    wezterm.log_info("Palette HTML exported to: " .. out_path)
+  local file, err = io.open(out_path, "w")
+  if not file then
+      wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
+      return
+  end
+  file:write(html)
+  file:close()
+  wezterm.log_info("Palette HTML exported to: " .. out_path)
 end
 
 
