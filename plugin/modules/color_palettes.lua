@@ -2,22 +2,22 @@ local wezterm = require 'wezterm'
 
 
 --- ==========================================
---- パレット定義（順番を固定するため辞書形式）
+--- パレット定義（順序付き・完全版）
 --- ==========================================
 local palette_list = {
     -- Gradation
-    { name = "ocean",        hex = "#3B82F6" },
-    { name = "horizon",      hex = "#4F9CFF" },
-    { name = "cerulean",     hex = "#5AA7FF" },
+    { name = "ocean",        hex = "#3B80F6" },
+    { name = "horizon",      hex = "#4F9FFF" },
+    { name = "cerulean",     hex = "#5CA0FF" },
     { name = "summer",       hex = "#63B5FF" },
     { name = "cirrus",       hex = "#77CEFF" },
     { name = "glacier",      hex = "#8BE7FF" },
     { name = "lagoon",       hex = "#9FFFFF" },
     { name = "mint",         hex = "#B5FFE0" },
     { name = "aquamarine",   hex = "#9FEFD3" },
-    { name = "jade",         hex = "#7EE0B0" },
-    { name = "viridian",     hex = "#66D1A7" },
-    { name = "emerald",      hex = "#40B090" },
+    { name = "jade",         hex = "#60E0B0" },
+    { name = "viridian",     hex = "#50D0A0" },
+    { name = "emerald",      hex = "#30B090" },
     { name = "forest",       hex = "#2F8F6F" },
     { name = "moss",         hex = "#4FA87A" },
     { name = "leaf",         hex = "#6FC08A" },
@@ -50,15 +50,22 @@ local palette_list = {
     { name = "berry",        hex = "#D96BCB" },
     { name = "wisteria",     hex = "#E090FF" },
     { name = "lavender",     hex = "#C080FF" },
-    { name = "iris",         hex = "#A070FF" },
-    { name = "amethyst",     hex = "#9060FF" },
-    { name = "heliotrope",   hex = "#8055FF" },
-    { name = "twilight",     hex = "#7050FF" },
-    { name = "cobalt",       hex = "#5A40FF" },
-    { name = "blue",         hex = "#3F4DFF" },
-    { name = "sapphire",     hex = "#3A3CF2" },
-    { name = "midnight",     hex = "#352EE0" },
-    { name = "starlight",    hex = "#3B30C0" },
+    { name = "lilac",        hex = "#B888FF" },
+    { name = "iris",         hex = "#B070FF" },
+    { name = "orchid",       hex = "#A06AFF" },
+    { name = "amethyst",     hex = "#9A60FF" },
+    { name = "violet_night", hex = "#8E5CFF" },
+    { name = "twilight",     hex = "#8055FF" },
+    { name = "indigo",       hex = "#705AE0" },
+    { name = "violet_night", hex = "#6050C8" },
+    { name = "ultramarine",  hex = "#5C50CF" },
+    { name = "cobalt",       hex = "#5050D0" },
+    { name = "royal_blue",   hex = "#4050E0" },
+    { name = "blue",         hex = "#304FFF" },
+    { name = "sapphire",     hex = "#2040F0" },
+    { name = "deep_blue",    hex = "#2020D0" },
+    { name = "midnight",     hex = "#2010E0" },
+    { name = "starlight",    hex = "#2010C0" },
     { name = "deep_sea",     hex = "#2F2888" },
     { name = "abyss",        hex = "#252060" },
     -- Neon
@@ -69,6 +76,7 @@ local palette_list = {
     { name = "neon_orange",  hex = "#FF9020" },
     { name = "neon_red",     hex = "#FF2040" },
     { name = "neon_magenta", hex = "#FF00FF" },
+
     -- Dark
     { name = "dark_blue",    hex = "#1F3A8A" },
     { name = "dark_cyan",    hex = "#2FB7B7" },
@@ -77,6 +85,7 @@ local palette_list = {
     { name = "dark_orange",  hex = "#C86A1A" },
     { name = "dark_red",     hex = "#B02035" },
     { name = "dark_magenta", hex = "#B000B0" },
+
     -- Monochrome
     { name = "black",        hex = "#000000" },
     { name = "onyx",         hex = "#1B1A2C" },
@@ -155,48 +164,30 @@ end
 --- パレットをテキストファイルに書き出す
 --- ==========================================
 local function export_palettes_to_file(path)
-    local ESC = "\x1b"
     local lines = {}
 
-    -- 1行目: カラーブロック横並び（色付き）
     local blocks = {}
-    for _, p in ipairs(palette_list) do
-        local r = tonumber(p.hex:sub(2, 3), 16)
-        local g = tonumber(p.hex:sub(4, 5), 16)
-        local b = tonumber(p.hex:sub(6, 7), 16)
-        table.insert(
-            blocks,
-            string.format("%s[38;2;%d;%d;%dm■%s[0m", ESC, r, g, b, ESC)
-        )
+    for _ in ipairs(palette_list) do
+        table.insert(blocks, "■")
     end
     table.insert(lines, table.concat(blocks, ""))
 
-    -- 2行目以降: ■:name（色付き）
     for _, p in ipairs(palette_list) do
-        local r = tonumber(p.hex:sub(2, 3), 16)
-        local g = tonumber(p.hex:sub(4, 5), 16)
-        local b = tonumber(p.hex:sub(6, 7), 16)
-        table.insert(
-            lines,
-            string.format(
-                "%s[38;2;%d;%d;%dm■%s[0m:%-12s %s",
-                ESC, r, g, b, ESC, p.name, p.hex
-            )
-        )
+        table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
     end
 
     local content = table.concat(lines, "\n") .. "\n"
 
     local file, err = io.open(path, "w")
     if not file then
-        wezterm.log_error("Failed to write palette file (ANSI): " .. tostring(err))
+        wezterm.log_error("Failed to write palette file: " .. tostring(err))
         return
     end
 
     file:write(content)
     file:close()
 
-    wezterm.log_info("Palette (ANSI) exported to: " .. path)
+    wezterm.log_info("Palette exported to: " .. path)
 end
 
 
@@ -210,3 +201,44 @@ return {
     palette_list             = palette_list,
     export_palettes_to_file  = export_palettes_to_file,
 }
+
+
+--[[
+こんな感じで使える
+
+-- ==========================================
+-- カラーパレット
+-- ==========================================
+-- カラーパレットモジュールからカラーデータ取得
+local color_palettes = require("color_palettes")
+-- パレットデータ
+local cp = color_palettes.cp
+local ansi = color_palettes.ansi
+
+-- パレット可視化（ログ出力）
+color_palettes.display_palettes()
+
+-- ANSI 16色
+config.colors = {
+  ansi    = {
+    cp.ansi.base.black,
+    cp.ansi.base.red,
+    cp.ansi.base.green,
+    cp.ansi.base.yellow,
+    cp.ansi.base.blue,
+    cp.ansi.base.magenta,
+    cp.ansi.base.cyan,
+    cp.ansi.base.white,
+  },
+  brights = {
+    cp.ansi.brights.black,
+    cp.ansi.brights.red,
+    cp.ansi.brights.green,
+    cp.ansi.brights.yellow,
+    cp.ansi.brights.blue,
+    cp.ansi.brights.magenta,
+    cp.ansi.brights.cyan,
+    cp.ansi.brights.white,
+  },
+}
+]]
