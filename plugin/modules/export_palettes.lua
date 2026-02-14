@@ -121,16 +121,20 @@ h1, h2 { margin-top:24px; }
 function showToast(message) {
   const toast = document.createElement("div");
   toast.textContent = "Copied: " + message;
+
   toast.style.position = "fixed";
-  toast.style.bottom = "24px";
-  toast.style.right = "24px";
-  toast.style.padding = "8px 12px";
+  toast.style.left = "50%";
+  toast.style.top = "50%";
+  toast.style.transform = "translate(-50%, -50%)";
+
+  toast.style.padding = "10px 16px";
   toast.style.background = "#333333";
   toast.style.color = "#FFFFFF";
-  toast.style.borderRadius = "6px";
-  toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.4)";
+  toast.style.borderRadius = "8px";
+  toast.style.boxShadow = "0 2px 12px rgba(0,0,0,0.5)";
   toast.style.zIndex = 9999;
   toast.style.fontSize = "12px";
+
   document.body.appendChild(toast);
 
   setTimeout(() => {
