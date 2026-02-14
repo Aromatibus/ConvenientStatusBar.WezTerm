@@ -113,7 +113,8 @@ function M.export_palettes_to_html(path)
       table.insert(
         t,
         string.format(
-          '<span class="grad" style="background:%s"></span>',
+          '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
+          r.hex,
           r.hex
         )
       )
@@ -165,11 +166,36 @@ h1, h2 { margin-top:24px; }
 .sep { margin:0 4px; }
 </style>
 <script>
-function copyHex(hex) {
-    navigator.clipboard.writeText(hex);
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.textContent = "Copied: " + message;
+  toast.style.position = "fixed";
+  toast.style.bottom = "24px";
+  toast.style.right = "24px";
+  toast.style.padding = "8px 12px";
+  toast.style.background = "#333333";
+  toast.style.color = "#FFFFFF";
+  toast.style.borderRadius = "6px";
+  toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.4)";
+  toast.style.zIndex = 9999;
+  toast.style.fontSize = "12px";
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.transition = "opacity 0.4s";
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 400);
+  }, 1200);
 }
+
+function copyHex(hex) {
+  navigator.clipboard.writeText(hex);
+  showToast(hex);
+}
+
 function copyName(name) {
-    navigator.clipboard.writeText(name);
+  navigator.clipboard.writeText(name);
+  showToast(name);
 }
 </script>
 </head>
