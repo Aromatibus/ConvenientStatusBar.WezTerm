@@ -2,7 +2,7 @@ local wezterm = require 'wezterm'
 
 
 --- ==========================================
---- パレット定義（順序付き・完全版）
+--- パレット定義（順番を固定するため辞書形式）
 --- ==========================================
 local palette_list = {
     -- Gradation
@@ -51,8 +51,8 @@ local palette_list = {
     { name = "wisteria",     hex = "#E090FF" },
     { name = "lavender",     hex = "#C080FF" },
     { name = "iris",         hex = "#A070FF" },
-    { name = "amethyst",     hex = "#8860FF" },
-    { name = "heliotrope",   hex = "#7E63FF" },
+    { name = "amethyst",     hex = "#9060FF" },
+    { name = "heliotrope",   hex = "#8055FF" },
     { name = "twilight",     hex = "#7050FF" },
     { name = "cobalt",       hex = "#5A40FF" },
     { name = "blue",         hex = "#3F4DFF" },
@@ -61,7 +61,6 @@ local palette_list = {
     { name = "starlight",    hex = "#3B30C0" },
     { name = "deep_sea",     hex = "#2F2888" },
     { name = "abyss",        hex = "#252060" },
-
     -- Neon
     { name = "neon_blue",    hex = "#0050FF" },
     { name = "neon_cyan",    hex = "#7FFFFF" },
@@ -70,7 +69,6 @@ local palette_list = {
     { name = "neon_orange",  hex = "#FF9020" },
     { name = "neon_red",     hex = "#FF2040" },
     { name = "neon_magenta", hex = "#FF00FF" },
-
     -- Dark
     { name = "dark_blue",    hex = "#1F3A8A" },
     { name = "dark_cyan",    hex = "#2FB7B7" },
@@ -79,7 +77,6 @@ local palette_list = {
     { name = "dark_orange",  hex = "#C86A1A" },
     { name = "dark_red",     hex = "#B02035" },
     { name = "dark_magenta", hex = "#B000B0" },
-
     -- Monochrome
     { name = "black",        hex = "#000000" },
     { name = "onyx",         hex = "#1B1A2C" },
