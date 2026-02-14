@@ -102,7 +102,7 @@ function M.export_palettes_to_html(path)
         return table.concat(t, "")
     end
     -- HTMLテンプレートにデータを埋め込む
-    local html = string.format([[
+local html = string.format([[
 <!doctype html>
 <html>
 <head>
@@ -133,9 +133,9 @@ function showToast(message) {
   toast.textContent = "Copied: " + message;
 
   toast.style.position = "fixed";
-  toast.style.left = "50%";
-  toast.style.top = "50%";
-  toast.style.transform = "translate(-50%, -50%)";
+  toast.style.left = "50%%";
+  toast.style.top = "50%%";
+  toast.style.transform = "translate(-50%%, -50%%)";
 
   toast.style.padding = "10px 16px";
   toast.style.background = "#333333";
@@ -187,16 +187,16 @@ function copyName(name) {
 </body>
 </html>
 ]],
-        total_count,
-        color_count,
-        grad_bar(colors),
-        mono_count,
-        grad_bar(monos),
-        color_count,
-        list_block(colors),
-        mono_count,
-        list_block(monos)
-    )
+    total_count,
+    color_count,
+    grad_bar(colors),
+    mono_count,
+    grad_bar(monos),
+    color_count,
+    list_block(colors),
+    mono_count,
+    list_block(monos)
+  )
     -- ファイルに書き出し
     local file, err = io.open(out_path, "w")
     if not file then
