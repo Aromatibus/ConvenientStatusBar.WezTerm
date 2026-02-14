@@ -87,14 +87,15 @@ function M.export_palettes_to_html(path)
             table.insert(
                 t,
                 string.format([[
-<div class="copy-row">
-    <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
-    <span class="hex" onclick="copyHex('%s')">(%s)</span>
-    <span class="sep"> ・・・ </span>
-    <span class="name" onclick="copyName('%s')">%s</span>
-</div>
-]],
-                    r.hex, r.hex, r.hex, r.hex, r.name, r.name
+    <div class="copy-row">
+        <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
+        <span class="hex" onclick="copyHex('%s')">(%s)</span>
+        <span class="sep"> ・・・ </span>
+        <span class="name" onclick="copyName('%s')">%s</span>
+        <span class="src"> (%s)</span>
+    </div>
+    ]],
+                    r.hex, r.hex, r.hex, r.hex, r.name, r.name, r.source
                 )
             )
         end
