@@ -66,8 +66,8 @@ function M.export_palettes_to_html(path)
     local color_count = #colors
     local mono_count  = #monos
     -- グラデーションバーのサイズ設定
-    local GRAD_WIDTH  = 12    -- 1色あたりの横幅(px)
-    local GRAD_HEIGHT = 12   -- 高さ(px)
+    local GRAD_WIDTH  = 24    -- 1色あたりの横幅(px)
+    local GRAD_HEIGHT = 24   -- 高さ(px)
     -- グラデーションバーを生成
     local function grad_bar(rows)
         local t = {}
