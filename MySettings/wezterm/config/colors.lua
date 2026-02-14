@@ -67,7 +67,7 @@ function M.apply(config)
         },
         -- 非アクティブタブにマウスオーバーした時
         inactive_tab_hover = {
-          bg_color = cp.starlight, -- ホバー時の背景色
+          bg_color = cp.mediumblue, -- ホバー時の背景色
           fg_color = cp.blue,      -- ホバー時の文字色
           italic = true,           -- ホバー時に斜体にする
         },
@@ -78,7 +78,7 @@ function M.apply(config)
         },
         -- 新規タブボタンのホバー時
         new_tab_hover = {
-          bg_color = cp.starlight, -- ホバー時の背景色
+          bg_color = cp.mediumblue, -- ホバー時の背景色
           fg_color = cp.blue,      -- ホバー時の文字色
           italic = true,           -- ホバー時に斜体にする
         },
