@@ -88,7 +88,7 @@ local palette_list = {
 
     -- Monochrome
     { name = "black",        hex = "#000000" },
-    { name = "onyx",         hex = "#1B1A2C" },
+    { name = "onyx",         hex = "#1B1B1B" },
     { name = "charcoal",     hex = "#222222" },
     { name = "slate",        hex = "#3A3A3A" },
     { name = "ash",          hex = "#5A5A5A" },
