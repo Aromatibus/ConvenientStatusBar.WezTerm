@@ -25,7 +25,6 @@ local alarm       = require("modules.alarm")
 -- カラーパレット
 -- ==========================================
 local color_palettes = require("modules.color_palettes")
-local palettes = color_palettes.palettes
 local cp = color_palettes.cp
 
 
@@ -477,12 +476,13 @@ function M.setup(opts)
 end
 
 
--- ==========================================
--- カラーパレットを返す
--- ==========================================
-M.palettes = palettes
-M.cp       = cp
-M.display_palettes = color_palettes.display_palettes
-
-return M
-
+--- ==========================================
+--- color_palettes のモジュールを返却
+--- ==========================================
+return {
+    cp                       = color_palettes.cp,
+    ansi                     = color_palettes.ansi,
+    palettes                 = color_palettes.palettes,
+    palette_list             = color_palettes.palette_list,
+    export_palettes_to_file  = color_palettes.export_palettes_to_file,
+}
