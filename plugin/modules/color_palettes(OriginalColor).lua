@@ -95,7 +95,7 @@ local palette_list = {
     { name = "smoke",        hex = "#7A7A7A" },
     { name = "fog",          hex = "#A0A0A0" },
     { name = "silver",       hex = "#BABABA" },
-    { name = "grey",         hex = "#E0E0E0" },
+    { name = "gray",         hex = "#E0E0E0" },
     { name = "white",        hex = "#FFFFFF" },
 }
 
