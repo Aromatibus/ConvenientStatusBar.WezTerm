@@ -5,9 +5,11 @@ local M       = {}
 --- ==========================================
 --- 外部モジュール読み込み用のパスを設定
 --- ==========================================
-local plugin_path =
-    wezterm.plugin.list()[1].plugin_dir .. "/plugin/?.lua"
-package.path = plugin_path .. ";" .. package.path
+local plugin_list = wezterm.plugin.list()
+if plugin_list and plugin_list[1] then
+  local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"
+  package.path = plugin_path .. ";" .. package.path
+end
 
 
 --- ==========================================

@@ -5,9 +5,11 @@ local M       = {}
 --- ==========================================
 --- 外部モジュール読み込み用のパスを設定
 --- ==========================================
-local plugin_path =
-  wezterm.plugin.list()[1].plugin_dir .. "/plugin/?.lua"
-package.path = plugin_path .. ";" .. package.path
+local plugin_list = wezterm.plugin.list()
+if plugin_list and plugin_list[1] then
+  local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"
+  package.path = plugin_path .. ";" .. package.path
+end
 
 
 --- ==========================================
@@ -479,10 +481,10 @@ end
 --- ==========================================
 --- color_palettes のモジュールを返却
 --- ==========================================
-return {
-    cp                       = color_palettes.cp,
-    ansi                     = color_palettes.ansi,
-    palettes                 = color_palettes.palettes,
-    palette_list             = color_palettes.palette_list,
-    export_palettes_to_file  = color_palettes.export_palettes_to_file,
-}
+M.cp                       = color_palettes.cp
+M.ansi                     = color_palettes.ansi
+M.palettes                 = color_palettes.palettes
+M.palette_list             = color_palettes.palette_list
+M.export_palettes_to_file  = color_palettes.export_palettes_to_file
+
+return M
