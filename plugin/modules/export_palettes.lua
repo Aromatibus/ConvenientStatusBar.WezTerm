@@ -26,12 +26,29 @@ function M.export_palettes_to_file(path)
   if not out_path then
     out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TEXT_NAME
   end
-  -- ファイル内容の生成
+
+
+  -- ファイル内容の生成（ANSIエスケープシーケンス付き）
   local lines = {}
   local blocks = {}
-  for _ in ipairs(palette_list) do
-    table.insert(blocks, "■")
+
+  -- 24bitカラーのエスケープシーケンス生成
+  local function ansi_bg(hex)
+      local r = tonumber(hex:sub(2, 3), 16)
+      local g = tonumber(hex:sub(4, 5), 16)
+      local b = tonumber(hex:sub(6, 7), 16)
+      -- 背景色 + リセット
+      return string.format("\27[48;2;%d;%d;%dm■\27[0m", r, g, b)
   end
+
+  for _, p in ipairs(palette_list) do
+      table.insert(blocks, ansi_bg(p.hex))
+  end
+
+
+
+
+
   table.insert(lines, table.concat(blocks, ""))
   for _, p in ipairs(palette_list) do
     table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
