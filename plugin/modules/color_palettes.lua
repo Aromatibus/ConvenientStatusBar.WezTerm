@@ -95,7 +95,7 @@ local palette_list = {
 
 
 --- ==========================================
---- palettes（既存互換マップを生成）
+--- palettes（互換用マップ）
 --- ==========================================
 local palettes = {}
 for _, p in ipairs(palette_list) do
@@ -103,9 +103,9 @@ for _, p in ipairs(palette_list) do
 end
 
 
--- ===============================
--- ANSI Colors（元の定義を維持）
--- ===============================
+--- ==========================================
+--- ANSI
+--- ==========================================
 local ansi = {
     base = {
         black   = "#000000",
@@ -131,23 +131,24 @@ local ansi = {
 
 
 --- ==========================================
---- wezterm 用カラーパレット（parse処理）
+--- wezterm用 cp（lazy parse）
 --- ==========================================
-local cp = {
-    ansi = {
-        base    = {},
-        brights = {},
-    },
-}
-
-for _, p in ipairs(palette_list) do
-    cp[p.name] = wezterm.color.parse(p.hex)
-end
+local cp = setmetatable({
+    ansi = { base = {}, brights = {} },
+}, {
+    __index = function(t, k)
+        local hex = palettes[k]
+        if hex then
+            local c = wezterm.color.parse(hex)
+            rawset(t, k, c)
+            return c
+        end
+    end,
+})
 
 for name, hex in pairs(ansi.base) do
     cp.ansi.base[name] = wezterm.color.parse(hex)
 end
-
 for name, hex in pairs(ansi.brights) do
     cp.ansi.brights[name] = wezterm.color.parse(hex)
 end
@@ -159,14 +160,12 @@ end
 local function export_palettes_to_file(path)
     local lines = {}
 
-    -- 1行目: ■■■■■（スペースなし）
     local blocks = {}
-    for _, p in ipairs(palette_list) do
+    for _ in ipairs(palette_list) do
         table.insert(blocks, "■")
     end
     table.insert(lines, table.concat(blocks, ""))
 
-    -- 2行目以降: ■:name = #HEX
     for _, p in ipairs(palette_list) do
         table.insert(lines, string.format("■:%-12s %s", p.name, p.hex))
     end
