@@ -58,8 +58,8 @@ function M.export_palettes_to_html(path)
             table.insert(colors, p)
         end
     end
-    -- カラーとモノクロをそれぞれ色数順にソート
-    table.sort(colors, function(a, b) return a.hex < b.hex end)
+    -- 色数順にソート
+    -- table.sort(colors, function(a, b) return a.hex < b.hex end)
     table.sort(monos, function(a, b) return a.hex < b.hex end)
     -- 全色数、カラー数、モノクロ数を取得
     local total_count = #colors + #monos
