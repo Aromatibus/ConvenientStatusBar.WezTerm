@@ -107,6 +107,7 @@ local colors = require("config/colors")
 colors.apply(config)
 -- プラグインからカラーパレット取得
 local ConvenientStatusBar = wezterm.plugin.require(
+  --"https://github.com/aromatibus/ConvenientStatusBar.WezTerm"
   "file:///R:/Source/WezTerm/ConvenientStatusBar.WezTerm"
 )
 local cp       = ConvenientStatusBar.cp
