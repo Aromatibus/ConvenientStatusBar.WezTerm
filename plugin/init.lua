@@ -27,7 +27,17 @@ local alarm       = require("modules.alarm")
 -- カラーパレット
 -- ==========================================
 local color_palettes = require("modules.color_palettes")
+local exporter    = require('modules.export_palettes')
+
+
+-- ==========================================
+-- カラーパレットファイルで書き出す関数
+-- ==========================================
 local cp = color_palettes.cp
+
+-- 引数に出力先パスを指定、デフォルトでホームディレクトリに出力
+exporter.export_palettes_to_html()
+exporter.export_palettes_to_file()
 
 
 --- ==========================================
