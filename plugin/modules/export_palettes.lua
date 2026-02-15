@@ -7,6 +7,7 @@ local M       = {}
 --- ==========================================
 local DEFAULT_OUTPUT_DIR = wezterm.home_dir .. "/Documents"
 local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
+local DEFAULT_TOML_NAME = "ConvenientStatusBarPalettes.toml"
 
 
 -- ==========================================
@@ -41,13 +42,50 @@ end
 
 
 --- ==========================================
---- パレットをHTMLに書き出す
+--- パレットをTOMLに出力
+--- ==========================================
+local function export_palettes_to_toml(path)
+  local file, err = io.open(path, "w")
+  if not file then
+    wezterm.log_error("Failed to write TOML palette: " .. tostring(err))
+    return
+  end
+
+  file:write("[palettes]\n")
+
+  local max_len = 0
+  for _, p in ipairs(palette_list) do
+    if #p.name > max_len then
+      max_len = #p.name
+    end
+  end
+
+  for _, p in ipairs(palette_list) do
+    local name_pad = p.name .. string.rep(" ", max_len - #p.name)
+    file:write(string.format(
+      '%s = "%s" # %s\n',
+      name_pad,
+      p.hex,
+      p.source
+    ))
+  end
+
+  file:close()
+  wezterm.log_info("Palette TOML exported to: " .. path)
+end
+
+
+--- ==========================================
+--- パレットをHTMLに出力
 --- ==========================================
 function M.export_palettes_to_html(path)
   local out_path = path
   if not out_path then
     out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
   end
+
+  local toml_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TOML_NAME
+
   local colors = {}
   local monos = {}
   -- パレットをカラーとモノクロに分類
@@ -201,7 +239,7 @@ function copyName(name) {
     mono_count,
     list_block(monos)
   )
-  -- ファイルに書き出し
+  -- HTMLファイル出力
   local file, err = io.open(out_path, "w")
   if not file then
     wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
@@ -210,6 +248,8 @@ function copyName(name) {
   file:write(html)
   file:close()
   wezterm.log_info("Palette HTML exported to: " .. out_path)
+  -- TOML ファイル出力
+  export_palettes_to_toml(toml_path)
 end
 
 
