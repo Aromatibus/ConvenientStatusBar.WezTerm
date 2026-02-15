@@ -1,6 +1,7 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
+
 --- ==========================================
 --- 定数（デフォルト出力先）
 --- ==========================================
@@ -12,17 +13,17 @@ local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
 -- カラーパレット読み込み
 -- ==========================================
 local color_palettes = require('modules.color_palettes')
-local palette_list   = color_palettes.palette_list
+local palette_list = color_palettes.palette_list
 
 
 --- ==========================================
 --- HEX → RGB
 --- ==========================================
 local function hex_to_rgb(hex)
-    local r = tonumber(hex:sub(2, 3), 16)
-    local g = tonumber(hex:sub(4, 5), 16)
-    local b = tonumber(hex:sub(6, 7), 16)
-    return r, g, b
+  local r = tonumber(hex:sub(2, 3), 16)
+  local g = tonumber(hex:sub(4, 5), 16)
+  local b = tonumber(hex:sub(6, 7), 16)
+  return r, g, b
 end
 
 
@@ -32,10 +33,10 @@ end
 local function is_monochrome(hex)
   -- RGBのそれぞれの値がthresholdで指定した範囲内であればモノクロと判断
   local threshold = 6
-    local r, g, b = hex_to_rgb(hex)
-    return math.abs(r - g) <= threshold
-        and math.abs(r - b) <= threshold
-        and math.abs(g - b) <= threshold
+  local r, g, b = hex_to_rgb(hex)
+  return math.abs(r - g) <= threshold
+    and math.abs(r - b) <= threshold
+    and math.abs(g - b) <= threshold
 end
 
 
@@ -43,69 +44,68 @@ end
 --- パレットをHTMLに書き出す
 --- ==========================================
 function M.export_palettes_to_html(path)
-    local out_path = path
-    if not out_path then
-        out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
+  local out_path = path
+  if not out_path then
+    out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
+  end
+  local colors = {}
+  local monos = {}
+  -- パレットをカラーとモノクロに分類
+  for _, p in ipairs(palette_list) do
+    if is_monochrome(p.hex) then
+      table.insert(monos, p)
+    else
+      table.insert(colors, p)
     end
-
-    local colors = {}
-    local monos  = {}
-    -- パレットをカラーとモノクロに分類
-    for _, p in ipairs(palette_list) do
-        if is_monochrome(p.hex) then
-            table.insert(monos, p)
-        else
-            table.insert(colors, p)
-        end
+  end
+  -- 色数順にソート
+  -- table.sort(colors, function(a, b) return a.hex < b.hex end)
+  table.sort(monos, function(a, b) return a.hex < b.hex end)
+  -- 全色数、カラー数、モノクロ数を取得
+  local total_count = #colors + #monos
+  local color_count = #colors
+  local mono_count = #monos
+  -- グラデーションバーのサイズ設定
+  local GRAD_WIDTH = 24 -- 1色あたりの横幅(px)
+  local GRAD_HEIGHT = 24 -- 高さ(px)
+  -- グラデーションバーを生成
+  local function grad_bar(rows)
+    local t = {}
+    for _, r in ipairs(rows) do
+      table.insert(
+        t,
+        string.format(
+          '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
+          r.hex,
+          r.hex
+        )
+      )
     end
-    -- 色数順にソート
-    -- table.sort(colors, function(a, b) return a.hex < b.hex end)
-    table.sort(monos, function(a, b) return a.hex < b.hex end)
-    -- 全色数、カラー数、モノクロ数を取得
-    local total_count = #colors + #monos
-    local color_count = #colors
-    local mono_count  = #monos
-    -- グラデーションバーのサイズ設定
-    local GRAD_WIDTH  = 24    -- 1色あたりの横幅(px)
-    local GRAD_HEIGHT = 24   -- 高さ(px)
-    -- グラデーションバーを生成
-    local function grad_bar(rows)
-        local t = {}
-        for _, r in ipairs(rows) do
-            table.insert(
-                t,
-                string.format(
-                    '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
-                    r.hex,
-                    r.hex
-                )
-            )
-        end
-        return table.concat(t, "")
+    return table.concat(t, "")
+  end
+  -- カラーとモノクロのブロックを生成
+  local function list_block(rows)
+    local t = {}
+    for _, r in ipairs(rows) do
+      table.insert(
+        t,
+        string.format([[
+  <div class="copy-row">
+    <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
+    <span class="hex" onclick="copyHex('%s')">(%s)</span>
+    <span class="sep"> ・・・ </span>
+    <span class="name" onclick="copyName('%s')">%s</span>
+    <span class="src"> (%s)</span>
+  </div>
+  ]],
+          r.hex, r.hex, r.hex, r.hex, r.name, r.name, r.source
+        )
+      )
     end
-    -- カラーとモノクロのブロックを生成
-    local function list_block(rows)
-      local t = {}
-        for _, r in ipairs(rows) do
-            table.insert(
-                t,
-                string.format([[
-    <div class="copy-row">
-        <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
-        <span class="hex" onclick="copyHex('%s')">(%s)</span>
-        <span class="sep"> ・・・ </span>
-        <span class="name" onclick="copyName('%s')">%s</span>
-        <span class="src"> (%s)</span>
-    </div>
-    ]],
-                    r.hex, r.hex, r.hex, r.hex, r.name, r.name, r.source
-                )
-            )
-        end
-        return table.concat(t, "")
-    end
-    -- HTMLテンプレートにデータを埋め込む
-local html = string.format([[
+    return table.concat(t, "")
+  end
+  -- HTMLテンプレートにデータを埋め込む
+  local html = string.format([[
 <!doctype html>
 <html>
 <head>
@@ -118,14 +118,14 @@ h1, h2 { margin-top:24px; }
 .grad { display:inline-block; width:%dpx; height:%dpx; cursor:pointer; }
 .copy-row { margin:4px 0; }
 .dot {
-    width:12px; height:12px; display:inline-block;
-    margin-right:6px; cursor:pointer; vertical-align:middle;
+  width:12px; height:12px; display:inline-block;
+  margin-right:6px; cursor:pointer; vertical-align:middle;
 }
 .hex { cursor:pointer; font-family: monospace; }
 .name {
-    cursor:pointer;
-    color:#FFFFFF;
-    text-decoration: underline;
+  cursor:pointer;
+  color:#FFFFFF;
+  text-decoration: underline;
 }
 .src { color:#AAAAAA; margin-left:4px; }
 .sep { margin:0 4px; }
@@ -201,15 +201,15 @@ function copyName(name) {
     mono_count,
     list_block(monos)
   )
-    -- ファイルに書き出し
-    local file, err = io.open(out_path, "w")
-    if not file then
-        wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
-        return
-    end
-    file:write(html)
-    file:close()
-    wezterm.log_info("Palette HTML exported to: " .. out_path)
+  -- ファイルに書き出し
+  local file, err = io.open(out_path, "w")
+  if not file then
+    wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
+    return
+  end
+  file:write(html)
+  file:close()
+  wezterm.log_info("Palette HTML exported to: " .. out_path)
 end
 
 
