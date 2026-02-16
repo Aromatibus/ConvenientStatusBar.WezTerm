@@ -1,6 +1,17 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
+
+--- ==========================================
+--- 外部モジュール読み込み用のパスを設定
+--- ==========================================
+local plugin_list = wezterm.plugin.list()
+if plugin_list and plugin_list[1] then
+  local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"
+  package.path = plugin_path .. ";" .. package.path
+end
+
+
 --- ==========================================
 --- 定数（デフォルト出力先）
 --- ==========================================
@@ -87,10 +98,9 @@ function M.export_palettes_to_html(path)
 
   local toml_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TOML_NAME
 
-  -- ★ テンプレは「このLuaファイルと同じフォルダ」
-  local script_path = wezterm.config_file
-  local base_dir = script_path:gsub("[/\\][^/\\]+$", "")
-  local tpl_path = base_dir .. "/" .. TEMPLATE_HTML_NAME
+  local plugin_list = wezterm.plugin.list()
+  local plugin_dir = plugin_list and plugin_list[1] and plugin_list[1].plugin_dir
+  local tpl_path = plugin_dir .. "/plugin/modules/" .. TEMPLATE_HTML_NAME
 
   local colors = {}
   local monos  = {}
