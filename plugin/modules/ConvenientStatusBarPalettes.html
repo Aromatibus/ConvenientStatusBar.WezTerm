@@ -65,13 +65,13 @@ h1, h2 { margin-top:24px; }
 }
 
 #bg-indicator input {
-  width: 56px;
+  width: 52px;
   height: 24px;
-  background: #000088;       /* 入力欄 背景色 固定 */
-  border: 1px solid #EEEEEE; /* 太枠 */
+  background: #000088;
+  border: 1px solid #EEEEEE;
   border-radius: 4px;
   outline: none;
-  color: #C0C0C0;            /* 入力欄 テキスト色 固定 */
+  color: #C0C0C0;
   font-family: monospace;
   font-size: 12px;
   padding: 1px 6px;
@@ -149,7 +149,13 @@ function getLuminance(hex) {
 
 function applyTextColorByBg(hex) {
   const lum = getLuminance(hex);
-  document.body.style.color = lum > 0.6 ? "#000000" : "#FFFFFF";
+  const color = lum > 0.6 ? "#000000" : "#FFFFFF";
+  document.body.style.color = color;
+
+  const label = document.querySelector("#bg-indicator .label");
+  if (label) {
+    label.style.color = color;
+  }
 }
 
 function normalizeHex(input) {
