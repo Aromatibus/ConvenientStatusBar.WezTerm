@@ -242,9 +242,9 @@ function showToast(message) {
   const toast = document.createElement("div");
   toast.textContent = "Copied: " + message;
   toast.style.position = "fixed";
-  toast.style.left = "50%";
-  toast.style.top = "50%";
-  toast.style.transform = "translate(-50%, -50%)";
+  toast.style.left = "50%%";
+  toast.style.top = "50%%";
+  toast.style.transform = "translate(-50%%, -50%%)";
   toast.style.padding = "10px 16px";
   toast.style.background = "#333333";
   toast.style.color = "#FFFFFF";
