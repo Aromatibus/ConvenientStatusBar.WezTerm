@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>カラースペクトラム / カラーパレット</title>
+<style>
+body {
+  background:#111111;
+  color:#EEEEEE;
+  font-family: sans-serif;
+  transition: background 0.2s ease;
+}
+h1, h2 { margin-top:24px; }
+.note {
+  font-size: 12px;
+  color: #AAAAAA;
+  margin: 4px 0 12px 0;
+}
+.grad {
+  display:inline-block;
+  width:24px;
+  height:24px;
+  cursor:pointer;
+}
+.copy-row { margin:4px 0; }
+.dot {
+  width:12px;
+  height:12px;
+  display:inline-block;
+  margin-right:6px;
+  cursor:pointer;
+  vertical-align:middle;
+}
+.hex {
+  cursor:pointer;
+  font-family: monospace;
+}
+.name {
+  cursor:pointer;
+  color:inherit;
+  text-decoration: underline;
+}
+.src {
+  color:#AAAAAA;
+  margin-left:4px;
+}
+.sep { margin:0 4px; }
+
+#bg-indicator {
+  position: fixed;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  color: #AAAAAA;
+  opacity: 0.8;
+  pointer-events: none;
+}
+</style>
+<script>
+const bgCycle = [
+  "#000000",
+  "#FF0000",
+  "#FFFF00",
+  "#FFFFFF",
+  "#00FFFF",
+  "#0000FF",
+];
+
+let bgIndex = 0;
+
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.textContent = "Copied: " + message;
+  toast.style.position = "fixed";
+  toast.style.left = "50%";
+  toast.style.top = "50%";
+  toast.style.transform = "translate(-50%, -50%)";
+  toast.style.padding = "10px 16px";
+  toast.style.background = "#333333";
+  toast.style.color = "#FFFFFF";
+  toast.style.borderRadius = "8px";
+  toast.style.boxShadow = "0 2px 12px rgba(0,0,0,0.5)";
+  toast.style.zIndex = 9999;
+  toast.style.fontSize = "12px";
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.transition = "opacity 0.4s";
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 400);
+  }, 1200);
+}
+
+function copyHex(hex) {
+  navigator.clipboard.writeText(hex);
+  showToast(hex);
+}
+
+function copyName(name) {
+  navigator.clipboard.writeText(name);
+  showToast(name);
+}
+
+function copyNameHex(name, hex) {
+  const text = `"${name}","${hex}"`;
+  navigator.clipboard.writeText(text);
+  showToast(text);
+}
+
+function onGradClick(ev, name, hex) {
+  ev.preventDefault();
+
+  if (ev.shiftKey) {
+    copyName(name);
+  } else if (ev.ctrlKey || ev.metaKey) {
+    copyHex(hex);
+  } else {
+    copyNameHex(name, hex);
+  }
+}
+
+function getLuminance(hex) {
+  const r = parseInt(hex.substr(1, 2), 16) / 255;
+  const g = parseInt(hex.substr(3, 2), 16) / 255;
+  const b = parseInt(hex.substr(5, 2), 16) / 255;
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function applyTextColorByBg(hex) {
+  const lum = getLuminance(hex);
+  document.body.style.color = lum > 0.6 ? "#000000" : "#FFFFFF";
+}
+
+function updateBgIndicator(hex) {
+  let el = document.getElementById("bg-indicator");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "bg-indicator";
+    document.body.appendChild(el);
+  }
+  el.textContent = "BG: " + hex;
+}
+
+function cycleBackground() {
+  bgIndex = (bgIndex + 1) % bgCycle.length;
+  const hex = bgCycle[bgIndex];
+  document.body.style.background = hex;
+  applyTextColorByBg(hex);
+  updateBgIndicator(hex);
+}
+
+document.addEventListener("click", function(ev) {
+  const t = ev.target;
+
+  if (
+    t.classList.contains("grad") ||
+    t.classList.contains("dot") ||
+    t.classList.contains("hex") ||
+    t.classList.contains("name")
+  ) {
+    return;
+  }
+
+  cycleBackground();
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+  const hex = bgCycle[bgIndex];
+  document.body.style.background = hex;
+  applyTextColorByBg(hex);
+  updateBgIndicator(hex);
+});
+</script>
+</head>
+<body>
+
+<h1>◆カラースペクトラム（全{{TOTAL_COUNT}}色）</h1>
+<div class="note">
+  ※ホバーで「名前 (分類) : カラーコード」表示 / クリックでコピー
+</div>
+
+<h2>■ カラー（{{COLOR_COUNT}}色）</h2>
+<div>{{GRAD_COLORS}}</div>
+
+<h2>■ モノクロ（{{MONO_COUNT}}色）</h2>
+<div>{{GRAD_MONOS}}</div>
+
+<h1>◆カラーパレット</h1>
+
+<h2>■ カラー（{{COLOR_COUNT}}色）</h2>
+{{LIST_COLORS}}
+
+<h2>■ モノクロ（{{MONO_COUNT}}色）</h2>
+{{LIST_MONOS}}
+
+</body>
+</html>

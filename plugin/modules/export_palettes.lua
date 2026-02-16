@@ -1,21 +1,19 @@
 local wezterm = require 'wezterm'
 local M       = {}
 
-
 --- ==========================================
 --- 定数（デフォルト出力先）
 --- ==========================================
 local DEFAULT_OUTPUT_DIR = wezterm.home_dir .. "/Documents"
 local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
 local DEFAULT_TOML_NAME = "ConvenientStatusBarPalettes.toml"
-
+local DEFAULT_HTML_TPL  = "Color_Palettes.html"
 
 -- ==========================================
 -- カラーパレット読み込み
 -- ==========================================
 local color_palettes = require('modules.color_palettes')
-local palette_list = color_palettes.palette_list
-
+local palette_list   = color_palettes.palette_list
 
 --- ==========================================
 --- HEX → RGB
@@ -27,19 +25,16 @@ local function hex_to_rgb(hex)
   return r, g, b
 end
 
-
 --- ==========================================
 --- モノクロ判定（RGB近似）
 --- ==========================================
 local function is_monochrome(hex)
-  -- RGBのそれぞれの値がthresholdで指定した範囲内であればモノクロと判断
   local threshold = 6
   local r, g, b = hex_to_rgb(hex)
   return math.abs(r - g) <= threshold
-    and math.abs(r - b) <= threshold
-    and math.abs(g - b) <= threshold
+    and  math.abs(r - b) <= threshold
+    and  math.abs(g - b) <= threshold
 end
-
 
 --- ==========================================
 --- パレットをTOMLに出力
@@ -74,14 +69,18 @@ local function export_palettes_to_toml(path)
   wezterm.log_info("Palette TOML exported to: " .. path)
 end
 
-
 --- ==========================================
---- パレットをHTMLに出力
+--- パレットをHTMLに出力（テンプレHTML使用）
 --- ==========================================
-function M.export_palettes_to_html(path)
+function M.export_palettes_to_html(path, template_path)
   local out_path = path
   if not out_path then
     out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
+  end
+
+  local tpl_path = template_path
+  if not tpl_path then
+    tpl_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_TPL
   end
 
   local toml_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TOML_NAME
@@ -97,31 +96,23 @@ function M.export_palettes_to_html(path)
     end
   end
 
-  table.sort(
-    monos,
-    function(a, b)
-      return a.hex < b.hex
-    end
-  )
+  table.sort(monos, function(a, b)
+    return a.hex < b.hex
+  end)
 
   local total_count = #colors + #monos
   local color_count = #colors
   local mono_count  = #monos
 
-  local GRAD_WIDTH  = 24
-  local GRAD_HEIGHT = 24
-
   local function grad_bar(rows)
     local t = {}
-
     for _, r in ipairs(rows) do
       table.insert(
         t,
         string.format(
           '<span class="grad" style="background:%s" ' ..
           'title="%s (%s) : %s" ' ..
-          'onmousedown="onGradClick(event, \'%s\', \'%s\')">' ..
-          '</span>',
+          'onmousedown="onGradClick(event, \'%s\', \'%s\')"></span>',
           r.hex,
           r.name,
           r.source,
@@ -131,13 +122,11 @@ function M.export_palettes_to_html(path)
         )
       )
     end
-
     return table.concat(t, "")
   end
 
   local function list_block(rows)
     local t = {}
-
     for _, r in ipairs(rows) do
       table.insert(
         t,
@@ -162,239 +151,41 @@ function M.export_palettes_to_html(path)
         )
       )
     end
-
     return table.concat(t, "")
   end
 
-local html = string.format(
-  [[
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>カラースペクトラム / カラーパレット</title>
-<style>
-body {
-  background:#111111;
-  color:#EEEEEE;
-  font-family: sans-serif;
-  transition: background 0.2s ease;
-}
-h1, h2 { margin-top:24px; }
-.note {
-  font-size: 12px;
-  color: #AAAAAA;
-  margin: 4px 0 12px 0;
-}
-.grad {
-  display:inline-block;
-  width:%dpx;
-  height:%dpx;
-  cursor:pointer;
-}
-.copy-row { margin:4px 0; }
-.dot {
-  width:12px;
-  height:12px;
-  display:inline-block;
-  margin-right:6px;
-  cursor:pointer;
-  vertical-align:middle;
-}
-.hex {
-  cursor:pointer;
-  font-family: monospace;
-}
-.name {
-  cursor:pointer;
-  color:inherit;
-  text-decoration: underline;
-}
-.src {
-  color:#AAAAAA;
-  margin-left:4px;
-}
-.sep { margin:0 4px; }
-
-#bg-indicator {
-  position: fixed;
-  right: 8px;
-  bottom: 6px;
-  font-size: 11px;
-  color: #AAAAAA;
-  opacity: 0.8;
-  pointer-events: none;
-}
-</style>
-<script>
-const bgCycle = [
-  "#000000",
-  "#FF0000",
-  "#FFFF00",
-  "#FFFFFF",
-  "#00FFFF",
-  "#0000FF",
-];
-
-let bgIndex = 0;
-
-function showToast(message) {
-  const toast = document.createElement("div");
-  toast.textContent = "Copied: " + message;
-  toast.style.position = "fixed";
-  toast.style.left = "50%%";
-  toast.style.top = "50%%";
-  toast.style.transform = "translate(-50%%, -50%%)";
-  toast.style.padding = "10px 16px";
-  toast.style.background = "#333333";
-  toast.style.color = "#FFFFFF";
-  toast.style.borderRadius = "8px";
-  toast.style.boxShadow = "0 2px 12px rgba(0,0,0,0.5)";
-  toast.style.zIndex = 9999;
-  toast.style.fontSize = "12px";
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.transition = "opacity 0.4s";
-    toast.style.opacity = "0";
-    setTimeout(() => toast.remove(), 400);
-  }, 1200);
-}
-
-function copyHex(hex) {
-  navigator.clipboard.writeText(hex);
-  showToast(hex);
-}
-
-function copyName(name) {
-  navigator.clipboard.writeText(name);
-  showToast(name);
-}
-
-function copyNameHex(name, hex) {
-  const text = `"${name}","${hex}"`;
-  navigator.clipboard.writeText(text);
-  showToast(text);
-}
-
-function onGradClick(ev, name, hex) {
-  ev.preventDefault();
-
-  if (ev.shiftKey) {
-    copyName(name);
-  } else if (ev.ctrlKey || ev.metaKey) {
-    copyHex(hex);
-  } else {
-    copyNameHex(name, hex);
-  }
-}
-
-function getLuminance(hex) {
-  const r = parseInt(hex.substr(1, 2), 16) / 255;
-  const g = parseInt(hex.substr(3, 2), 16) / 255;
-  const b = parseInt(hex.substr(5, 2), 16) / 255;
-
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function applyTextColorByBg(hex) {
-  const lum = getLuminance(hex);
-  document.body.style.color = lum > 0.6 ? "#000000" : "#FFFFFF";
-}
-
-function updateBgIndicator(hex) {
-  let el = document.getElementById("bg-indicator");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "bg-indicator";
-    document.body.appendChild(el);
-  }
-  el.textContent = "BG: " + hex;
-}
-
-function cycleBackground() {
-  bgIndex = (bgIndex + 1) %% bgCycle.length;
-  const hex = bgCycle[bgIndex];
-  document.body.style.background = hex;
-  applyTextColorByBg(hex);
-  updateBgIndicator(hex);
-}
-
-document.addEventListener("click", function(ev) {
-  const t = ev.target;
-
-  if (
-    t.classList.contains("grad") ||
-    t.classList.contains("dot") ||
-    t.classList.contains("hex") ||
-    t.classList.contains("name")
-  ) {
-    return;
-  }
-
-  cycleBackground();
-});
-
-document.addEventListener("DOMContentLoaded", function() {
-  const hex = bgCycle[bgIndex];
-  document.body.style.background = hex;
-  applyTextColorByBg(hex);
-  updateBgIndicator(hex);
-});
-</script>
-</head>
-<body>
-
-<h1>◆カラースペクトラム（全%d色）</h1>
-<div class="note">
-  ※ホバーで「名前 (分類) : カラーコード」表示 / クリックでコピー
-</div>
-
-<h2>■ カラー（%d色）</h2>
-<div>%s</div>
-
-<h2>■ モノクロ（%d色）</h2>
-<div>%s</div>
-
-<h1>◆カラーパレット</h1>
-
-<h2>■ カラー（%d色）</h2>
-%s
-
-<h2>■ モノクロ（%d色）</h2>
-%s
-
-</body>
-</html>
-]],
-  GRAD_WIDTH,
-  GRAD_HEIGHT,
-  total_count,
-  color_count,
-  grad_bar(colors),
-  mono_count,
-  grad_bar(monos),
-  color_count,
-  list_block(colors),
-  mono_count,
-  list_block(monos)
-)
-
-  local file, err = io.open(out_path, "w")
+  -- テンプレHTML読み込み
+  local file, err = io.open(tpl_path, "r")
   if not file then
-    wezterm.log_error(
-      "Failed to write HTML palette: " .. tostring(err)
-    )
+    wezterm.log_error("Failed to read HTML template: " .. tostring(err))
     return
   end
 
-  file:write(html)
+  local template = file:read("*a")
   file:close()
+
+  -- プレースホルダ置換
+  local html = template
+  html = html:gsub("{{TOTAL_COUNT}}", tostring(total_count))
+  html = html:gsub("{{COLOR_COUNT}}", tostring(color_count))
+  html = html:gsub("{{MONO_COUNT}}",  tostring(mono_count))
+  html = html:gsub("{{GRAD_COLORS}}", grad_bar(colors))
+  html = html:gsub("{{GRAD_MONOS}}",  grad_bar(monos))
+  html = html:gsub("{{LIST_COLORS}}", list_block(colors))
+  html = html:gsub("{{LIST_MONOS}}",  list_block(monos))
+
+  local out_file, werr = io.open(out_path, "w")
+  if not out_file then
+    wezterm.log_error("Failed to write HTML palette: " .. tostring(werr))
+    return
+  end
+
+  out_file:write(html)
+  out_file:close()
 
   wezterm.log_info("Palette HTML exported to: " .. out_path)
 
   export_palettes_to_toml(toml_path)
 end
-
 
 return M
