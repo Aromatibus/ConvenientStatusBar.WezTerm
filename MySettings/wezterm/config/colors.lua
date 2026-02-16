@@ -29,12 +29,12 @@ function M.apply(config)
       -- 基本の前景色・背景色
       -- ===============================
       foreground      = cp.white, -- 通常のテキスト（ターミナル文字）の色
-      background      = cp.deepsea, -- ターミナル全体の背景色
+      background      = cp.midnightblue, -- ターミナル全体の背景色
       -- ===============================
       -- カーソル関連
       -- ===============================
       cursor_bg       = cp.blue, -- カーソル自体の背景色
-      cursor_fg       = cp.onyx, -- カーソル上に表示される文字の色
+      cursor_fg       = cp.navyblue, -- カーソル上に表示される文字の色
       cursor_border   = cp.blue, -- ブロックカーソルや枠線の色
       -- ===============================
       -- 選択範囲（マウスドラッグ等）
@@ -44,7 +44,7 @@ function M.apply(config)
       -- ===============================
       -- UIパーツ（スクロールバー・分割線）
       -- ===============================
-      scrollbar_thumb = cp.deepsea,  -- スクロールバーの「つまみ」の色
+      scrollbar_thumb = cp.midnightblue,  -- スクロールバーの「つまみ」の色
       split           = cp.blue,     -- 画面分割時の境界線の色
       -- ===============================
       -- タブバー（上部のタブUI）
@@ -54,7 +54,7 @@ function M.apply(config)
         -- アクティブなタブ
         active_tab = {
           bg_color = cp.white,   -- 選択中タブの背景色
-          fg_color = cp.onyx,    -- 選択中タブの文字色
+          fg_color = cp.navyblue,    -- 選択中タブの文字色
           intensity = "Normal",  -- 文字の太さ（Bold / Normal）
           italic = false,        -- 斜体にするか
           underline = "None",    -- 下線の有無
@@ -68,18 +68,18 @@ function M.apply(config)
         -- 非アクティブタブにマウスオーバーした時
         inactive_tab_hover = {
           bg_color = cp.mediumblue, -- ホバー時の背景色
-          fg_color = cp.blue,      -- ホバー時の文字色
+          fg_color = cp.navyblue,      -- ホバー時の文字色
           italic = true,           -- ホバー時に斜体にする
         },
         -- 新規タブボタン
         new_tab = {
-          bg_color = cp.onyx, -- 「＋」ボタンの背景色
-          fg_color = cp.blue, -- 「＋」ボタンの文字色
+          bg_color = cp.navyblue, -- 「＋」ボタンの背景色
+          fg_color = cp.navyblue, -- 「＋」ボタンの文字色
         },
         -- 新規タブボタンのホバー時
         new_tab_hover = {
           bg_color = cp.mediumblue, -- ホバー時の背景色
-          fg_color = cp.blue,      -- ホバー時の文字色
+          fg_color = cp.navyblue,      -- ホバー時の文字色
           italic = true,           -- ホバー時に斜体にする
         },
       },
