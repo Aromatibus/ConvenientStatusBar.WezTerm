@@ -142,7 +142,7 @@ function M.setup(opts)
     net_avg_samples         = (opts and opts.net_avg_samples)            or 200,
     week_str                = opts and opts.week_str,
     color_text              = (opts and opts.color_text)                 or cp.ivoryblack,
-    color_foreground        = (opts and opts.color_foreground)           or cp.aqua,
+    color_foreground        = (opts and opts.color_foreground)           or cp.deepskyblue,
     color_background        = (opts and opts.color_background)           or cp.mediumblue,
     separator               = (opts and opts.separator)                  or { "", "" },
     formats                 = (opts and opts.formats)                    or { def_fmt1, def_fmt2 },

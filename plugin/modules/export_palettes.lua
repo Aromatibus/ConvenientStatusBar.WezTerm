@@ -112,9 +112,10 @@ function M.export_palettes_to_html(path)
       table.insert(
         t,
         string.format(
-          '<span class="grad" style="background:%s" title="%s (%s)" onclick="copyNameHex(\'%s\', \'%s\')"></span>',
+          '<span class="grad" style="background:%s" title="%s (%s) : %s" onmousedown="onGradClick(event, \'%s\', \'%s\')"></span>',
           r.hex,
           r.name,
+          r.source,
           r.hex,
           r.name,
           r.hex
@@ -174,11 +175,10 @@ h1, h2 { margin-top:24px; }
 function showToast(message) {
   const toast = document.createElement("div");
   toast.textContent = "Copied: " + message;
-
   toast.style.position = "fixed";
-  toast.style.left = "50%%";
-  toast.style.top = "50%%";
-  toast.style.transform = "translate(-50%%, -50%%)";
+  toast.style.left = "50%";
+  toast.style.top = "50%";
+  toast.style.transform = "translate(-50%, -50%)";
   toast.style.padding = "10px 16px";
   toast.style.background = "#333333";
   toast.style.color = "#FFFFFF";
@@ -186,7 +186,6 @@ function showToast(message) {
   toast.style.boxShadow = "0 2px 12px rgba(0,0,0,0.5)";
   toast.style.zIndex = 9999;
   toast.style.fontSize = "12px";
-
   document.body.appendChild(toast);
 
   setTimeout(() => {
@@ -210,6 +209,18 @@ function copyNameHex(name, hex) {
   const text = `"${name}","${hex}"`;
   navigator.clipboard.writeText(text);
   showToast(text);
+}
+
+function onGradClick(ev, name, hex) {
+  ev.preventDefault();
+
+  if (ev.shiftKey) {
+    copyName(name);
+  } else if (ev.ctrlKey || ev.metaKey) {
+    copyHex(hex);
+  } else {
+    copyNameHex(name, hex);
+  }
 }
 </script>
 </head>

@@ -45,12 +45,11 @@ function M.apply(config)
     weather_lang     = "",
     weather_country  = "",
     weather_city     = "london",
-    color_text       = cp.onyx,
-    color_foreground = cp.blue,
-    color_background = cp.onyx,
+    color_text       = cp.ivoryblack,
+    color_foreground = cp.deepskyblue,
+    color_background = cp.mediumblue,
     separator        = { "", "" },
   })
-
 
 
 
