@@ -211,16 +211,38 @@ document.addEventListener("DOMContentLoaded", function() {
   const input = document.getElementById("bg-input");
   if (!input) return;
 
-input.addEventListener("focus", function() {
-  input.select();
-});
+  input.addEventListener("focus", function() {
+    input.select();
+  });
 
-input.addEventListener("input", function() {
-  const hex2 = normalizeHex(input.value);
-  if (isValidHexColor(hex2)) {
-    setBackground(hex2);
-  }
-});
+  input.addEventListener("input", function() {
+    const hex2 = normalizeHex(input.value);
+    if (isValidHexColor(hex2)) {
+      setBackground(hex2);
+    }
+  });
+
+  input.addEventListener("paste", function(ev) {
+    ev.preventDefault();
+
+    let text = (ev.clipboardData || window.clipboardData)
+      .getData("text");
+
+    if (!text) return;
+
+    text = text.trim()
+      .replace(/^#/, "")
+      .replace(/^0x/i, "")
+      .replace(/[^0-9a-fA-F]/g, "")
+      .slice(0, 6);
+
+    input.value = text.toUpperCase();
+
+    const hex2 = normalizeHex(input.value);
+    if (isValidHexColor(hex2)) {
+      setBackground(hex2);
+    }
+  });
 
   input.addEventListener("keydown", function(ev) {
     if (ev.key === "Enter") {
