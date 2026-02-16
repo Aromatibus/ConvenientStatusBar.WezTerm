@@ -92,11 +92,9 @@ config.default_prog = get_default_prog()
 -- キーバインドの設定
 -- ==========================================
 -- キーバインドを外部ファイルから読み込み
----@diagnostic disable-next-line: different-requires
-config.keys = require("keybinds").keys
--- キーテーブルを外部ファイルから読み込み
----@diagnostic disable-next-line: different-requires
-config.key_tables = require("keybinds").key_tables
+local kb = require("keybinds")
+config.keys       = kb.keys
+config.key_tables = kb.key_tables
 -- Leaderキーの設定
 config.leader = { key = "q", mods = "CTRL", timeout_milliseconds = 2000 }
 
