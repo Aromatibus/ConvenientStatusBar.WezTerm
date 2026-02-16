@@ -187,7 +187,7 @@ config.window_background_gradient  = {
     cp.ivoryblack,
     cp.navyblue,
     cp.navyblue,
-    cp.midnightblue,
+    cp.navyblue,
     cp.midnightblue,
     cp.midnightblue,
     cp.midnightblue,

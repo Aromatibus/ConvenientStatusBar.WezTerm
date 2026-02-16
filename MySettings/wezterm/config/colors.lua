@@ -53,7 +53,7 @@ function M.apply(config)
         background = cp.ivoryblack, -- タブバー全体の背景色
         -- アクティブなタブ
         active_tab = {
-          bg_color = cp.white,   -- 選択中タブの背景色
+          bg_color = cp.lightsalmon,   -- 選択中タブの背景色
           fg_color = cp.navyblue,    -- 選択中タブの文字色
           intensity = "Normal",  -- 文字の太さ（Bold / Normal）
           italic = false,        -- 斜体にするか
