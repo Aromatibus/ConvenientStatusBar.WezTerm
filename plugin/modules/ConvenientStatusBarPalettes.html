@@ -132,9 +132,7 @@ function copyNameHex(name, hex) {
 function onGradClick(ev, name, hex) {
   ev.preventDefault();
 
-  if (ev.ctrlKey && ev.shiftKey) {
-    copyNameHex(name, hex);
-  } else if (ev.shiftKey) {
+  if (ev.ctrlKey || ev.metaKey) {
     copyName(name);
   } else {
     copyHex(hex);
