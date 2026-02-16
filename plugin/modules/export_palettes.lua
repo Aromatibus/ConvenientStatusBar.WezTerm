@@ -5,15 +5,19 @@ local M       = {}
 --- 定数（デフォルト出力先）
 --- ==========================================
 local DEFAULT_OUTPUT_DIR = wezterm.home_dir .. "/Documents"
-local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
+local DEFAULT_HTML_NAME = "Color_Palettes.html"
 local DEFAULT_TOML_NAME = "ConvenientStatusBarPalettes.toml"
-local DEFAULT_HTML_TPL  = "Color_Palettes.html"
+
+-- テンプレHTMLは「このLuaファイルと同じフォルダ」
+local TEMPLATE_HTML_NAME = DEFAULT_HTML_NAME
+
 
 -- ==========================================
 -- カラーパレット読み込み
 -- ==========================================
 local color_palettes = require('modules.color_palettes')
 local palette_list   = color_palettes.palette_list
+
 
 --- ==========================================
 --- HEX → RGB
@@ -25,6 +29,7 @@ local function hex_to_rgb(hex)
   return r, g, b
 end
 
+
 --- ==========================================
 --- モノクロ判定（RGB近似）
 --- ==========================================
@@ -35,6 +40,7 @@ local function is_monochrome(hex)
     and  math.abs(r - b) <= threshold
     and  math.abs(g - b) <= threshold
 end
+
 
 --- ==========================================
 --- パレットをTOMLに出力
@@ -69,21 +75,22 @@ local function export_palettes_to_toml(path)
   wezterm.log_info("Palette TOML exported to: " .. path)
 end
 
+
 --- ==========================================
 --- パレットをHTMLに出力（テンプレHTML使用）
 --- ==========================================
-function M.export_palettes_to_html(path, template_path)
+function M.export_palettes_to_html(path)
   local out_path = path
   if not out_path then
     out_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_NAME
   end
 
-  local tpl_path = template_path
-  if not tpl_path then
-    tpl_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_HTML_TPL
-  end
-
   local toml_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TOML_NAME
+
+  -- ★ テンプレは「このLuaファイルと同じフォルダ」
+  local script_path = wezterm.config_file
+  local base_dir = script_path:gsub("[/\\][^/\\]+$", "")
+  local tpl_path = base_dir .. "/" .. TEMPLATE_HTML_NAME
 
   local colors = {}
   local monos  = {}
@@ -132,15 +139,15 @@ function M.export_palettes_to_html(path, template_path)
         t,
         string.format(
           [[
-  <div class="copy-row">
-    <span class="dot" style="background:%s"
-          onclick="copyHex('%s')"></span>
-    <span class="hex" onclick="copyHex('%s')">(%s)</span>
-    <span class="sep"> ・・・ </span>
-    <span class="name" onclick="copyName('%s')">%s</span>
-    <span class="src"> (%s)</span>
-  </div>
-  ]],
+<div class="copy-row">
+  <span class="dot" style="background:%s"
+        onclick="copyHex('%s')"></span>
+  <span class="hex" onclick="copyHex('%s')">(%s)</span>
+  <span class="sep"> ・・・ </span>
+  <span class="name" onclick="copyName('%s')">%s</span>
+  <span class="src"> (%s)</span>
+</div>
+]],
           r.hex,
           r.hex,
           r.hex,
@@ -158,6 +165,7 @@ function M.export_palettes_to_html(path, template_path)
   local file, err = io.open(tpl_path, "r")
   if not file then
     wezterm.log_error("Failed to read HTML template: " .. tostring(err))
+    wezterm.log_error("Template path: " .. tpl_path)
     return
   end
 
@@ -174,6 +182,7 @@ function M.export_palettes_to_html(path, template_path)
   html = html:gsub("{{LIST_COLORS}}", list_block(colors))
   html = html:gsub("{{LIST_MONOS}}",  list_block(monos))
 
+  -- HTML書き出し
   local out_file, werr = io.open(out_path, "w")
   if not out_file then
     wezterm.log_error("Failed to write HTML palette: " .. tostring(werr))
@@ -187,5 +196,6 @@ function M.export_palettes_to_html(path, template_path)
 
   export_palettes_to_toml(toml_path)
 end
+
 
 return M
