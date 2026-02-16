@@ -86,9 +86,9 @@ config.default_prog = get_default_prog()
 -- ==========================================
 -- [Keybindings / Key Tables]
 -- ==========================================
----@diagnostic disable-next-line: different-requires
-config.keys = require("config/keybinds").keys
-config.key_tables = require("config/keybinds").key_tables
+local keybinds = require("config/keybinds")
+config.keys       = keybinds.keys
+config.key_tables = keybinds.key_tables
 config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 2000 }
 
 
