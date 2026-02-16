@@ -166,8 +166,8 @@ function M.export_palettes_to_html(path)
     return table.concat(t, "")
   end
 
-  local html = string.format(
-    [[
+local html = string.format(
+  [[
 <!doctype html>
 <html>
 <head>
@@ -313,7 +313,7 @@ function updateBgIndicator(hex) {
 }
 
 function cycleBackground() {
-  bgIndex = (bgIndex + 1) % bgCycle.length;
+  bgIndex = (bgIndex + 1) %% bgCycle.length;
   const hex = bgCycle[bgIndex];
   document.body.style.background = hex;
   applyTextColorByBg(hex);
@@ -367,18 +367,18 @@ document.addEventListener("DOMContentLoaded", function() {
 </body>
 </html>
 ]],
-    GRAD_WIDTH,
-    GRAD_HEIGHT,
-    total_count,
-    color_count,
-    grad_bar(colors),
-    mono_count,
-    grad_bar(monos),
-    color_count,
-    list_block(colors),
-    mono_count,
-    list_block(monos)
-  )
+  GRAD_WIDTH,
+  GRAD_HEIGHT,
+  total_count,
+  color_count,
+  grad_bar(colors),
+  mono_count,
+  grad_bar(monos),
+  color_count,
+  list_block(colors),
+  mono_count,
+  list_block(monos)
+)
 
   local file, err = io.open(out_path, "w")
   if not file then
