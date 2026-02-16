@@ -16,7 +16,7 @@ end
 --- 定数（デフォルト出力先）
 --- ==========================================
 local DEFAULT_OUTPUT_DIR = wezterm.home_dir .. "/Documents"
-local DEFAULT_HTML_NAME = "Color_Palettes.html"
+local DEFAULT_HTML_NAME = "ConvenientStatusBarPalettes.html"
 local DEFAULT_TOML_NAME = "ConvenientStatusBarPalettes.toml"
 
 -- テンプレHTMLは「このLuaファイルと同じフォルダ」
