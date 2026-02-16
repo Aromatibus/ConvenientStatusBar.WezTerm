@@ -55,18 +55,27 @@ h1, h2 { margin-top:24px; }
   opacity: 0.9;
   pointer-events: auto;
   background: rgba(0,0,0,0.35);
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 6px;
 }
 
-#bg-indicator input {
-  width: 78px;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: inherit;
+#bg-indicator .label {
+  margin-right: 2px;
   font-family: monospace;
-  font-size: 11px;
+}
+
+#bg-indicator input {
+  width: 56px;
+  height: 24px;
+  background: #000088;       /* 入力欄 背景色 固定 */
+  border: 2px solid #EEEEEE; /* 太枠 */
+  border-radius: 4px;
+  outline: none;
+  color: #C0C0C0;            /* 入力欄 テキスト色 固定 */
+  font-family: monospace;
+  font-size: 12px;
+  padding: 0 6px;
+  box-sizing: border-box;
 }
 </style>
 <script>
@@ -122,7 +131,6 @@ function copyNameHex(name, hex) {
 
 function onGradClick(ev, name, hex) {
   ev.preventDefault();
-
   if (ev.shiftKey) {
     copyName(name);
   } else if (ev.ctrlKey || ev.metaKey) {
@@ -136,7 +144,6 @@ function getLuminance(hex) {
   const r = parseInt(hex.substr(1, 2), 16) / 255;
   const g = parseInt(hex.substr(3, 2), 16) / 255;
   const b = parseInt(hex.substr(5, 2), 16) / 255;
-
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
@@ -160,7 +167,7 @@ function isValidHexColor(hex) {
 function updateBgIndicator(hex) {
   const input = document.getElementById("bg-input");
   if (!input) return;
-  input.value = hex;
+  input.value = hex.replace("#", "");
 }
 
 function setBackground(hex) {
@@ -172,13 +179,11 @@ function setBackground(hex) {
 
 function cycleBackground() {
   bgIndex = (bgIndex + 1) % bgCycle.length;
-  const hex = bgCycle[bgIndex];
-  setBackground(hex);
+  setBackground(bgCycle[bgIndex]);
 }
 
 document.addEventListener("click", function(ev) {
   const t = ev.target;
-
   if (
     t.classList.contains("grad") ||
     t.classList.contains("dot") ||
@@ -188,13 +193,11 @@ document.addEventListener("click", function(ev) {
   ) {
     return;
   }
-
   cycleBackground();
 });
 
 document.addEventListener("DOMContentLoaded", function() {
-  const hex = bgCycle[bgIndex];
-  setBackground(hex);
+  setBackground(bgCycle[bgIndex]);
 
   const input = document.getElementById("bg-input");
   if (!input) return;
@@ -240,7 +243,8 @@ document.addEventListener("DOMContentLoaded", function() {
 {{LIST_MONOS}}
 
 <div id="bg-indicator">
-  BG: <input id="bg-input" type="text" value="#000000" />
+  <span class="label">bg:#</span>
+  <input id="bg-input" type="text" value="000000" maxlength="6" />
 </div>
 
 </body>
