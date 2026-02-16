@@ -131,12 +131,13 @@ function copyNameHex(name, hex) {
 
 function onGradClick(ev, name, hex) {
   ev.preventDefault();
-  if (ev.shiftKey) {
-    copyName(name);
-  } else if (ev.ctrlKey || ev.metaKey) {
-    copyHex(hex);
-  } else {
+
+  if (ev.ctrlKey && ev.shiftKey) {
     copyNameHex(name, hex);
+  } else if (ev.shiftKey) {
+    copyName(name);
+  } else {
+    copyHex(hex);
   }
 }
 
@@ -160,8 +161,10 @@ function applyTextColorByBg(hex) {
 
 function normalizeHex(input) {
   let v = input.trim();
-  if (/^[0-9A-Fa-f]{6}$/.test(v)) {
-    v = "#" + v;
+  if (/^#?[0-9A-Fa-f]{6}$/.test(v)) {
+    if (!v.startsWith("#")) {
+      v = "#" + v;
+    }
   }
   return v.toUpperCase();
 }
@@ -250,7 +253,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <div id="bg-indicator">
   <span class="label">Background : #</span>
-  <input id="bg-input" type="text" value="000000" maxlength="6" />
+  <input id="bg-input" type="text" value="000000" maxlength="7" />
 </div>
 
 </body>
