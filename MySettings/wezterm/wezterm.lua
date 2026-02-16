@@ -183,10 +183,10 @@ config.window_background_gradient  = {
   --orientation = { Linear = { angle = -45.0 } },
   interpolation = 'Linear',
   colors = {
+    cp.ivoryblack,
+    cp.ivoryblack,
     cp.navyblue,
     cp.navyblue,
-    cp.midnightblue,
-    cp.midnightblue,
     cp.midnightblue,
     cp.midnightblue,
     cp.midnightblue,
