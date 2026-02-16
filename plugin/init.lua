@@ -141,9 +141,9 @@ function M.setup(opts)
     net_update_interval     = (opts and opts.net_update_interval)        or 3,
     net_avg_samples         = (opts and opts.net_avg_samples)            or 200,
     week_str                = opts and opts.week_str,
-    color_text              = (opts and opts.color_text)                 or cp.onyx,
-    color_foreground        = (opts and opts.color_foreground)           or cp.horizon,
-    color_background        = (opts and opts.color_background)           or cp.onyx,
+    color_text              = (opts and opts.color_text)                 or cp.mediumblue,
+    color_foreground        = (opts and opts.color_foreground)           or cp.navyblue,
+    color_background        = (opts and opts.color_background)           or cp.mediumblue,
     separator               = (opts and opts.separator)                  or { "", "" },
     formats                 = (opts and opts.formats)                    or { def_fmt1, def_fmt2 },
     timer = {
