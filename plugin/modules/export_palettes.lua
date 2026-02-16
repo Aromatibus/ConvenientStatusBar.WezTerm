@@ -87,7 +87,7 @@ function M.export_palettes_to_html(path)
   local toml_path = DEFAULT_OUTPUT_DIR .. "/" .. DEFAULT_TOML_NAME
 
   local colors = {}
-  local monos = {}
+  local monos  = {}
 
   for _, p in ipairs(palette_list) do
     if is_monochrome(p.hex) then
@@ -97,7 +97,12 @@ function M.export_palettes_to_html(path)
     end
   end
 
-  table.sort(monos, function(a, b) return a.hex < b.hex end)
+  table.sort(
+    monos,
+    function(a, b)
+      return a.hex < b.hex
+    end
+  )
 
   local total_count = #colors + #monos
   local color_count = #colors
@@ -108,11 +113,15 @@ function M.export_palettes_to_html(path)
 
   local function grad_bar(rows)
     local t = {}
+
     for _, r in ipairs(rows) do
       table.insert(
         t,
         string.format(
-          '<span class="grad" style="background:%s" title="%s (%s) : %s" onmousedown="onGradClick(event, \'%s\', \'%s\')"></span>',
+          '<span class="grad" style="background:%s" ' ..
+          'title="%s (%s) : %s" ' ..
+          'onmousedown="onGradClick(event, \'%s\', \'%s\')">' ..
+          '</span>',
           r.hex,
           r.name,
           r.source,
@@ -122,56 +131,113 @@ function M.export_palettes_to_html(path)
         )
       )
     end
+
     return table.concat(t, "")
   end
 
   local function list_block(rows)
     local t = {}
+
     for _, r in ipairs(rows) do
       table.insert(
         t,
-        string.format([[
+        string.format(
+          [[
   <div class="copy-row">
-    <span class="dot" style="background:%s" onclick="copyHex('%s')"></span>
+    <span class="dot" style="background:%s"
+          onclick="copyHex('%s')"></span>
     <span class="hex" onclick="copyHex('%s')">(%s)</span>
     <span class="sep"> ・・・ </span>
     <span class="name" onclick="copyName('%s')">%s</span>
     <span class="src"> (%s)</span>
   </div>
   ]],
-          r.hex, r.hex, r.hex, r.hex, r.name, r.name, r.source
+          r.hex,
+          r.hex,
+          r.hex,
+          r.hex,
+          r.name,
+          r.name,
+          r.source
         )
       )
     end
+
     return table.concat(t, "")
   end
 
-  local html = string.format([[
+  local html = string.format(
+    [[
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>カラースペクトラム / カラーパレット</title>
 <style>
-body { background:#111111; color:#EEEEEE; font-family: sans-serif; }
+body {
+  background:#111111;
+  color:#EEEEEE;
+  font-family: sans-serif;
+  transition: background 0.2s ease;
+}
 h1, h2 { margin-top:24px; }
-.note { font-size: 12px; color: #AAAAAA; margin: 4px 0 12px 0; }
-.grad { display:inline-block; width:%dpx; height:%dpx; cursor:pointer; }
+.note {
+  font-size: 12px;
+  color: #AAAAAA;
+  margin: 4px 0 12px 0;
+}
+.grad {
+  display:inline-block;
+  width:%dpx;
+  height:%dpx;
+  cursor:pointer;
+}
 .copy-row { margin:4px 0; }
 .dot {
-  width:12px; height:12px; display:inline-block;
-  margin-right:6px; cursor:pointer; vertical-align:middle;
+  width:12px;
+  height:12px;
+  display:inline-block;
+  margin-right:6px;
+  cursor:pointer;
+  vertical-align:middle;
 }
-.hex { cursor:pointer; font-family: monospace; }
+.hex {
+  cursor:pointer;
+  font-family: monospace;
+}
 .name {
   cursor:pointer;
-  color:#FFFFFF;
+  color:inherit;
   text-decoration: underline;
 }
-.src { color:#AAAAAA; margin-left:4px; }
+.src {
+  color:#AAAAAA;
+  margin-left:4px;
+}
 .sep { margin:0 4px; }
+
+#bg-indicator {
+  position: fixed;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  color: #AAAAAA;
+  opacity: 0.8;
+  pointer-events: none;
+}
 </style>
 <script>
+const bgCycle = [
+  "#000000",
+  "#FF0000",
+  "#FFFF00",
+  "#FFFFFF",
+  "#00FFFF",
+  "#0000FF",
+];
+
+let bgIndex = 0;
+
 function showToast(message) {
   const toast = document.createElement("div");
   toast.textContent = "Copied: " + message;
@@ -222,12 +288,67 @@ function onGradClick(ev, name, hex) {
     copyNameHex(name, hex);
   }
 }
+
+function getLuminance(hex) {
+  const r = parseInt(hex.substr(1, 2), 16) / 255;
+  const g = parseInt(hex.substr(3, 2), 16) / 255;
+  const b = parseInt(hex.substr(5, 2), 16) / 255;
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function applyTextColorByBg(hex) {
+  const lum = getLuminance(hex);
+  document.body.style.color = lum > 0.6 ? "#000000" : "#FFFFFF";
+}
+
+function updateBgIndicator(hex) {
+  let el = document.getElementById("bg-indicator");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "bg-indicator";
+    document.body.appendChild(el);
+  }
+  el.textContent = "BG: " + hex;
+}
+
+function cycleBackground() {
+  bgIndex = (bgIndex + 1) % bgCycle.length;
+  const hex = bgCycle[bgIndex];
+  document.body.style.background = hex;
+  applyTextColorByBg(hex);
+  updateBgIndicator(hex);
+}
+
+document.addEventListener("click", function(ev) {
+  const t = ev.target;
+
+  if (
+    t.classList.contains("grad") ||
+    t.classList.contains("dot") ||
+    t.classList.contains("hex") ||
+    t.classList.contains("name")
+  ) {
+    return;
+  }
+
+  cycleBackground();
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+  const hex = bgCycle[bgIndex];
+  document.body.style.background = hex;
+  applyTextColorByBg(hex);
+  updateBgIndicator(hex);
+});
 </script>
 </head>
 <body>
 
 <h1>◆カラースペクトラム（全%d色）</h1>
-<div class="note">※ホバーで名前表示 / クリックで「カラー名, カラーコード」をコピー</div>
+<div class="note">
+  ※ホバーで「名前 (分類) : カラーコード」表示 / クリックでコピー
+</div>
 
 <h2>■ カラー（%d色）</h2>
 <div>%s</div>
@@ -246,7 +367,8 @@ function onGradClick(ev, name, hex) {
 </body>
 </html>
 ]],
-    GRAD_WIDTH, GRAD_HEIGHT,
+    GRAD_WIDTH,
+    GRAD_HEIGHT,
     total_count,
     color_count,
     grad_bar(colors),
@@ -260,7 +382,9 @@ function onGradClick(ev, name, hex) {
 
   local file, err = io.open(out_path, "w")
   if not file then
-    wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
+    wezterm.log_error(
+      "Failed to write HTML palette: " .. tostring(err)
+    )
     return
   end
 
