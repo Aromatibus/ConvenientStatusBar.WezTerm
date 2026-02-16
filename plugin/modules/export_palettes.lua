@@ -88,7 +88,7 @@ function M.export_palettes_to_html(path)
 
   local colors = {}
   local monos = {}
-  -- パレットをカラーとモノクロに分類
+
   for _, p in ipairs(palette_list) do
     if is_monochrome(p.hex) then
       table.insert(monos, p)
@@ -96,32 +96,34 @@ function M.export_palettes_to_html(path)
       table.insert(colors, p)
     end
   end
-  -- 色数順にソート
-  -- table.sort(colors, function(a, b) return a.hex < b.hex end)
+
   table.sort(monos, function(a, b) return a.hex < b.hex end)
-  -- 全色数、カラー数、モノクロ数を取得
+
   local total_count = #colors + #monos
   local color_count = #colors
-  local mono_count = #monos
-  -- グラデーションバーのサイズ設定
-  local GRAD_WIDTH = 24 -- 1色あたりの横幅(px)
-  local GRAD_HEIGHT = 24 -- 高さ(px)
-  -- グラデーションバーを生成
+  local mono_count  = #monos
+
+  local GRAD_WIDTH  = 24
+  local GRAD_HEIGHT = 24
+
   local function grad_bar(rows)
     local t = {}
     for _, r in ipairs(rows) do
       table.insert(
         t,
         string.format(
-          '<span class="grad" style="background:%s" onclick="copyHex(\'%s\')"></span>',
+          '<span class="grad" style="background:%s" title="%s (%s)" onclick="copyNameHex(\'%s\', \'%s\')"></span>',
           r.hex,
+          r.name,
+          r.hex,
+          r.name,
           r.hex
         )
       )
     end
     return table.concat(t, "")
   end
-  -- カラーとモノクロのブロックを生成
+
   local function list_block(rows)
     local t = {}
     for _, r in ipairs(rows) do
@@ -142,7 +144,7 @@ function M.export_palettes_to_html(path)
     end
     return table.concat(t, "")
   end
-  -- HTMLテンプレートにデータを埋め込む
+
   local html = string.format([[
 <!doctype html>
 <html>
@@ -177,7 +179,6 @@ function showToast(message) {
   toast.style.left = "50%%";
   toast.style.top = "50%%";
   toast.style.transform = "translate(-50%%, -50%%)";
-
   toast.style.padding = "10px 16px";
   toast.style.background = "#333333";
   toast.style.color = "#FFFFFF";
@@ -204,12 +205,18 @@ function copyName(name) {
   navigator.clipboard.writeText(name);
   showToast(name);
 }
+
+function copyNameHex(name, hex) {
+  const text = `"${name}","${hex}"`;
+  navigator.clipboard.writeText(text);
+  showToast(text);
+}
 </script>
 </head>
 <body>
 
 <h1>◆カラースペクトラム（全%d色）</h1>
-<div class="note">※カラー見本、カラー名をクリックするとカラーコードまたはカラー名をコピーできます</div>
+<div class="note">※ホバーで名前表示 / クリックで「カラー名, カラーコード」をコピー</div>
 
 <h2>■ カラー（%d色）</h2>
 <div>%s</div>
@@ -239,16 +246,18 @@ function copyName(name) {
     mono_count,
     list_block(monos)
   )
-  -- HTMLファイル出力
+
   local file, err = io.open(out_path, "w")
   if not file then
     wezterm.log_error("Failed to write HTML palette: " .. tostring(err))
     return
   end
+
   file:write(html)
   file:close()
+
   wezterm.log_info("Palette HTML exported to: " .. out_path)
-  -- TOML ファイル出力
+
   export_palettes_to_toml(toml_path)
 end
 
