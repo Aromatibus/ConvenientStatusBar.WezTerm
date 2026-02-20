@@ -2,13 +2,25 @@ local wezterm = require 'wezterm'
 local config  = wezterm.config_builder()
 
 
+--- ==========================================
+--- 外部モジュール読み込み用のパスを設定
+--- ==========================================
+-- 自身と同じフォルダを追加
+local config_dir = wezterm.config_dir
+package.path = config_dir .. "/?.lua;" .. package.path
+-- pluginフォルダを追加
+local plugin_list = wezterm.plugin.list()
+if plugin_list and plugin_list[1] then
+  local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"
+  package.path = plugin_path .. ";" .. package.path
+end
+
+
 -- ==========================================================
 -- [Startup]
 -- ==========================================================
 wezterm.on('gui-startup', function(cmd)
-  -- =========================================================
   -- ウィンドウを最大化、フォーカスする内部関数
-  -- =========================================================
   local function maximize_and_focus(gui)
     -- guiオブジェクトが無い場合は何もしない
     if not gui then
@@ -28,9 +40,7 @@ wezterm.on('gui-startup', function(cmd)
     gui:perform_action(wezterm.action.ToggleFullScreen, pane)
     gui:focus()
   end
-  -- =========================================================
   -- スタートアップ処理本体
-  -- =========================================================
   -- 既存ウィンドウの検出
   local mux = wezterm.mux
   local windows = mux.all_windows()
@@ -66,6 +76,7 @@ config.quit_when_all_windows_are_closed = true
 -- ==========================================================
 local function get_default_prog()
   if wezterm.target_triple:find("windows") then
+--[[
     local current_drive = wezterm.executable_dir:match("(%a:)") or "C:"
     local profile_path =
         current_drive .. "\\DevTools\\PowerShell\\.pwsh\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
@@ -74,6 +85,8 @@ local function get_default_prog()
       pwsh_path, "-ExecutionPolicy", "RemoteSigned",
       "-NoExit", "-Command", string.format(". '%s'", profile_path)
     }
+]]
+    return { "git-bash.exe" }
   elseif wezterm.target_triple:find("apple") then
     return { "/bin/zsh", "-l" }
   else
@@ -126,14 +139,19 @@ table.insert(config.keys, {
 -- ==========================================================
 -- [Window / Display / Appearance]
 -- ==========================================================
+-- basic
 config.automatically_reload_config = true
 config.tab_bar_at_bottom           = false
 config.window_decorations          = "RESIZE" -- "TITLE | RESIZE"
 config.max_fps                     = 120
 config.use_ime                     = true
+config.scrollback_lines            = 30000
+config.enable_scroll_bar           = true
 
 -- [Visual]
 config.window_background_opacity   = 0.96
+
+-- padding
 local PAD_CELL                     = '0.5cell'
 config.window_padding              = {
   left = PAD_CELL, right = PAD_CELL, top = PAD_CELL, bottom = PAD_CELL,

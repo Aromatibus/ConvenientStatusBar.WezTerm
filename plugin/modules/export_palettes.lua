@@ -5,6 +5,10 @@ local M       = {}
 --- ==========================================
 --- 外部モジュール読み込み用のパスを設定
 --- ==========================================
+-- 自身と同じフォルダを追加
+local config_dir = wezterm.config_dir
+package.path = config_dir .. "/?.lua;" .. package.path
+-- pluginフォルダを追加
 local plugin_list = wezterm.plugin.list()
 if plugin_list and plugin_list[1] then
   local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"

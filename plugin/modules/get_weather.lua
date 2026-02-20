@@ -5,6 +5,10 @@ local M       = {}
 --- ==========================================
 --- 外部モジュール読み込み用のパスを設定
 --- ==========================================
+-- 自身と同じフォルダを追加
+local config_dir = wezterm.config_dir
+package.path = config_dir .. "/?.lua;" .. package.path
+-- pluginフォルダを追加
 local plugin_list = wezterm.plugin.list()
 if plugin_list and plugin_list[1] then
   local plugin_path = plugin_list[1].plugin_dir .. "/plugin/?.lua"
@@ -22,20 +26,20 @@ local run_child_cmd = require('modules.run_child_cmd')
 --- 定数
 --- ==========================================
 local openweathermap_forecast_url =
-        "https://api.openweathermap.org/data/2.5/forecast" ..
-        "?appid=%s&lang=%s&q=%s&units=%s"
+  "https://api.openweathermap.org/data/2.5/forecast" ..
+  "?appid=%s&lang=%s&q=%s&units=%s"
 local ipapi_url = "https://ipapi.co/json/"
 local weather_icons = {
-    clear       = "󰖨 ",
-    clouds      = "󰅟 ",
-    rain        = " ",
-    wind        = " ",
-    thunder     = "󱐋 ",
-    snow        = " ",
-    thermometer = "",
-    celsius     = "󰔄",
-    fahrenheit  = "󰔅",
-    unknown     = " ",
+  clear       = "󰖨 ",
+  clouds      = "󰅟 ",
+  rain        = " ",
+  wind        = " ",
+  thunder     = "󱐋 ",
+  snow        = " ",
+  thermometer = "",
+  celsius     = "󰔄",
+  fahrenheit  = "󰔅",
+  unknown     = " ",
 }
 local unknown_icon = " "
 
@@ -44,32 +48,32 @@ local unknown_icon = " "
 --- forecastデータから天気ID・温度・日時を抽出
 --- ==========================================
 local function parse_forecast(data, index)
-    -- データチェック
-    if not data or not data.list then
-        return nil, nil, nil
-    end
+  -- データチェック
+  if not data or not data.list then
+    return nil, nil, nil
+  end
 
-    -- 指定インデックスのエントリ取得
-    local entry = data.list[index]
-    if not entry then
-        return nil, nil, nil
-    end
+  -- 指定インデックスのエントリ取得
+  local entry = data.list[index]
+  if not entry then
+    return nil, nil, nil
+  end
 
-    -- 天気IDを抽出
-    local weather_id =
-        entry.weather
-        and entry.weather[1]
-        and entry.weather[1].id
+  -- 天気IDを抽出
+  local weather_id =
+    entry.weather
+    and entry.weather[1]
+    and entry.weather[1].id
 
-    -- 温度を抽出
-    local temp =
-        entry.main
-        and entry.main.temp
+  -- 温度を抽出
+  local temp =
+    entry.main
+    and entry.main.temp
 
-    -- 日時を抽出
-    local dt = entry.dt
+  -- 日時を抽出
+  local dt = entry.dt
 
-    return weather_id, temp, dt
+  return weather_id, temp, dt
 end
 
 
@@ -77,23 +81,23 @@ end
 --- 天気IDからアイコンを取得
 --- ==========================================
 local function get_icon(weather_id, icons)
-    if not weather_id then
-        return icons.unknown
-    end
+  if not weather_id then
+    return icons.unknown
+  end
 
-    if weather_id < 300 then
-        return icons.thunder
-    elseif weather_id < 600 then
-        return icons.rain
-    elseif weather_id < 700 then
-        return icons.snow
-    elseif weather_id < 800 then
-        return icons.wind
-    elseif weather_id == 800 then
-        return icons.clear
-    else
-        return icons.clouds
-    end
+  if weather_id < 300 then
+    return icons.thunder
+  elseif weather_id < 600 then
+    return icons.rain
+  elseif weather_id < 700 then
+    return icons.snow
+  elseif weather_id < 800 then
+    return icons.wind
+  elseif weather_id == 800 then
+    return icons.clear
+  else
+    return icons.clouds
+  end
 end
 
 
@@ -101,14 +105,14 @@ end
 --- 現在時刻を1時間単位で切り上げ
 --- ==========================================
 local function get_rounded_now()
-    local now  = os.time()
-    local base = now - (now % 3600)
+  local now  = os.time()
+  local base = now - (now % 3600)
 
-    if now % 3600 ~= 0 then
-        base = base + 3600
-    end
+  if now % 3600 ~= 0 then
+    base = base + 3600
+  end
 
-    return base
+  return base
 end
 
 
@@ -116,19 +120,19 @@ end
 --- URLエンコード（UTF-8対応）
 --- ==========================================
 local function url_encode(str)
-    if not str then
-        return str
-    end
-
-    -- 改行コードをLFに統一
-    str = str:gsub("\r\n", "\n")
-
-    -- 英数字と安全文字以外を %XX に変換
-    str = str:gsub("([^%w%-_%.~])", function(c)
-        return string.format("%%%02X", string.byte(c))
-    end)
-
+  if not str then
     return str
+  end
+
+  -- 改行コードをLFに統一
+  str = str:gsub("\r\n", "\n")
+
+  -- 英数字と安全文字以外を %XX に変換
+  str = str:gsub("([^%w%-_%.~])", function(c)
+    return string.format("%%%02X", string.byte(c))
+  end)
+
+  return str
 end
 
 
@@ -136,82 +140,82 @@ end
 --- 天気データ取得
 --- ==========================================
 function M.get_weather(config, state)
-    -- OS別curlコマンド
-    local is_win   = wezterm.target_triple:find("windows")
-    local curl_cmd = is_win and "curl.exe" or "curl"
+  -- OS別curlコマンド
+  local is_win   = wezterm.target_triple:find("windows")
+  local curl_cmd = is_win and "curl.exe" or "curl"
 
-    -- 取得対象の都市名・国コード
-    local tgt_city = config.weather_city
-    local tgt_code = config.weather_country
+  -- 取得対象の都市名・国コード
+  local tgt_city = config.weather_city
+  local tgt_code = config.weather_country
 
-    -- 都市未指定ならIP情報から取得
-    if not tgt_city or tgt_city == "" then
-        local ok, res = run_child_cmd.run({
-            curl_cmd,
-            "-s",
-            ipapi_url,
-        })
-
-        if ok and res then
-            tgt_city = res:match('"city":%s*"([^"]+)"')
-            tgt_code =
-                res:match('"country_code":%s*"([^"]+)"')
-        end
-    end
-
-    -- 都市名が取得できない場合
-    if not tgt_city or tgt_city == "" then
-        state.weather_ic       = unknown_icon
-        state.temp_ic          = weather_icons.thermometer
-        state.temp_str         =
-            string.format("%5s", unknown_icon)
-        state.city_name        = unknown_icon
-        state.is_weather_ready = false
-        return
-    end
-
-    -- クエリ文字列作成
-    local enc_city = url_encode(tgt_city)
-    local query =
-        tgt_code ~= "" and
-        (enc_city .. "," .. tgt_code) or
-        enc_city
-    -- API URL（APIキーは引数）
-    local url = string.format(
-        openweathermap_forecast_url,
-        config.weather_api_key,
-        config.weather_lang,
-        query,
-        config.weather_units
-    )
-    -- APIリクエスト
-    local ok, stdout = run_child_cmd.run({
-        curl_cmd,
-        "-s",
-        url
+  -- 都市未指定ならIP情報から取得
+  if not tgt_city or tgt_city == "" then
+    local ok, res = run_child_cmd.run({
+      curl_cmd,
+      "-s",
+      ipapi_url,
     })
-    -- 通信エラー
-    if not ok or not stdout then
-        state.weather_ic       = unknown_icon
-        state.temp_ic          = weather_icons.thermometer
-        state.temp_str         =
-            string.format("%5s", unknown_icon)
-        state.city_name        = tgt_city
-        state.is_weather_ready = false
-        state.last_weather_upd = os.time()
-        return
+
+    if ok and res then
+      tgt_city = res:match('"city":%s*"([^"]+)"')
+      tgt_code =
+        res:match('"country_code":%s*"([^"]+)"')
     end
-    -- JSONパース
-    local ok_json, data = pcall(wezterm.json_parse, stdout)
-    if not ok_json or not data or not data.list then
-        state.weather_ic       = unknown_icon
-        state.temp_ic          = weather_icons.thermometer
-        state.temp_str         =
-            string.format("%5s", unknown_icon)
-        state.is_weather_ready = false
-        state.last_weather_upd = os.time()
-        return
-    end
+  end
+
+  -- 都市名が取得できない場合
+  if not tgt_city or tgt_city == "" then
+    state.weather_ic       = unknown_icon
+    state.temp_ic          = weather_icons.thermometer
+    state.temp_str         =
+      string.format("%5s", unknown_icon)
+    state.city_name        = unknown_icon
+    state.is_weather_ready = false
+    return
+  end
+
+  -- クエリ文字列作成
+  local enc_city = url_encode(tgt_city)
+  local query =
+    tgt_code ~= "" and
+    (enc_city .. "," .. tgt_code) or
+    enc_city
+  -- API URL（APIキーは引数）
+  local url = string.format(
+    openweathermap_forecast_url,
+    config.weather_api_key,
+    config.weather_lang,
+    query,
+    config.weather_units
+  )
+  -- APIリクエスト
+  local ok, stdout = run_child_cmd.run({
+    curl_cmd,
+    "-s",
+    url
+  })
+  -- 通信エラー
+  if not ok or not stdout then
+    state.weather_ic       = unknown_icon
+    state.temp_ic          = weather_icons.thermometer
+    state.temp_str         =
+      string.format("%5s", unknown_icon)
+    state.city_name        = tgt_city
+    state.is_weather_ready = false
+    state.last_weather_upd = os.time()
+    return
+  end
+  -- JSONパース
+  local ok_json, data = pcall(wezterm.json_parse, stdout)
+  if not ok_json or not data or not data.list then
+    state.weather_ic       = unknown_icon
+    state.temp_ic          = weather_icons.thermometer
+    state.temp_str         =
+      string.format("%5s", unknown_icon)
+    state.is_weather_ready = false
+    state.last_weather_upd = os.time()
+    return
+  end
   -- タイムゾーン（UTCオフセット）取得
   state.weather_timezone_sec = data.city and data.city.timezone or 0
   -- 温度単位
@@ -269,9 +273,9 @@ function M.get_weather(config, state)
   }
   -- 翌月・翌年を繰り上げ処理
   local next_noon = os.time(next_noon_tm)
-  local nd_idx    = nil
-  local nd_dt     = nil
-  local min_diff  = math.huge
+  local nd_idx     = nil
+  local nd_dt      = nil
+  local min_diff   = math.huge
   -- 現在時間から1時間切り上げた時刻を取得
   local rounded_now = get_rounded_now()
   -- 予報リストから最も近いエントリを探索
