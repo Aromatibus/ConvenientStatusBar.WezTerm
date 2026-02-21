@@ -1,105 +1,89 @@
+local wezterm = require 'wezterm'
 local M = {}
 
-
---- ==========================================
---- アイコン定義（定数）
---- ==========================================
-local ICON = {
-  docker = "",  -- Docker
-  wsl    = "",  -- WSL (Linux)
-  ssh    = "󰀑",  -- SSH
-  local_ = "",  -- Local user
+-- ご指定のアイコン定義
+local ENV_ICONS = {
+  WIN     = " ",
+  MAC     = " ",
+  LINUX   = " ",
+  REMOTE  = "󰀑 ",
+  VIRTUAL = " ",
 }
 
+--
 
---- ==========================================
---- ユーザー抽出（Local / SSH / WSL / Docker 判定）
---- ==========================================
-function M.get_user(pane)
-  -- ローカルユーザー名の取得
-  local user_name =
-      os.getenv("USER") or
-      os.getenv("USERNAME") or
-      "User"
-  local user_icon = ICON.local_
-  -- ペインが無効な場合はローカル扱い
-  if not pane then
-    return user_name, user_icon
+function M.get_current_info(pane)
+  -- 1. 基本となるローカルOS情報の特定 (target_tripleを使用)
+  local target = wezterm.target_triple
+  local current_env_icon = ENV_ICONS.LINUX
+  if target:find("windows") then
+    current_env_icon = ENV_ICONS.WIN
+  elseif target:find("apple") then
+    current_env_icon = ENV_ICONS.MAC
   end
-  -- Domain 判定（SSH / WSL / Docker）
-  local ok_domain, domain = pcall(function()
-    return pane:get_domain_name()
-  end)
-  if ok_domain and domain then
+
+  local user_name = os.getenv("USER") or os.getenv("USERNAME") or "User"
+
+  if not pane then return current_env_icon, user_name end
+
+  ---------------------------------------------------------
+  -- 2. Domain判定 (WezTerm SSH/WSL Domains経由の場合)
+  ---------------------------------------------------------
+  local domain = pane:get_domain_name()
+  if domain then
     local d = domain:lower()
-    -- Docker
-    if d:find("docker") or d:find("container") then
-      user_icon = ICON.docker
-      return user_name, user_icon
-    end
-    -- WSL
-    if d:find("wsl") then
-      user_icon = ICON.wsl
-      return user_name, user_icon
-    end
-    -- SSH（ユーザー名は後続で上書きされる可能性あり）
     if d:find("ssh") then
-      user_icon = ICON.ssh
+      return ENV_ICONS.REMOTE, user_name
+    elseif d:find("wsl") or d:find("docker") or d:find("container") then
+      return ENV_ICONS.VIRTUAL, user_name
     end
   end
-  -- 作業ディレクトリ（URI）から SSH 判定
-  local ok_uri, uri = pcall(function()
-    return pane:get_current_working_dir()
-  end)
-  if ok_uri and uri and uri.username and uri.username ~= "" then
-    user_name = uri.username
-    user_icon = ICON.ssh
-    return user_name, user_icon
-  end
-  -- プロセス情報から判定
-  local ok_proc, proc = pcall(function()
-    return pane:get_foreground_process_info()
-  end)
-  if ok_proc and proc and proc.executable then
-    local exe = proc.executable:lower()
-    -- Docker
-    if exe:find("docker") or exe:find("podman") or exe:find("container") then
-      user_icon = ICON.docker
-      return user_name, user_icon
-    end
-    -- WSL
-    if exe:find("wsl") then
-      user_icon = ICON.wsl
-      return user_name, user_icon
-    end
-    -- SSH
-    if exe:find("ssh") then
-      user_icon = ICON.ssh
-      for _, arg in ipairs(proc.argv or {}) do
-        local u = arg:match("([^@]+)@[^@]+")
-        if u then
-          user_name = u
-          return user_name, user_icon
+
+  ---------------------------------------------------------
+  -- 3. プロセスツリー走査 (Git-Bash等の中身を再帰的に確認)
+  ---------------------------------------------------------
+  local proc = pane:get_foreground_process_info()
+  if proc then
+    -- 子プロセスまで潜って SSH / WSL / Docker を探す再帰関数
+    local function find_context(p)
+      local exe = (p.executable or ""):lower()
+      local name = (p.name or ""):lower()
+
+      -- REMOTE 判定 (ssh)
+      -- Git-Bash内では名前が "ssh" もしくはパスに "ssh.exe" が含まれる
+      if name:match("^ssh") or exe:find("ssh") then
+        local u = user_name
+        -- 引数 (argv) から user@host を抽出試行
+        if p.argv then
+          for _, arg in ipairs(p.argv) do
+            local captured = arg:match("([^@%-]+)@[^@]+")
+            if captured then u = captured break end
+          end
+        end
+        return ENV_ICONS.REMOTE, u
+      end
+
+      -- VIRTUAL 判定 (wsl, docker, podman)
+      if exe:find("wsl%.exe") or exe:find("docker") or exe:find("podman") then
+        return ENV_ICONS.VIRTUAL, user_name
+      end
+
+      -- 子プロセスがあればさらに深く探索
+      if p.children then
+        for _, child in ipairs(p.children) do
+          local res_icon, res_user = find_context(child)
+          if res_icon then return res_icon, res_user end
         end
       end
-      return user_name, user_icon
+      return nil, nil
     end
-  end
-  -- タイトルから SSH 判定
-  local ok_title, title = pcall(function()
-    return pane:get_title()
-  end)
-  if ok_title and title then
-    local t_user = title:match("([^@]+)@[^@]+")
-    if t_user then
-      user_name = t_user
-      user_icon = ICON.ssh
-      return user_name, user_icon
-    end
-  end
-  -- デフォルト（Local）
-  return user_name, user_icon
-end
 
+    local found_icon, found_user = find_context(proc)
+    if found_icon then return found_icon, found_user end
+  end
+
+  -- 何も見つからなければ最初に特定したローカルOSアイコンを返す
+  return current_env_icon, user_name
+end
 
 return M

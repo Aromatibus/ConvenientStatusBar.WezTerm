@@ -86,7 +86,7 @@ local function get_default_prog()
       "-NoExit", "-Command", string.format(". '%s'", profile_path)
     }
 ]]
-    return { "git-bash.exe" }
+    return { "bash.exe", "-l" }
   elseif wezterm.target_triple:find("apple") then
     return { "/bin/zsh", "-l" }
   else
