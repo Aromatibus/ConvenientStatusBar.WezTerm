@@ -74,32 +74,14 @@ config.quit_when_all_windows_are_closed = true
 -- ==========================================================
 -- [Shell]
 -- ==========================================================
-local function get_default_prog()
-  if wezterm.target_triple:find("windows") then
---[[
-    local current_drive = wezterm.executable_dir:match("(%a:)") or "C:"
-    local profile_path =
-        current_drive .. "\\DevTools\\PowerShell\\.pwsh\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
-    local pwsh_path = current_drive .. "\\DevTools\\PowerShell\\bin\\pwsh.exe"
-    return {
-      pwsh_path, "-ExecutionPolicy", "RemoteSigned",
-      "-NoExit", "-Command", string.format(". '%s'", profile_path)
-    }
-]]
-    return { "bash.exe", "-l" }
-  elseif wezterm.target_triple:find("apple") then
-    return { "/bin/zsh", "-l" }
-  else
-    return { "/bin/bash", "-l" }
-  end
-end
-config.default_prog = get_default_prog()
+local set_shell   = require("config.set_shell")
+set_shell.apply(config)
 
 
 -- ==========================================
 -- [Keybindings / Key Tables]
 -- ==========================================
-local keybinds = require("config/keybinds")
+local keybinds = require("config.keybinds")
 config.keys       = keybinds.keys
 config.key_tables = keybinds.key_tables
 config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 2000 }
@@ -117,7 +99,7 @@ config.leader = { key = "a", mods = "CTRL", timeout_milliseconds = 2000 }
 -- [Colors]
 -- ==========================================================
 -- カラーパレット適用
-local colors = require("config/colors")
+local colors = require("config.colors")
 colors.apply(config)
 -- プラグインからカラーパレット取得
 local ConvenientStatusBar = wezterm.plugin.require(
@@ -275,7 +257,7 @@ end)
 -- ==========================================================
 -- [StatusBar]
 -- ==========================================================
-require("config/status").apply(config)
+require("config.status").apply(config)
 
 
 return config
