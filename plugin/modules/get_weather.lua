@@ -189,8 +189,6 @@ function M.get_weather(config, state)
     config.weather_units
   )
 
-  wezterm.log_info("url: " .. url)
-
   -- APIリクエスト
   local ok, stdout = run_child_cmd.run({
     curl_cmd,
@@ -210,6 +208,8 @@ function M.get_weather(config, state)
   end
   -- JSONパース
   local ok_json, data = pcall(wezterm.json_parse, stdout)
+  wezterm.log_info("json: " .. data)
+
   if not ok_json or not data or not data.list then
     state.weather_ic       = unknown_icon
     state.temp_ic          = weather_icons.thermometer
