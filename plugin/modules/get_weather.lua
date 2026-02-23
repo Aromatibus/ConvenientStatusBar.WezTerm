@@ -140,6 +140,7 @@ end
 --- 天気データ取得
 --- ==========================================
 function M.get_weather(config, state)
+
   -- OS別curlコマンド
   local is_win   = wezterm.target_triple:find("windows")
   local curl_cmd = is_win and "curl.exe" or "curl"
@@ -155,7 +156,6 @@ function M.get_weather(config, state)
       "-s",
       ipapi_url,
     })
-
     if ok and res then
       tgt_city = res:match('"city":%s*"([^"]+)"')
       tgt_code =
@@ -180,6 +180,7 @@ function M.get_weather(config, state)
     tgt_code ~= "" and
     (enc_city .. "," .. tgt_code) or
     enc_city
+
   -- API URL（APIキーは引数）
   local url = string.format(
     openweathermap_forecast_url,
@@ -188,14 +189,17 @@ function M.get_weather(config, state)
     query,
     config.weather_units
   )
+
   -- URLログ出力
-  wezterm.log_info("url: " .. url)
+  --wezterm.log_info("url: " .. url)
+
   -- APIリクエスト
   local ok, stdout = run_child_cmd.run({
     curl_cmd,
     "-s",
     url
   })
+
   -- 通信エラー
   if not ok or not stdout then
     state.weather_ic       = unknown_icon
@@ -207,6 +211,7 @@ function M.get_weather(config, state)
     state.last_weather_upd = os.time()
     return
   end
+
   -- JSONパース
   local ok_json, data = pcall(wezterm.json_parse, stdout)
   if not ok_json or not data or not data.list then
@@ -218,10 +223,10 @@ function M.get_weather(config, state)
     state.last_weather_upd = os.time()
     return
   end
-  -- 天気データログ出力
-  wezterm.log_info("wea json: " .. wezterm.json_encode(data))
+
   -- タイムゾーン（UTCオフセット）取得
   state.weather_timezone_sec = data.city and data.city.timezone or 0
+
   -- 温度単位
   local unit_sym =
     config.weather_units == "metric" and
@@ -233,6 +238,7 @@ function M.get_weather(config, state)
   local id6, temp6 = parse_forecast(data, 3)
   local id9, temp9 = parse_forecast(data, 4)
   local id12, t12  = parse_forecast(data, 5)
+
   -- 現在
   state.weather_ic = get_icon(id0, weather_icons)
   state.temp_ic    = weather_icons.thermometer
@@ -240,30 +246,35 @@ function M.get_weather(config, state)
     temp0 and
     string.format("%4.1f%s", tonumber(temp0), unit_sym) or
     string.format("%5s", unknown_icon)
+
   -- 3h後
   state.weather_ic_3h = get_icon(id3, weather_icons)
   state.temp_3h =
     temp3 and
     string.format("%4.1f%s", tonumber(temp3), unit_sym) or
     ""
+
   -- 6h後
   state.weather_ic_6h = get_icon(id6, weather_icons)
   state.temp_6h =
     temp6 and
     string.format("%4.1f%s", tonumber(temp6), unit_sym) or
     ""
+
   -- 9h後
   state.weather_ic_9h = get_icon(id9, weather_icons)
   state.temp_9h =
     temp9 and
     string.format("%4.1f%s", tonumber(temp9), unit_sym) or
     ""
+
   -- 12h後
   state.weather_ic_12h = get_icon(id12, weather_icons)
   state.temp_12h =
     t12 and
     string.format("%4.1f%s", tonumber(t12), unit_sym) or
     ""
+
   -- 翌日12:00に近すぎる予報（現在〜5時間後）は除外する
   local now_tm = os.date("*t", os.time())
   local next_noon_tm = {
@@ -275,13 +286,16 @@ function M.get_weather(config, state)
     sec   = 0,
     isdst = now_tm.isdst,
   }
+
   -- 翌月・翌年を繰り上げ処理
   local next_noon = os.time(next_noon_tm)
   local nd_idx     = nil
   local nd_dt      = nil
   local min_diff   = math.huge
+
   -- 現在時間から1時間切り上げた時刻を取得
   local rounded_now = get_rounded_now()
+
   -- 予報リストから最も近いエントリを探索
   for i, entry in ipairs(data.list) do
     if entry.dt then
@@ -296,6 +310,7 @@ function M.get_weather(config, state)
       end
     end
   end
+
   -- 抽出結果を設定
   if nd_idx then
     -- 天気ID、温度、日時を抽出
