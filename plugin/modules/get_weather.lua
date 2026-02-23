@@ -188,7 +188,8 @@ function M.get_weather(config, state)
     query,
     config.weather_units
   )
-
+  -- URLログ出力
+  wezterm.log_info("url: " .. url)
   -- APIリクエスト
   local ok, stdout = run_child_cmd.run({
     curl_cmd,
@@ -208,8 +209,6 @@ function M.get_weather(config, state)
   end
   -- JSONパース
   local ok_json, data = pcall(wezterm.json_parse, stdout)
-  wezterm.log_info("json: " .. data)
-
   if not ok_json or not data or not data.list then
     state.weather_ic       = unknown_icon
     state.temp_ic          = weather_icons.thermometer
@@ -219,6 +218,8 @@ function M.get_weather(config, state)
     state.last_weather_upd = os.time()
     return
   end
+  -- 天気データログ出力
+  wezterm.log_info("wea json: " .. wezterm.json_encode(data))
   -- タイムゾーン（UTCオフセット）取得
   state.weather_timezone_sec = data.city and data.city.timezone or 0
   -- 温度単位
