@@ -188,6 +188,9 @@ function M.get_weather(config, state)
     query,
     config.weather_units
   )
+
+  wezterm.log_info("url: " .. url)
+
   -- APIリクエスト
   local ok, stdout = run_child_cmd.run({
     curl_cmd,
